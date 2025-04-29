@@ -2,19 +2,35 @@
 
 import posthog from "posthog-js"
 import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react"
-import { Suspense, useEffect } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  const [isPosthogReady, setIsPosthogReady] = useState(false)
+
   useEffect(() => {
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      api_host: "/ingest",
-      ui_host: "https://us.posthog.com",
-      capture_pageview: false, // We capture pageviews manually
-      capture_pageleave: true, // Enable pageleave capture
-      debug: process.env.NODE_ENV === "development",
-    })
+    // Only initialize PostHog if the token exists
+    const posthogToken = process.env.NEXT_PUBLIC_POSTHOG_KEY
+    
+    if (posthogToken) {
+      posthog.init(posthogToken, {
+        api_host: "/ingest",
+        ui_host: "https://us.posthog.com",
+        capture_pageview: false, // We capture pageviews manually
+        capture_pageleave: true, // Enable pageleave capture
+        debug: process.env.NODE_ENV === "development",
+      })
+    } else {
+      console.log("PostHog token not found. Analytics will be disabled.")
+    }
+    
+    setIsPosthogReady(true)
   }, [])
+
+  // If PostHog token doesn't exist or we're on the server, just render children
+  if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_POSTHOG_KEY || !isPosthogReady) {
+    return <>{children}</>
+  }
 
   return (
     <PHProvider client={posthog}>
