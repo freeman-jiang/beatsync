@@ -9,18 +9,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const AudioUploaderMinimal = () => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const roomId = useRoomStore((state) => state.roomId);
   const posthog = usePostHog();
 
   const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    file: File
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
     // Store file name for display
     setFileName(file.name);
 
@@ -112,14 +109,54 @@ export const AudioUploaderMinimal = () => {
     }
   };
 
+  const onInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    handleFileUpload(file);
+  };
+
+  const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const onDropEvent = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    // make sure we only allow audio files
+    if (!file.type.startsWith("audio/")) {
+      toast.error("Please select an audio file");
+      return;
+    };
+
+    handleFileUpload(file);
+  };
+
+
   return (
     <div
-      className={cn(
-        "border border-neutral-700/50 rounded-md mx-2 transition-all overflow-hidden",
-        isHovered ? "bg-neutral-800/50" : "bg-neutral-800/30"
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className={
+        cn(
+          "border border-neutral-700/50 rounded-md mx-2 transition-all overflow-hidden bg-neutral-800/30 hover:bg-neutral-800/50",
+          isDragging ? "outline outline-primary-400 outline-dashed" : "outline-none"
+        )
+      }
+      id="drop_zone"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDragEnd={onDragLeave}
+      onDrop={onDropEvent}
     >
       <label htmlFor="audio-upload" className="cursor-pointer block w-full">
         <div className="p-3 flex items-center gap-3">
@@ -151,7 +188,7 @@ export const AudioUploaderMinimal = () => {
         id="audio-upload"
         type="file"
         accept="audio/*"
-        onChange={handleFileUpload}
+        onChange={onInputChange}
         disabled={isUploading}
         className="hidden"
       />
