@@ -15,9 +15,7 @@ export const AudioUploaderMinimal = () => {
   const roomId = useRoomStore((state) => state.roomId);
   const posthog = usePostHog();
 
-  const handleFileUpload = async (
-    file: File
-  ) => {
+  const handleFileUpload = async (file: File) => {
     // Store file name for display
     setFileName(file.name);
 
@@ -55,8 +53,6 @@ export const AudioUploaderMinimal = () => {
             room_id: roomId,
           });
 
-          // Reset the input and file name after successful upload
-          event.target.value = "";
           setTimeout(() => setFileName(null), 3000);
         } catch (err) {
           console.error("Error during upload:", err);
@@ -138,20 +134,19 @@ export const AudioUploaderMinimal = () => {
     if (!file.type.startsWith("audio/")) {
       toast.error("Please select an audio file");
       return;
-    };
+    }
 
     handleFileUpload(file);
   };
 
-
   return (
     <div
-      className={
-        cn(
-          "border border-neutral-700/50 rounded-md mx-2 transition-all overflow-hidden bg-neutral-800/30 hover:bg-neutral-800/50",
-          isDragging ? "outline outline-primary-400 outline-dashed" : "outline-none"
-        )
-      }
+      className={cn(
+        "border border-neutral-700/50 rounded-md mx-2 transition-all overflow-hidden bg-neutral-800/30 hover:bg-neutral-800/50",
+        isDragging
+          ? "outline outline-primary-400 outline-dashed"
+          : "outline-none"
+      )}
       id="drop_zone"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
