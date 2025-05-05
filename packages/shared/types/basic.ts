@@ -12,3 +12,13 @@ export const PositionSchema = z.object({
   y: z.number().min(0).max(GRID.SIZE),
 });
 export type PositionType = z.infer<typeof PositionSchema>;
+
+
+/**
+ * Defines a track type.
+ */
+export interface Track {
+  id: number;
+  title: string;
+  artist: string;
+}

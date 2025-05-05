@@ -2,6 +2,13 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
+    "jsxImportSource": "hono/jsx",
+    "target": "ES2024",
+    "baseUrl": ".",
+    "paths": {
+      "@beatsync/shared": ["../../packages/shared/src/index"]
+    },
+    "outDir": "dist",
+    "moduleResolution": "bundler",
   }
 }
