@@ -6,7 +6,8 @@
     "dev": "turbo run dev",
     "start": "turbo run start",
     "server": "turbo start --filter=server",
-    "client": "turbo start --filter=client"
+    "client": "turbo start --filter=client",
+    "test:coverage": "bun test --coverage"
   },
   "workspaces": [
     "apps/*",
