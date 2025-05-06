@@ -34,6 +34,11 @@ bun install          # installs once for all workspaces
 bun dev              # starts both client (:3000) and server (:8080)
 ```
 
+Run the following command to run tests:
+```sh
+bun run test
+```
+
 | Directory         | Purpose                                                        |
 | ----------------- | -------------------------------------------------------------- |
 | `apps/server`     | Bun HTTP + WebSocket server                                    |

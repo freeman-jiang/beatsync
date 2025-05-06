@@ -3,6 +3,7 @@ import {
   epochNow,
   MoveClientType,
   WSBroadcastType,
+  ClientActionEnum,
 } from "@beatsync/shared";
 import { GRID, PositionType } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
@@ -323,6 +324,15 @@ class RoomManager {
 
     client.position = position;
     room.clients.set(clientId, client);
+
+    const roomUpdateMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: ClientActionEnum.Enum.CLIENT_CHANGE,
+        clients: this.getClients(roomId),
+      },
+    };
+    sendBroadcast({ server, roomId, message: roomUpdateMessage });
 
     // Update spatial audio config
     this._calculateGainsAndBroadcast({ room, server });
