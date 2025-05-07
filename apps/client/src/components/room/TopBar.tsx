@@ -1,24 +1,36 @@
+/// <reference types="lucide-react" />
+/// <reference types="motion/react" />
+/// <reference types="next/link" />
 "use client";
 import { useGlobalStore } from "@/store/global";
-import { Github, Hash, Users } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import Link from "next/link";
+import { Github, Hash, Users } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import Link from 'next/link';
 import { SyncProgress } from "../ui/SyncProgress";
+import { QRCodeModal } from '../QRCodeModal';
 
 interface TopBarProps {
   roomId: string;
 }
 
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}
+
 export const TopBar = ({ roomId }: TopBarProps) => {
-  const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
-  const isSynced = useGlobalStore((state) => state.isSynced);
-  const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
-  const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
-  const resetNTPConfig = useGlobalStore((state) => state.resetNTPConfig);
-  const pauseAudio = useGlobalStore((state) => state.pauseAudio);
-  const connectedClients = useGlobalStore((state) => state.connectedClients);
-  const setIsLoadingAudio = useGlobalStore((state) => state.setIsInitingSystem);
-  const clockOffset = useGlobalStore((state) => state.offsetEstimate);
+  const isLoadingAudio = useGlobalStore((state: any) => state.isInitingSystem);
+  const isSynced = useGlobalStore((state: any) => state.isSynced);
+  const roundTripEstimate = useGlobalStore((state: any) => state.roundTripEstimate);
+  const sendNTPRequest = useGlobalStore((state: any) => state.sendNTPRequest);
+  const resetNTPConfig = useGlobalStore((state: any) => state.resetNTPConfig);
+  const pauseAudio = useGlobalStore((state: any) => state.pauseAudio);
+  const connectedClients = useGlobalStore((state: any) => state.connectedClients);
+  const setIsLoadingAudio = useGlobalStore((state: any) => state.setIsInitingSystem);
+  const clockOffset = useGlobalStore((state: any) => state.offsetEstimate);
   const resync = () => {
     try {
       pauseAudio({ when: 0 });
@@ -76,6 +88,10 @@ export const TopBar = ({ roomId }: TopBarProps) => {
           >
             Full Sync
           </button>
+          {/* Add QR Code Modal button */}
+          <div className="hidden md:block">
+            <QRCodeModal roomId={roomId} />
+          </div>
         </div>
 
         {/* GitHub icon in the top right */}
