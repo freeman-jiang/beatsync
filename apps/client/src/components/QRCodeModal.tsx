@@ -1,18 +1,17 @@
 import React from 'react';
 import QRCode from 'react-qr-code';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Button } from './ui/button';
 
 interface QRCodeModalProps {
   roomId: string;
 }
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({ roomId }: QRCodeModalProps) => {
-  const joinUrl = `https://www.beatsync.gg/room/${roomId}`;
+  const joinUrl = `${window.location.origin}/room/${roomId}`;
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="text-xs">Show QR Code</Button>
+        <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer">QR Code</span>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-4">
         <div className="flex flex-col items-center">
