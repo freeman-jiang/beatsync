@@ -1,7 +1,8 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "types": ["@types/eslint"],
     "strict": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
+    "rootDir": "./src"
   }
 }

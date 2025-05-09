@@ -2,8 +2,14 @@
 
 # Add .turbo to your .gitignore file. The turbo CLI uses these folders for persisting logs, outputs, and other functionality.
 .turbo
-node_modules
 
 # uploads in server
-apps/server/uploads/*
+**/uploads/
 .DS_Store
+
+# Already set up here, so we can setup eslint ignores easier
+**/node_modules/
+**/.vercel/
+**/build/
+**/.next/
+**/out/

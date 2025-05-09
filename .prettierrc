@@ -1,0 +1,43 @@
+{
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "printWidth": 126,
+  "useTabs": false,
+  "trailingComma": "es5",
+  "overrides": [
+    {
+      "files": "./apps/client/**/*",
+      "options": {
+        "trailingComma": "es5",
+        "plugins": ["@ianvs/prettier-plugin-sort-imports", "prettier-plugin-sort-json"],
+        "importOrder": [
+          "^(react/(.*)$)|^(react$)",
+          "^(next/(.*)$)|^(next$)",
+          "<THIRD_PARTY_MODULES>",
+          "",
+          "^@/(.*)$",
+          "^(@beatsync/shared)",
+          "^[.]"
+        ],
+        "importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"]
+      }
+    },
+    {
+      "files": [ "./apps/server/**/*", "./packages/**/*" ],
+      "options": {
+        "plugins": ["@ianvs/prettier-plugin-sort-imports", "prettier-plugin-sort-json"],
+        "importOrder": [
+          "^(bun/?(.*)$)",
+          "^(node|fs)",
+          "<THIRD_PARTY_MODULES>",
+          "",
+          "^@/(.*)$",
+          "^(@beatsync/shared)",
+          "^[.]"
+        ],
+        "importOrderParserPlugins": ["typescript", "decorators-legacy"]
+      }
+    }
+  ]
+}
