@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "types": ["@types/eslint"],
     // Enable latest features
     "lib": ["ESNext", "DOM"],
     "target": "ESNext",
@@ -13,6 +14,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
+    "esModuleInterop": true,
 
     // Best practices
     "strict": true,
@@ -22,6 +24,7 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
-  }
+    "noPropertyAccessFromIndexSignature": false,
+    "useUnknownInCatchVariables": false,
+  },
 }
