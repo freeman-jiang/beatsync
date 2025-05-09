@@ -3,7 +3,6 @@
 /// <reference types="next/link" />
 "use client";
 import { useGlobalStore } from "@/store/global";
-import type { GlobalState } from "@/store/global";
 import { Github, Hash, Users } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
@@ -12,17 +11,6 @@ import { QRCodeModal } from '../QRCodeModal';
 
 interface TopBarProps {
   roomId: string;
-}
-
-interface ConnectedClient {
-  username: string;
-  clientId: string;
-  rtt: number;
-  position: {
-    x: number;
-    y: number;
-  };
-  ws?: any;
 }
 
 export const TopBar = ({ roomId }: TopBarProps) => {
