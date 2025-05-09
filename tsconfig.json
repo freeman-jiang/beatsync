@@ -26,5 +26,10 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "useUnknownInCatchVariables": false,
+    
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["packages/shared/types/*", "apps/server/src/*", "apps/client/src/*"]
+    }
   },
 }

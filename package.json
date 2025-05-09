@@ -30,6 +30,7 @@
     "eslint": "^9.26.0",
     "eslint-config-next": "^15.1.4",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^4.3.4",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.4.2",
     "prettier-plugin-sort-json": "^4.1.1",

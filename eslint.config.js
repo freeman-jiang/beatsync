@@ -3,6 +3,7 @@ import tseslint from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 import { includeIgnoreFile } from "@eslint/compat";
 import { fileURLToPath } from "node:url";
+import { createTypeScriptImportResolver } from "eslint-import-resolver-typescript";
 
 /**
  * Links to rulebooks:
@@ -18,6 +19,20 @@ const gitignorePath = fileURLToPath(new URL(".gitignore", import.meta.url));
  */
 export default tseslint.config(
   includeIgnoreFile(gitignorePath),
+  {
+    settings: {
+      "import/resolver": [
+        createTypeScriptImportResolver({
+          alwaysTryTypes: true, // always try to resolve types under `<root>@types` directory even it doesn't contain any source code, like `@types/unist`
+
+          bun: true, // resolve Bun modules https://github.com/import-js/eslint-import-resolver-typescript#bun
+
+          // We have the option to include multiple tsconfigs, but our main one holds the relevant "paths" value for all modules
+          project: "./tsconfig.json",
+        }),
+      ],
+    },
+  },
   stylistic.configs.customize({
     commaDangle: "only-multiline",
     indent: 2,
@@ -141,7 +156,7 @@ export default tseslint.config(
           allowTemplateLiterals: "avoidEscape",
         }
       ],
-      "@stylistic/no-trailing-spaces": [ "warn", {
+      "@stylistic/no-trailing-spaces": ["warn", {
         ignoreComments: true
       }],
     },
