@@ -80,7 +80,7 @@ interface GlobalStateValues {
   isShuffled: boolean;
 }
 
-interface GlobalState extends GlobalStateValues {
+export interface GlobalState extends GlobalStateValues {
   // Methods
   setIsInitingSystem: (isIniting: boolean) => void;
   addToUploadHistory: (name: string, id: string) => void;
@@ -127,6 +127,7 @@ interface GlobalState extends GlobalStateValues {
   getCurrentGainValue: () => number;
   resetStore: () => void;
 }
+
 // Audio sources
 const STATIC_AUDIO_SOURCES: StaticAudioSource[] = [
   {
