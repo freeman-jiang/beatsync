@@ -3,6 +3,7 @@
 /// <reference types="next/link" />
 "use client";
 import { useGlobalStore } from "@/store/global";
+import type { GlobalState } from "@/store/global";
 import { Github, Hash, Users } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
@@ -22,18 +23,6 @@ interface ConnectedClient {
     y: number;
   };
   ws?: any;
-}
-
-interface GlobalState {
-  isInitingSystem: boolean;
-  isSynced: boolean;
-  roundTripEstimate: number;
-  sendNTPRequest: () => void;
-  resetNTPConfig: () => void;
-  pauseAudio: (params: { when: number }) => void;
-  connectedClients: ConnectedClient[];
-  setIsInitingSystem: (value: boolean) => void;
-  offsetEstimate: number;
 }
 
 export const TopBar = ({ roomId }: TopBarProps) => {
