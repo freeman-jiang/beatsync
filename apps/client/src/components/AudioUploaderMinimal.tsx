@@ -7,17 +7,19 @@ import { CloudUpload, Plus } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export const AudioUploaderMinimal = () => {
+  const [isFolderUpload, setIsFolderUpload] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const roomId = useRoomStore((state) => state.roomId);
   const posthog = usePostHog();
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, isFromFolder?: boolean) => {
     // Store file name for display
-    setFileName(file.name);
+    if (!isFromFolder) setFileName(file.name);
 
     // Track upload initiated
     posthog.capture("upload_initiated", {
@@ -53,11 +55,12 @@ export const AudioUploaderMinimal = () => {
             room_id: roomId,
           });
 
-          setTimeout(() => setFileName(null), 3000);
+          if (!isFromFolder) setTimeout(() => setFileName(null), 3000);
+          if (isFromFolder) toast.success(`Uploaded ${file.name}`);
         } catch (err) {
           console.error("Error during upload:", err);
           toast.error("Failed to upload audio file");
-          setFileName(null);
+          if (!isFromFolder) setFileName(null);
 
           // Track upload failure
           posthog.capture("upload_failed", {
@@ -75,7 +78,7 @@ export const AudioUploaderMinimal = () => {
       reader.onerror = () => {
         toast.error("Failed to read file");
         setIsUploading(false);
-        setFileName(null);
+        if (!isFromFolder) setFileName(null);
 
         // Track file read error
         posthog.capture("upload_failed", {
@@ -92,7 +95,7 @@ export const AudioUploaderMinimal = () => {
       console.error("Error:", err);
       toast.error("Failed to process file");
       setIsUploading(false);
-      setFileName(null);
+      if (!isFromFolder) setFileName(null);
 
       // Track upload processing error
       posthog.capture("upload_failed", {
@@ -106,9 +109,29 @@ export const AudioUploaderMinimal = () => {
   };
 
   const onInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    handleFileUpload(file);
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const currentIsFolderUpload = (event.target as HTMLInputElement & { webkitdirectory?: boolean }).webkitdirectory || isFolderUpload;
+
+    if (currentIsFolderUpload) {
+      for (let i = 0; i < files.length; i++) {
+        if (files[i].type.startsWith("audio/")) {
+          handleFileUpload(files[i], true);
+        } else {
+          toast.error(`Skipping non-audio file: ${files[i].name}`);
+        }
+      }
+      // Reset the input value to allow uploading the same folder again
+      event.target.value = '';
+      setIsFolderUpload(false); // Reset folder upload mode
+    } else {
+      if (files[0].type.startsWith("audio/")) {
+        handleFileUpload(files[0]);
+      } else {
+        toast.error("Please select an audio file");
+      }
+    }
   };
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -153,7 +176,7 @@ export const AudioUploaderMinimal = () => {
       onDragEnd={onDragLeave}
       onDrop={onDropEvent}
     >
-      <label htmlFor="audio-upload" className="cursor-pointer block w-full">
+      <label htmlFor={isFolderUpload ? "folder-upload-minimal" : "audio-upload"} className="cursor-pointer block w-full">
         <div className="p-3 flex items-center gap-3">
           <div className="bg-primary-700 text-white p-1.5 rounded-md flex-shrink-0">
             {isUploading ? (
@@ -187,6 +210,42 @@ export const AudioUploaderMinimal = () => {
         disabled={isUploading}
         className="hidden"
       />
+      <input
+        id="folder-upload-minimal"
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={(e) => {
+          // Check if files were selected (i.e., not cancelled)
+          if (e.target.files && e.target.files.length > 0) {
+            setIsFolderUpload(true);
+            onInputChange(e);
+          } else {
+            // Handle cancellation or no files selected
+            setIsFolderUpload(false); 
+          }
+        }}
+        disabled={isUploading}
+        webkitdirectory=""
+        mozdirectory="true"
+        directory="true"
+      />
+      {fileName && !isFolderUpload && (
+        <div className="text-xs text-muted-foreground mt-2 truncate">
+          {trimFileName(fileName)}
+        </div>
+      )}
+      <div className="p-3 pt-0">
+        <Button variant="outline" size="sm" className="w-full" onClick={() => {
+          // Trigger click on the hidden folder input
+          const folderInput = document.getElementById('folder-upload-minimal') as HTMLInputElement | null;
+          if (folderInput) {
+            folderInput.click();
+          }
+        }} disabled={isUploading}>
+          <Plus className="mr-2 h-4 w-4" /> Upload Folder
+        </Button>
+      </div>
     </div>
   );
 };
