@@ -1,19 +1,40 @@
 {
   "name": "beatsync",
   "packageManager": "bun@1.2.2",
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "start": "turbo run start",
     "server": "turbo start --filter=server",
-    "client": "turbo start --filter=client"
+    "client": "turbo start --filter=client",
+    "lint": "eslint \"./\"",
+    "lint:fix": "eslint \"./\" --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
-    "@types/bun": "latest"
+    "@eslint/compat": "^1.2.9",
+    "@eslint/js": "^9.26.0",
+    "@ianvs/prettier-plugin-sort-imports": "4.4.0",
+    "@stylistic/eslint-plugin": "^4.2.0",
+    "@types/bun": "latest",
+    "@types/eslint": "^9.6.1",
+    "@types/eslint__js": "^9.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "8.19.1",
+    "eslint": "^9.26.0",
+    "eslint-config-next": "^15.1.4",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^4.3.4",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "^3.4.2",
+    "prettier-plugin-sort-json": "^4.1.1",
+    "typescript-eslint": "^8.32.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
