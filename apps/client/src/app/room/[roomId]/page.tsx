@@ -1,5 +1,7 @@
 import { NewSyncer } from "@/components/NewSyncer";
 import { validateFullRoomId } from "@/lib/room";
+import YouTubeSearch from "@/components/YouTubeSearch";
+import YouTubePlayer from "@/components/YouTubePlayer";
 
 export default async function Page({
   params,
@@ -7,6 +9,7 @@ export default async function Page({
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = await params;
+
   if (!validateFullRoomId(roomId)) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-2">
@@ -20,5 +23,11 @@ export default async function Page({
     );
   }
 
-  return <NewSyncer roomId={roomId} />;
+  return (
+    <div className="flex flex-col gap-6 p-4">
+      <NewSyncer roomId={roomId} />
+      <YouTubeSearch />
+      <YouTubePlayer />
+    </div>
+  );
 }

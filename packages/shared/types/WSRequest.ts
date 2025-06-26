@@ -1,9 +1,18 @@
 import { z } from "zod";
 import { PositionSchema } from "./basic";
+
+//
+// ─── CLIENT ─────────────────────────────────────────────────────────────────────
+//
+
 export const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
 });
+
+//
+// ─── ACTION ENUM ────────────────────────────────────────────────────────────────
+//
 
 export const ClientActionEnum = z.enum([
   "PLAY",
@@ -16,7 +25,12 @@ export const ClientActionEnum = z.enum([
   "REORDER_CLIENT",
   "SET_LISTENING_SOURCE",
   "MOVE_CLIENT",
+  "YOUTUBE_SYNC", // ✅ added YouTube sync
 ]);
+
+//
+// ─── INDIVIDUAL MESSAGE SCHEMAS ────────────────────────────────────────────────
+//
 
 export const NTPRequestPacketSchema = z.object({
   type: z.literal(ClientActionEnum.enum.NTP_REQUEST),
@@ -65,6 +79,24 @@ const MoveClientSchema = z.object({
 });
 export type MoveClientType = z.infer<typeof MoveClientSchema>;
 
+//
+// ─── YOUTUBE SYNC SCHEMA ───────────────────────────────────────────────────────
+//
+
+const YouTubeSyncSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.YOUTUBE_SYNC),
+  payload: z.object({
+    videoId: z.string(),
+    timestamp: z.number(),
+    action: z.enum(["play", "pause", "seek"]),
+  }),
+});
+export type YouTubeSyncType = z.infer<typeof YouTubeSyncSchema>;
+
+//
+// ─── MAIN DISCRIMINATED UNION ──────────────────────────────────────────────────
+//
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -75,7 +107,13 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ReorderClientSchema,
   SetListeningSourceSchema,
   MoveClientSchema,
+  YouTubeSyncSchema, // ✅ Added here
 ]);
+
+//
+// ─── TYPES ──────────────────────────────────────────────────────────────────────
+//
+
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
 export type PauseActionType = z.infer<typeof PauseActionSchema>;

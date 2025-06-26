@@ -3,6 +3,7 @@ import {
   epochNow,
   WSBroadcastType,
   WSRequestSchema,
+  YouTubeSyncType, // ✅ NEW
 } from "@beatsync/shared";
 import { Server, ServerWebSocket } from "bun";
 import { SCHEDULE_TIME_MS } from "../config";
@@ -25,6 +26,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   console.log(
     `WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`
   );
+
   sendUnicast({
     ws,
     message: {
@@ -35,7 +37,6 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
 
   const { roomId } = ws.data;
   ws.subscribe(roomId);
-
   roomManager.addClient(ws);
 
   const message = createClientUpdate(roomId);
@@ -56,26 +57,24 @@ export const handleMessage = async (
 
     if (parsedMessage.type !== ClientActionEnum.enum.NTP_REQUEST) {
       console.log(
-        `Room: ${roomId} | User: ${username} | Message: ${JSON.stringify(
-          parsedMessage
-        )}`
+        `Room: ${roomId} | User: ${username} | Message: ${JSON.stringify(parsedMessage)}`
       );
     }
 
-    // NTP Request
     if (parsedMessage.type === ClientActionEnum.enum.NTP_REQUEST) {
       sendUnicast({
         ws,
         message: {
           type: "NTP_RESPONSE",
-          t0: parsedMessage.t0, // Echo back the client's t0
-          t1, // Server receive time
-          t2: epochNow(), // Server send time
+          t0: parsedMessage.t0,
+          t1,
+          t2: epochNow(),
         },
       });
-
       return;
-    } else if (
+    }
+
+    if (
       parsedMessage.type === ClientActionEnum.enum.PLAY ||
       parsedMessage.type === ClientActionEnum.enum.PAUSE
     ) {
@@ -85,43 +84,34 @@ export const handleMessage = async (
         message: {
           type: "SCHEDULED_ACTION",
           scheduledAction: parsedMessage,
-          serverTimeToExecute: epochNow() + SCHEDULE_TIME_MS, // 500 ms from now
-          // TODO: Make the longest RTT + some amount instead of hardcoded this breaks for long RTTs
+          serverTimeToExecute: epochNow() + SCHEDULE_TIME_MS,
         },
       });
-
       return;
-    } else if (
-      parsedMessage.type === ClientActionEnum.enum.START_SPATIAL_AUDIO
-    ) {
-      // Start loop only if not already started
-      const room = roomManager.getRoomState(roomId);
-      if (!room || room.intervalId) return; // do nothing if no room or interval already exists
+    }
 
+    if (parsedMessage.type === ClientActionEnum.enum.START_SPATIAL_AUDIO) {
+      const room = roomManager.getRoomState(roomId);
+      if (!room || room.intervalId) return;
       roomManager.startInterval({ server, roomId });
-    } else if (
-      parsedMessage.type === ClientActionEnum.enum.STOP_SPATIAL_AUDIO
-    ) {
-      // This important for
+    }
+
+    else if (parsedMessage.type === ClientActionEnum.enum.STOP_SPATIAL_AUDIO) {
       const message: WSBroadcastType = {
         type: "SCHEDULED_ACTION",
-        scheduledAction: {
-          type: "STOP_SPATIAL_AUDIO",
-        },
+        scheduledAction: { type: "STOP_SPATIAL_AUDIO" },
         serverTimeToExecute: epochNow() + 0,
       };
 
-      // Reset all gains:
       sendBroadcast({ server, roomId, message });
 
-      // Stop the spatial audio interval if it exists
       const room = roomManager.getRoomState(roomId);
-      if (!room || !room.intervalId) return; // do nothing if no room or no interval exists
+      if (!room || !room.intervalId) return;
 
       roomManager.stopInterval(roomId);
-    } else if (parsedMessage.type === ClientActionEnum.enum.REUPLOAD_AUDIO) {
-      // Handle reupload request by broadcasting the audio source again
-      // This will trigger clients that don't have this audio to download it
+    }
+
+    else if (parsedMessage.type === ClientActionEnum.enum.REUPLOAD_AUDIO) {
       sendBroadcast({
         server,
         roomId,
@@ -129,23 +119,23 @@ export const handleMessage = async (
           type: "ROOM_EVENT",
           event: {
             type: "NEW_AUDIO_SOURCE",
-            id: parsedMessage.audioId, // Use the existing file ID
-            title: parsedMessage.audioName, // Use the original name
-            duration: 1, // TODO: Calculate properly
+            id: parsedMessage.audioId,
+            title: parsedMessage.audioName,
+            duration: 1,
             addedAt: Date.now(),
             addedBy: roomId,
           },
         },
       });
-    } else if (parsedMessage.type === ClientActionEnum.enum.REORDER_CLIENT) {
-      // Handle client reordering
+    }
+
+    else if (parsedMessage.type === ClientActionEnum.enum.REORDER_CLIENT) {
       const reorderedClients = roomManager.reorderClients({
         roomId,
         clientId: parsedMessage.clientId,
         server,
       });
 
-      // Broadcast the updated client order to all clients
       sendBroadcast({
         server,
         roomId,
@@ -157,19 +147,33 @@ export const handleMessage = async (
           },
         },
       });
-    } else if (
-      parsedMessage.type === ClientActionEnum.enum.SET_LISTENING_SOURCE
-    ) {
-      // Handle listening source update
+    }
+
+    else if (parsedMessage.type === ClientActionEnum.enum.SET_LISTENING_SOURCE) {
       roomManager.updateListeningSource({
         roomId,
         position: parsedMessage,
         server,
       });
-    } else if (parsedMessage.type === ClientActionEnum.enum.MOVE_CLIENT) {
-      // Handle client move
+    }
+
+    else if (parsedMessage.type === ClientActionEnum.enum.MOVE_CLIENT) {
       roomManager.moveClient({ parsedMessage, roomId, server });
-    } else {
+    }
+
+    // ✅ NEW: Handle YouTube sync messages
+    else if (parsedMessage.type === ClientActionEnum.enum.YOUTUBE_SYNC) {
+      const payload = parsedMessage.payload as YouTubeSyncType["payload"];
+
+      const message: WSBroadcastType = {
+        type: "YOUTUBE_SYNC",
+        payload,
+      };
+
+      sendBroadcast({ server, roomId, message });
+    }
+
+    else {
       console.log(`UNRECOGNIZED MESSAGE: ${JSON.stringify(parsedMessage)}`);
     }
   } catch (error) {
@@ -195,9 +199,6 @@ export const handleClose = async (
     ws.unsubscribe(ws.data.roomId);
     server.publish(ws.data.roomId, JSON.stringify(message));
   } catch (error) {
-    console.error(
-      `Error handling WebSocket close for ${ws.data?.username}:`,
-      error
-    );
+    console.error(`Error handling WebSocket close for ${ws.data?.username}:`, error);
   }
 };
