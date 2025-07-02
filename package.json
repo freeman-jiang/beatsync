@@ -19,6 +19,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@aws-sdk/s3-request-presigner": "^3.828.0",
     "turbo": "^2.4.4"
   }
 }

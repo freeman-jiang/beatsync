@@ -1,10 +1,9 @@
 import { GetAudioSchema } from "@beatsync/shared";
 import { Server } from "bun";
-import * as path from "path";
-import { AUDIO_DIR } from "../config";
 import { errorResponse } from "../utils/responses";
+import { getPublicAudioUrl } from "../lib/r2";
 
-export const handleGetAudio = async (req: Request, server: Server) => {
+export const handleGetAudio = async (req: Request, _server: Server) => {
   try {
     // Check if it's a POST request
     if (req.method !== "POST") {
@@ -30,21 +29,24 @@ export const handleGetAudio = async (req: Request, server: Server) => {
 
     const { id } = parseResult.data;
 
-    // Create a BunFile reference to the audio file
-    // The id already contains the room-specific path
-    const audioPath = path.join(AUDIO_DIR, id);
-    const file = Bun.file(audioPath);
-
-    // Check if file exists using Bun.file's exists() method
-    if (!(await file.exists())) {
-      return errorResponse("Audio file not found", 404);
+    // Parse room ID and filename from the file ID
+    // ID format: "room-{roomId}/{fileName}"
+    const parts = id.split('/');
+    if (parts.length !== 2 || !parts[0].startsWith('room-')) {
+      return errorResponse("Invalid file ID format", 400);
     }
 
-    // Return the file directly as the response body
-    return new Response(file, {
+    const roomId = parts[0].substring(5); // Remove "room-" prefix
+    const fileName = parts[1];
+
+    // Generate R2 public URL and redirect
+    const publicUrl = getPublicAudioUrl(roomId, fileName);
+    
+    // Return a redirect to the R2 public URL
+    return new Response(null, {
+      status: 302,
       headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": file.size.toString(),
+        "Location": publicUrl,
         "Access-Control-Allow-Origin": "*",
       },
     });

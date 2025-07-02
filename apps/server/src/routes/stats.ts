@@ -1,12 +1,10 @@
-import { existsSync } from "node:fs";
-import { readdir } from "node:fs/promises";
 import type { CpuInfo } from "os";
 import * as os from "os";
-import { AUDIO_DIR } from "../config";
 import { roomManager } from "../roomManager";
+import { formatBytes, getBlobStats } from "../utils/blobStats";
 import { corsHeaders } from "../utils/responses";
 
-export async function handleStats(req: Request): Promise<Response> {
+export async function handleStats(): Promise<Response> {
   const cpus = os.cpus();
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
@@ -37,45 +35,75 @@ export async function handleStats(req: Request): Promise<Response> {
     },
   };
 
-  // --- Add Room Manager Stats ---
-  const roomDetails = Object.fromEntries(
-    Array.from(roomManager.rooms.entries()).map(([roomId, roomData]) => [
-      roomId,
-      {
+  // --- Get Blob Storage Stats ---
+  const blobStats = await getBlobStats();
+
+  // --- Add Room Manager Stats with enriched storage info ---
+  const activeRooms = Array.from(roomManager.rooms.entries()).map(
+    ([roomId, roomData]) => {
+      const storageInfo = blobStats.activeRooms[roomId];
+      return {
+        roomId,
         clientCount: roomData.clients.size,
-        // Add other room-specific details if needed
-      },
-    ])
+        fileCount: storageInfo?.fileCount || 0,
+        totalSize: storageInfo?.totalSize || "0 B",
+        totalSizeBytes: storageInfo?.totalSizeBytes || 0,
+        files: storageInfo?.files || [],
+      };
+    }
   );
 
-  // --- Add Audio Directory Stats ---
-  let audioDirStats: Record<string, any> = {
-    path: AUDIO_DIR,
-    exists: false,
-    roomFolders: 0,
-    error: null,
-  };
-  try {
-    if (existsSync(AUDIO_DIR)) {
-      audioDirStats.exists = true;
-      const entries = await readdir(AUDIO_DIR, { withFileTypes: true });
-      audioDirStats.roomFolders = entries.filter(
-        (entry) => entry.isDirectory() && entry.name.startsWith("room-")
-      ).length;
-      // Could add total size calculation here if needed (e.g., using du)
-    }
-  } catch (err: any) {
-    console.error("Error reading audio directory:", err);
-    audioDirStats.error = err.message;
-  }
+  // Sort rooms by total size (largest first)
+  activeRooms.sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);
+
+  // Calculate totals for active rooms
+  const activeRoomsTotalSize = activeRooms.reduce(
+    (sum, room) => sum + room.totalSizeBytes,
+    0
+  );
+  const activeRoomsTotalFiles = activeRooms.reduce(
+    (sum, room) => sum + room.fileCount,
+    0
+  );
+
+  // Calculate totals for orphaned rooms
+  const orphanedRoomsArray = Object.entries(blobStats.orphanedRooms).map(
+    ([roomId, data]) => ({
+      roomId,
+      ...data,
+    })
+  );
+  const orphanedRoomsTotalSize = orphanedRoomsArray.reduce(
+    (sum, room) => sum + room.totalSizeBytes,
+    0
+  );
+  const orphanedRoomsTotalFiles = orphanedRoomsArray.reduce(
+    (sum, room) => sum + room.fileCount,
+    0
+  );
+
   // --- Combine stats ---
   const combinedStats = {
     ...stats, // Existing CPU and Memory stats
-    rooms: {
-      total: roomManager.rooms.size,
-      details: roomDetails,
+    status: {
+      totalObjects: blobStats.totalObjects,
+      totalSize: blobStats.totalSize,
+      totalSizeBytes: blobStats.totalSizeBytes,
+      activeRooms: {
+        total: activeRooms.length,
+        totalFiles: activeRoomsTotalFiles,
+        totalSize: formatBytes(activeRoomsTotalSize),
+        totalSizeBytes: activeRoomsTotalSize,
+        rooms: activeRooms,
+      },
+      orphanedRooms: {
+        total: blobStats.orphanedCount,
+        totalFiles: orphanedRoomsTotalFiles,
+        totalSize: formatBytes(orphanedRoomsTotalSize),
+        totalSizeBytes: orphanedRoomsTotalSize,
+        rooms: blobStats.orphanedRooms,
+      },
     },
-    audioStorage: audioDirStats,
   };
 
   return new Response(JSON.stringify(combinedStats), {

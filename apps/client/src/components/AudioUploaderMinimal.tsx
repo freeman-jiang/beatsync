@@ -32,79 +32,94 @@ export const AudioUploaderMinimal = () => {
     try {
       setIsUploading(true);
 
-      // Read file as base64
-      const reader = new FileReader();
+try {
+  if (isFromFolder) {
+    // Use base64 conversion for folder uploads
+    const reader = new FileReader();
 
-      reader.onload = async (e) => {
-        try {
-          const base64Data = e.target?.result?.toString().split(",")[1];
-          if (!base64Data) throw new Error("Failed to convert file to base64");
+    reader.onload = async (e) => {
+      try {
+        const base64Data = e.target?.result?.toString().split(",")[1];
+        if (!base64Data) throw new Error("Failed to convert file to base64");
 
-          // Upload the file to the server
-          await uploadAudioFile({
-            name: file.name,
-            audioData: base64Data,
-            roomId,
-          });
+        await uploadAudioFile({
+          name: file.name,
+          audioData: base64Data,
+          roomId,
+        });
 
-          // Track successful upload
-          posthog.capture("upload_success", {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            room_id: roomId,
-          });
+        posthog.capture("upload_success", {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          room_id: roomId,
+        });
 
-          if (!isFromFolder) setTimeout(() => setFileName(null), 3000);
-          if (isFromFolder) toast.success(`Uploaded ${file.name}`);
-        } catch (err) {
-          console.error("Error during upload:", err);
-          toast.error("Failed to upload audio file");
-          if (!isFromFolder) setFileName(null);
+        toast.success(`Uploaded ${file.name}`);
+      } catch (err) {
+        console.error("Error during upload:", err);
+        toast.error("Failed to upload audio file");
 
-          // Track upload failure
-          posthog.capture("upload_failed", {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            room_id: roomId,
-            error: err instanceof Error ? err.message : "Unknown error",
-          });
-        } finally {
-          setIsUploading(false);
-        }
-      };
-
-      reader.onerror = () => {
-        toast.error("Failed to read file");
-        setIsUploading(false);
-        if (!isFromFolder) setFileName(null);
-
-        // Track file read error
         posthog.capture("upload_failed", {
           file_name: file.name,
           file_size: file.size,
           file_type: file.type,
           room_id: roomId,
-          error: "Failed to read file",
+          error: err instanceof Error ? err.message : "Unknown error",
         });
-      };
+      } finally {
+        setIsUploading(false);
+      }
+    };
 
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error("Error:", err);
-      toast.error("Failed to process file");
+    reader.onerror = () => {
+      toast.error("Failed to read file");
       setIsUploading(false);
-      if (!isFromFolder) setFileName(null);
 
-      // Track upload processing error
       posthog.capture("upload_failed", {
         file_name: file.name,
         file_size: file.size,
         file_type: file.type,
         room_id: roomId,
-        error: err instanceof Error ? err.message : "Unknown processing error",
+        error: "Failed to read file",
       });
+    };
+
+    reader.readAsDataURL(file);
+  } else {
+    // Upload binary file normally
+    await uploadAudioFile({
+      file,
+      roomId,
+    });
+
+    posthog.capture("upload_success", {
+      file_name: file.name,
+      file_size: file.size,
+      file_type: file.type,
+      room_id: roomId,
+    });
+
+    setTimeout(() => setFileName(null), 3000);
+    setIsUploading(false);
+  }
+} catch (err) {
+  console.error("Error:", err);
+  toast.error("Failed to process file");
+  setIsUploading(false);
+  if (!isFromFolder) setFileName(null);
+}
+
+      // Track upload failure
+      posthog.capture("upload_failed", {
+        file_name: file.name,
+        file_size: file.size,
+        file_type: file.type,
+        room_id: roomId,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 

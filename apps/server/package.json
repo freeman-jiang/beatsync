@@ -2,13 +2,18 @@
   "name": "server",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
+    "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.828.0",
     "@beatsync/shared": "workspace:*",
     "@distube/ytdl-core": "^4.16.4",
+    "dotenv": "^16.5.0",
     "hono": "^4.7.2",
     "nanoid": "^5.1.5",
+    "sanitize-filename": "^1.6.3",
     "zod": "^3.24.2"
   },
   "devDependencies": {

@@ -54,11 +54,13 @@ export const handleMessage = async (
     const parsedData = JSON.parse(message.toString());
     const parsedMessage = WSRequestSchema.parse(parsedData);
 
-    console.log(
-      `Room: ${roomId} | User: ${username} | Message: ${JSON.stringify(
-        parsedMessage
-      )}`
-    );
+    if (parsedMessage.type !== ClientActionEnum.enum.NTP_REQUEST) {
+      console.log(
+        `Room: ${roomId} | User: ${username} | Message: ${JSON.stringify(
+          parsedMessage
+        )}`
+      );
+    }
 
     // NTP Request
     if (parsedMessage.type === ClientActionEnum.enum.NTP_REQUEST) {
@@ -178,14 +180,24 @@ export const handleMessage = async (
   }
 };
 
-export const handleClose = (ws: ServerWebSocket<WSData>, server: Server) => {
-  console.log(
-    `WebSocket connection closed for user ${ws.data.username} in room ${ws.data.roomId}`
-  );
-  ws.unsubscribe(ws.data.roomId);
+export const handleClose = async (
+  ws: ServerWebSocket<WSData>,
+  server: Server
+) => {
+  try {
+    console.log(
+      `WebSocket connection closed for user ${ws.data.username} in room ${ws.data.roomId}`
+    );
 
-  roomManager.removeClient(ws.data.roomId, ws.data.clientId);
+    await roomManager.removeClient(ws.data.roomId, ws.data.clientId);
 
-  const message = createClientUpdate(ws.data.roomId);
-  server.publish(ws.data.roomId, JSON.stringify(message));
+    const message = createClientUpdate(ws.data.roomId);
+    ws.unsubscribe(ws.data.roomId);
+    server.publish(ws.data.roomId, JSON.stringify(message));
+  } catch (error) {
+    console.error(
+      `Error handling WebSocket close for ${ws.data?.username}:`,
+      error
+    );
+  }
 };

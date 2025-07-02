@@ -1,7 +1,7 @@
-import * as path from "path";
+// Removed legacy AUDIO_DIR - now using R2 for all storage
 
-// Path configurations
-export const AUDIO_DIR = path.join(process.cwd(), "uploads", "audio");
+// https://developers.cloudflare.com/r2/api/s3/api/
+// R2 Configuration
 
 // Audio settings
 export const AUDIO_LOW = 0.15;

@@ -6,13 +6,11 @@ import {
 } from "@beatsync/shared";
 import { GRID, PositionType } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
-import { existsSync } from "node:fs";
-import { readdir } from "node:fs/promises";
-import * as path from "path";
-import { AUDIO_DIR, SCHEDULE_TIME_MS } from "./config";
+import { SCHEDULE_TIME_MS } from "./config";
+import { deleteObjectsWithPrefix } from "./lib/r2";
 import { calculateGainFromDistanceToSource } from "./spatial";
 import { sendBroadcast } from "./utils/responses";
-import { debugClientPositions, positionClientsInCircle } from "./utils/spatial";
+import { positionClientsInCircle } from "./utils/spatial";
 import { WSData } from "./utils/websocket";
 
 interface RoomData {
@@ -48,57 +46,64 @@ class RoomManager {
     });
 
     positionClientsInCircle(currentRoom.clients);
-    debugClientPositions(currentRoom.clients);
+    // debugClientPositions(currentRoom.clients);
   }
 
-  removeClient(roomId: string, clientId: string) {
+  async removeClient(roomId: string, clientId: string) {
     const room = this.rooms.get(roomId);
-    if (!room) return;
-
-    room.clients.delete(clientId);
-    if (room.clients.size === 0) {
-      this.stopInterval(roomId);
-      this.cleanupRoomFiles(roomId);
-      this.rooms.delete(roomId);
+    if (!room) {
+      console.log(
+        `RACE CONDITION: Room ${roomId} not found even though client is leaving`
+      );
+      return;
     }
 
+    room.clients.delete(clientId);
+
+    // Check if this was the last client in the room
+    if (room.clients.size === 0) {
+      this.stopInterval(roomId);
+
+      // CRITICAL: Async operation that can take significant time
+      // During this await, new clients can join the room!
+      // This is especially common during development with hot reloading
+      // or when users quickly refresh their browser
+      await this.cleanupRoom(roomId);
+
+      // IMPORTANT: We must re-check the room state after the async operation
+      // The room could have been:
+      // 1. Deleted and recreated with new clients (common in dev)
+      // 2. Had new clients added to the existing room
+      // 3. Still be empty and safe to delete
+      const currentRoom = this.rooms.get(roomId);
+
+      if (currentRoom && currentRoom.clients.size === 0) {
+        // Safe to delete - room still exists and is still empty
+        this.rooms.delete(roomId);
+        console.log(`Room ${roomId} deleted from memory`);
+      } else if (currentRoom && currentRoom.clients.size > 0) {
+        // Race condition avoided! New clients joined during cleanup
+        console.log(`Room ${roomId} has new clients - skipping deletion`);
+        // Need to reposition the new clients that joined during cleanup
+        positionClientsInCircle(currentRoom.clients);
+      }
+      // If currentRoom is undefined, another cleanup already deleted it
+      return; // No need to reposition when room is empty or deleted
+    }
+
+    // Otherwise, other clients remain, reposition remaining clients in the room
     positionClientsInCircle(room.clients);
   }
 
   // Clean up room files when all clients have left
-  async cleanupRoomFiles(roomId: string) {
+  async cleanupRoom(roomId: string) {
+    console.log(`🧹 Starting room cleanup for room ${roomId}...`);
+
     try {
-      const roomDirPath = path.join(AUDIO_DIR, `room-${roomId}`);
-
-      // Check if the directory exists before attempting to delete files
-      // Using Node.js fs.existsSync instead of Bun.file().exists() for directories
-      if (existsSync(roomDirPath)) {
-        // List all files in the directory
-        const files = await readdir(roomDirPath);
-
-        console.log(
-          `Found room directory for ${roomId}, cleaning up ${files.length} files...`
-        );
-
-        if (files.length > 0) {
-          // Delete each file in the directory
-          for (const file of files) {
-            const filePath = path.join(roomDirPath, file);
-            await Bun.file(filePath).delete();
-          }
-
-          // Remove the directory using rm -rf
-          await Bun.spawn(["rmdir", roomDirPath]).exited;
-
-          console.log(`Cleaned up audio files for room ${roomId}`);
-        } else {
-          console.log(`No audio files found in room directory ${roomId}`);
-        }
-      } else {
-        console.log(`No audio directory found for room ${roomId}`);
-      }
+      const result = await deleteObjectsWithPrefix(`room-${roomId}`);
+      console.log(`✅ Room ${roomId} objects deleted: ${result.deletedCount}`);
     } catch (error) {
-      console.error(`Error cleaning up room files for ${roomId}:`, error);
+      console.error(`❌ Room ${roomId} cleanup failed:`, error);
     }
   }
 
@@ -170,9 +175,7 @@ class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    // Create a closure for the focus index that persists between startInterval calls
-    let focusIndex = 0;
-    // And one for the number of loops
+    // Create a closure for the number of loops
     let loopCount = 0;
 
     const updateSpatialAudio = () => {
