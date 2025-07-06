@@ -23,3 +23,13 @@ export const trimFileName = (fileName: string) => {
   // Remove file extensions like .mp3, .wav, etc.
   return fileName.replace(/\.[^/.]+$/, "");
 };
+
+export const extractDefaultFileName = (url: string) => {
+  // Get everything after "default/"
+  const parts = url.split("default/");
+  if (parts.length > 1) {
+    return trimFileName(parts[1]);
+  }
+
+  throw new Error("Invalid URL: " + url);
+};

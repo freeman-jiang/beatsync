@@ -154,7 +154,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                             handleReupload(source.id, source.name)
                           }
                           className="flex items-center gap-2 cursor-pointer text-sm"
-                          disabled={source.id.startsWith("static")}
+                          disabled={source.id.includes("default/")}
                         >
                           <UploadCloud className="size-3.5 text-neutral-400" />
                           <span>Reupload to room</span>

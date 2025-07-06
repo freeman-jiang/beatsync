@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { LocalAudioSource, RawAudioSource } from "@/lib/localTypes";
+import { fetchDefaultAudioSources } from "@/lib/api";
 import {
   NTPMeasurement,
   _sendNTPRequest,
@@ -17,16 +18,11 @@ import {
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
+import { extractDefaultFileName } from "@/lib/utils";
 
 export const MAX_NTP_MEASUREMENTS = 40;
 
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
-
-interface StaticAudioSource {
-  name: string;
-  url: string;
-  id: string;
-}
 
 interface AudioPlayerState {
   audioContext: AudioContext;
@@ -127,40 +123,6 @@ interface GlobalState extends GlobalStateValues {
   getCurrentGainValue: () => number;
   resetStore: () => void;
 }
-// Audio sources
-const STATIC_AUDIO_SOURCES: StaticAudioSource[] = [
-  {
-    name: "Jacob Tillberg - Feel You",
-    url: "/Jacob Tillberg - Feel You.mp3",
-  },
-  {
-    name: "Black Coast - TRNDSTTR (Lucian Remix)",
-    url: "/trndsttr.mp3",
-  },
-  {
-    name: "STVCKS - Don't Be Scared",
-    url: "/STVCKS - Don't Be Scared.mp3",
-  },
-  {
-    name: "INZO x ILLUSIO - Just A Mirage",
-    url: "/INZO x ILLUSIO - Just A Mirage.mp3",
-  },
-  {
-    name: "Tom Reev, Assix & Jason Gewalt - Where It Hurts",
-    url: "/Tom Reev, Assix & Jason Gewalt - Where It Hurts.mp3",
-  },
-  {
-    name: "DROELOE x San Holo - Lines of the Broken (ft. CUT)",
-    url: "/DROELOE x San Holo - Lines of the Broken (ft. CUT).mp3",
-  },
-  {
-    name: "joyful - chess (slowed)",
-    url: "/joyful - chess (slowed).mp3",
-  },
-].map((source, index) => ({
-  ...source,
-  id: `static-${index}`,
-}));
 
 // Define initial state values
 const initialState: GlobalStateValues = {
@@ -169,7 +131,7 @@ const initialState: GlobalStateValues = {
   currentTime: 0,
   playbackStartTime: 0,
   playbackOffset: 0,
-  selectedAudioId: STATIC_AUDIO_SOURCES[0].id,
+  selectedAudioId: "",
 
   // Spatial audio
   isShuffled: false,
@@ -226,20 +188,20 @@ const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   return waitTimeMilliseconds / 1000;
 };
 
-const loadAudioSource = async ({
-  source,
+const loadAudioSourceUrl = async ({
+  url,
   audioContext,
 }: {
-  source: StaticAudioSource;
+  url: string;
   audioContext: AudioContext;
 }) => {
-  const response = await fetch(source.url);
+  const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   return {
-    name: source.name,
+    name: extractDefaultFileName(url),
     audioBuffer,
-    id: source.id,
+    id: url,
   };
 };
 
@@ -253,6 +215,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   // Function to initialize or reinitialize audio system
   const initializeAudio = async () => {
     console.log("initializeAudio()");
+
+    // Fetch default audio sources from server
+    const defaultSources = await fetchDefaultAudioSources();
+    console.log("defaultSources", defaultSources);
+
     // Create fresh audio context
     const audioContext = initializeAudioContext();
 
@@ -262,8 +229,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     const sourceNode = audioContext.createBufferSource();
 
     // Load first source
-    const firstSource = await loadAudioSource({
-      source: STATIC_AUDIO_SOURCES[0],
+    const firstSource = await loadAudioSourceUrl({
+      url: defaultSources[0].url,
       audioContext,
     });
 
@@ -281,15 +248,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       },
       downloadedAudioIds: new Set<string>(),
       duration: firstSource.audioBuffer.duration,
+      selectedAudioId: firstSource.id, // Set the first loaded audio as selected
     });
+
     console.log(`${0} Decoded source ${firstSource.name}`);
 
     // Load rest asynchronously, keep updating state
-    for (let i = 1; i < STATIC_AUDIO_SOURCES.length; i++) {
-      const source = STATIC_AUDIO_SOURCES[i];
+    for (let i = 1; i < defaultSources.length; i++) {
+      const { url } = defaultSources[i];
       const state = get();
-      const loadedSource = await loadAudioSource({
-        source,
+      const loadedSource = await loadAudioSourceUrl({
+        url,
         audioContext,
       });
       set({ audioSources: [...state.audioSources, loadedSource] });

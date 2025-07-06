@@ -3,6 +3,7 @@ import { handleRoot } from "./routes/root";
 import { handleStats } from "./routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "./routes/upload";
 import { handleWebSocketUpgrade } from "./routes/websocket";
+import { handleGetDefaultAudio } from "./routes/default";
 import {
   handleClose,
   handleMessage,
@@ -42,6 +43,9 @@ const server = Bun.serve<WSData, undefined>({
 
         case "/cleanup":
           return handleCleanup(req);
+
+        case "/default":
+          return handleGetDefaultAudio(req);
 
         default:
           return errorResponse("Not found", 404);

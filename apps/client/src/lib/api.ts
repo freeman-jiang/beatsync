@@ -1,4 +1,5 @@
 import {
+  GetDefaultAudioType,
   GetUploadUrlType,
   UploadCompleteResponseType,
   UploadCompleteType,
@@ -85,3 +86,20 @@ export const fetchAudio = async (url: string) => {
     throw new Error(`Failed to fetch audio: ${error}`);
   }
 };
+
+export async function fetchDefaultAudioSources() {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/default`);
+
+    if (!response.ok) {
+      console.error("Failed to fetch default audio sources:", response.status);
+      return [];
+    }
+
+    const files: GetDefaultAudioType = await response.json();
+    return files;
+  } catch (error) {
+    console.error("Error fetching default audio sources:", error);
+    return [];
+  }
+}
