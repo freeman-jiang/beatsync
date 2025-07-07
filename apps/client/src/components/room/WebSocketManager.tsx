@@ -67,6 +67,9 @@ export const WebSocketManager = ({
   const processStopSpatialAudio = useGlobalStore(
     (state) => state.processStopSpatialAudio
   );
+  const handleSetAudioSources = useGlobalStore(
+    (state) => state.handleSetAudioSources
+  );
 
   // Once room has been loaded, connect to the websocket
   useEffect(() => {
@@ -113,8 +116,8 @@ export const WebSocketManager = ({
         if (event.type === "CLIENT_CHANGE") {
           setConnectedClients(event.clients);
         } else if (event.type === "SET_AUDIO_SOURCES") {
-          // TODO: Implement
-          throw new Error("Not implemented");
+          console.log("Received set audio sources event:", event.sources);
+          handleSetAudioSources({ sources: event.sources });
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action

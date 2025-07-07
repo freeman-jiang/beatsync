@@ -77,6 +77,7 @@ interface GlobalStateValues {
 interface GlobalState extends GlobalStateValues {
   // Methods
   getAudioDuration: ({ url }: { url: string }) => number;
+  handleSetAudioSources: ({ sources }: { sources: AudioSourceType[] }) => void;
 
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
@@ -195,7 +196,6 @@ const loadAudioSourceUrl = async ({
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   return {
     audioBuffer,
-    url,
   };
 };
 
@@ -206,13 +206,25 @@ const initializeAudioContext = () => {
 };
 
 export const useGlobalStore = create<GlobalState>((set, get) => {
+  const processNewAudioSource = async ({ url }: AudioSourceType) => {
+    console.log(`Processing new audio source ${url}`);
+    const state = get();
+
+    const { audioContext } = getAudioPlayer(state);
+    const { audioBuffer } = await loadAudioSourceUrl({ url, audioContext });
+
+    set((currentState) => ({
+      audioSources: [...currentState.audioSources, { url }],
+      audioCache: new Map([...currentState.audioCache, [url, audioBuffer]]),
+    }));
+  };
+
   // Function to initialize or reinitialize audio system
   const initializeAudio = async () => {
     console.log("initializeAudio()");
 
     // Fetch default audio sources from server
     const defaultSources = await fetchDefaultAudioSources();
-    console.log("defaultSources", defaultSources);
 
     // Create fresh audio context
     const audioContext = initializeAudioContext();
@@ -221,49 +233,22 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     const gainNode = audioContext.createGain();
     gainNode.gain.value = 1; // Default volume
     const sourceNode = audioContext.createBufferSource();
-
-    // Load first source
-    const firstSource = await loadAudioSourceUrl({
-      url: defaultSources[0].url,
-      audioContext,
-    });
-
-    // Decode initial first audio source
-    sourceNode.buffer = firstSource.audioBuffer;
     sourceNode.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    // set state with first source
+    // Initialize empty state first
     set({
-      audioSources: [firstSource],
-      audioCache: new Map([[firstSource.url, firstSource.audioBuffer]]),
       audioPlayer: {
         audioContext,
         sourceNode,
         gainNode,
       },
-      duration: firstSource.audioBuffer.duration,
-      selectedAudioUrl: firstSource.url, // Set the first loaded audio as selected
     });
 
-    console.log(`${0} Decoded source ${firstSource.url}`);
-
-    // Load rest asynchronously, keep updating state
-    for (let i = 1; i < defaultSources.length; i++) {
+    // Process all sources including the first one
+    for (let i = 0; i < defaultSources.length; i++) {
       const { url } = defaultSources[i];
-      const state = get();
-      const loadedSource = await loadAudioSourceUrl({
-        url,
-        audioContext,
-      });
-      console.log(`${i} Decoded source ${loadedSource.url}`);
-      set({
-        audioSources: [...state.audioSources, loadedSource],
-        audioCache: new Map([
-          ...state.audioCache,
-          [loadedSource.url, loadedSource.audioBuffer],
-        ]),
-      });
+      await processNewAudioSource({ url });
     }
   };
 
@@ -813,9 +798,37 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return state.audioPlayer.gainNode.gain.value;
     },
 
+    getAudioDuration: ({ url }) => {
+      const state = get();
+      const audioBuffer = state.audioCache.get(url);
+      if (!audioBuffer) {
+        console.error(`Audio buffer not decoded for url: ${url}`);
+        return 0;
+      }
+      return audioBuffer.duration;
+    },
+
+    async handleSetAudioSources({ sources }) {
+      const state = get();
+
+      // Find only new sources that have not already been loaded and then load them with loadAudioSourceUrl
+      const newSources = sources.filter(
+        (source) => !state.audioCache.has(source.url)
+      );
+
+      console.log("newSources", newSources);
+
+      for (const source of newSources) {
+        await processNewAudioSource({ url: source.url });
+      }
+    },
+
     // Reset function to clean up state
     resetStore: () => {
       const state = get();
+
+      // Preserve the audio cache before reset
+      const preservedAudioCache = state.audioCache;
 
       // Stop any playing audio
       if (state.isPlaying && state.audioPlayer) {
@@ -836,20 +849,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         state.audioPlayer.audioContext.close().catch(() => {});
       }
 
-      // Reset state to initial values
-      set(initialState);
+      // Reset state to initial values but preserve cache
+      set({
+        ...initialState,
+        audioCache: preservedAudioCache,
+      });
 
       // Reinitialize audio from scratch
       initializeAudio();
-    },
-
-    getAudioDuration: ({ url }) => {
-      const state = get();
-      const audioBuffer = state.audioCache.get(url);
-      if (!audioBuffer) {
-        throw new Error(`Audio buffer not decoded for url: ${url}`);
-      }
-      return audioBuffer.duration;
     },
   };
 });
