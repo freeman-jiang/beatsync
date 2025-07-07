@@ -103,6 +103,8 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
       );
     }
 
+    const sources = roomManager.addAudioSource(roomId, { url: publicUrl });
+
     console.log(
       `✅ Audio upload completed - broadcasting to room ${roomId}: (${publicUrl})`
     );
@@ -114,12 +116,8 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
       message: {
         type: "ROOM_EVENT",
         event: {
-          type: "NEW_AUDIO_SOURCE",
-          id: publicUrl,
-          title: originalName,
-          duration: 1, // TODO: calculate this properly later
-          addedAt: Date.now(),
-          addedBy: roomId,
+          type: "SET_AUDIO_SOURCES",
+          sources,
         },
       },
     });

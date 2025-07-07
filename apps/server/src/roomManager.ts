@@ -4,7 +4,11 @@ import {
   MoveClientType,
   WSBroadcastType,
 } from "@beatsync/shared";
-import { GRID, PositionType } from "@beatsync/shared/types/basic";
+import {
+  AudioSourceType,
+  GRID,
+  PositionType,
+} from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
 import { SCHEDULE_TIME_MS } from "./config";
 import { deleteObjectsWithPrefix } from "./lib/r2";
@@ -14,6 +18,7 @@ import { positionClientsInCircle } from "./utils/spatial";
 import { WSData } from "./utils/websocket";
 
 interface RoomData {
+  audioSources: AudioSourceType[];
   clients: Map<string, ClientType>;
   roomId: string;
   intervalId?: NodeJS.Timeout; // https://developer.mozilla.org/en-US/docs/Web/API/Window/setInterval
@@ -23,11 +28,23 @@ interface RoomData {
 class RoomManager {
   rooms = new Map<string, RoomData>();
 
+  addAudioSource(roomId: string, source: AudioSourceType) {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      throw new Error(`Room ${roomId} not found`);
+    }
+
+    room.audioSources.push(source);
+
+    return room.audioSources;
+  }
+
   addClient(ws: ServerWebSocket<WSData>) {
     const { roomId, username, clientId } = ws.data;
     const room = this.rooms.get(roomId);
     if (!room) {
       this.rooms.set(roomId, {
+        audioSources: [],
         clients: new Map(),
         roomId,
         listeningSource: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y }, // Center of the grid

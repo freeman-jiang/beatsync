@@ -21,7 +21,7 @@ export const Player = () => {
   const getCurrentTrackPosition = useGlobalStore(
     (state) => state.getCurrentTrackPosition
   );
-  const selectedAudioId = useGlobalStore((state) => state.selectedAudioId);
+  const selectedAudioId = useGlobalStore((state) => state.selectedAudioUrl);
   const audioSources = useGlobalStore((state) => state.audioSources);
   const currentTime = useGlobalStore((state) => state.currentTime);
   const skipToNextTrack = useGlobalStore((state) => state.skipToNextTrack);
@@ -36,19 +36,21 @@ export const Player = () => {
   const [trackDuration, setTrackDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
+  const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
+
   // Find the selected audio source and its duration
   useEffect(() => {
     if (!selectedAudioId) return;
 
     const audioSource = audioSources.find(
-      (source) => source.id === selectedAudioId
+      (source) => source.url === selectedAudioId
     );
-    if (audioSource?.audioBuffer) {
-      setTrackDuration(audioSource.audioBuffer.duration);
+    if (audioSource) {
+      setTrackDuration(getAudioDuration({ url: audioSource.url }));
       // Reset slider position when track changes
       setSliderPosition(0);
     }
-  }, [selectedAudioId, audioSources]);
+  }, [selectedAudioId, audioSources, getAudioDuration]);
 
   // Sync with currentTime when it changes (e.g., after pausing)
   useEffect(() => {

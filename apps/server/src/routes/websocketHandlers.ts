@@ -119,24 +119,6 @@ export const handleMessage = async (
       if (!room || !room.intervalId) return; // do nothing if no room or no interval exists
 
       roomManager.stopInterval(roomId);
-    } else if (parsedMessage.type === ClientActionEnum.enum.REUPLOAD_AUDIO) {
-      // Handle reupload request by broadcasting the audio source again
-      // This will trigger clients that don't have this audio to download it
-      sendBroadcast({
-        server,
-        roomId,
-        message: {
-          type: "ROOM_EVENT",
-          event: {
-            type: "NEW_AUDIO_SOURCE",
-            id: parsedMessage.audioId, // Use the existing file ID
-            title: parsedMessage.audioName, // Use the original name
-            duration: 1, // TODO: Calculate properly
-            addedAt: Date.now(),
-            addedBy: roomId,
-          },
-        },
-      });
     } else if (parsedMessage.type === ClientActionEnum.enum.REORDER_CLIENT) {
       // Handle client reordering
       const reorderedClients = roomManager.reorderClients({

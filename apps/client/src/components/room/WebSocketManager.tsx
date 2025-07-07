@@ -1,7 +1,4 @@
 "use client";
-import { fetchAudio } from "@/lib/api";
-import { RawAudioSource } from "@/lib/localTypes";
-import { trimFileName } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { NTPMeasurement } from "@/utils/ntp";
@@ -11,7 +8,6 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
-import { toast } from "sonner";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -59,10 +55,6 @@ export const WebSocketManager = ({
   );
   const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
   const addNTPMeasurement = useGlobalStore((state) => state.addNTPMeasurement);
-  const addAudioSource = useGlobalStore((state) => state.addAudioSource);
-  const hasDownloadedAudio = useGlobalStore(
-    (state) => state.hasDownloadedAudio
-  );
   const setConnectedClients = useGlobalStore(
     (state) => state.setConnectedClients
   );
@@ -120,46 +112,9 @@ export const WebSocketManager = ({
 
         if (event.type === "CLIENT_CHANGE") {
           setConnectedClients(event.clients);
-        } else if (event.type === "NEW_AUDIO_SOURCE") {
-          console.log("Received new audio source:", response);
-          const { title, id } = event;
-
-          // Check if we already have this audio file downloaded
-          if (hasDownloadedAudio(id)) {
-            console.log(`Audio file ${id} already downloaded, skipping fetch`);
-            return;
-          }
-
-          toast.promise(
-            fetchAudio(id)
-              .then(async (blob) => {
-                console.log("Audio fetched successfully:", id);
-                try {
-                  const arrayBuffer = await blob.arrayBuffer();
-                  console.log("ArrayBuffer created successfully");
-
-                  const audioSource: RawAudioSource = {
-                    name: trimFileName(title),
-                    audioBuffer: arrayBuffer,
-                    id: id, // Include ID in the RawAudioSource
-                  };
-
-                  return addAudioSource(audioSource);
-                } catch (error) {
-                  console.error("Error processing audio data:", error);
-                  throw new Error("Failed to process audio data");
-                }
-              })
-              .catch((error) => {
-                console.error("Error fetching audio:", error);
-                throw error;
-              }),
-            {
-              loading: "Loading audio...",
-              success: `Added: ${title}`,
-              error: "Failed to load audio",
-            }
-          );
+        } else if (event.type === "SET_AUDIO_SOURCES") {
+          // TODO: Implement
+          throw new Error("Not implemented");
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
