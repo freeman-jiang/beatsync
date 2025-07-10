@@ -10,6 +10,7 @@ import { useGlobalStore } from "@/store/global";
 import { MoreHorizontal, Pause, Play, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
+import { Button } from "./ui/button";
 
 export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const posthog = usePostHog();
@@ -140,9 +141,9 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         asChild
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button className="p-1 rounded-full text-neutral-500 hover:text-white transition-colors hover:scale-110 duration-150 focus:outline-none focus:text-white focus:scale-110">
+                        <Button variant={"ghost"} className="p-1 rounded-full text-neutral-500 hover:text-white transition-colors hover:scale-110 duration-150 focus:outline-none focus:text-white focus:scale-110">
                           <MoreHorizontal className="size-4" />
-                        </button>
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         side="top"

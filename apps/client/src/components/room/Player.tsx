@@ -12,6 +12,7 @@ import {
 import { usePostHog } from "posthog-js/react";
 import { useCallback, useEffect, useState } from "react";
 import { Slider } from "../ui/slider";
+import { Button } from "../ui/button";
 
 export const Player = () => {
   const posthog = usePostHog();
@@ -179,7 +180,7 @@ export const Player = () => {
     <div className="w-full flex justify-center">
       <div className="w-full max-w-[37rem]">
         <div className="flex items-center justify-center gap-6 mb-2">
-          <button
+          <Button variant={"ghost"}
             className={cn(
               "text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200",
               isShuffled && "text-primary-400"
@@ -198,15 +199,15 @@ export const Player = () => {
                 <div className="absolute w-1 h-1 bg-green-500 rounded-full bottom-0 top-4.5 left-1/2 transform -translate-x-1/2 translate-y-1/2"></div>
               )}
             </div>
-          </button>
-          <button
+          </Button>
+          <Button variant={"ghost"}
             className="text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleSkipBack}
             disabled={isShuffled || audioSources.length <= 1}
           >
             <SkipBack className="w-7 h-7 md:w-5 md:h-5 fill-current" />
-          </button>
-          <button
+          </Button>
+          <Button variant={"ghost"}
             className="bg-white text-black rounded-full p-3 md:p-2 hover:scale-105 transition-transform cursor-pointer duration-200 focus:outline-none"
             onClick={handlePlay}
           >
@@ -215,20 +216,20 @@ export const Player = () => {
             ) : (
               <Play className="w-5 h-5 md:w-4 md:h-4 fill-current" />
             )}
-          </button>
-          <button
+          </Button>
+          <Button variant={"ghost"}
             className="text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleSkipForward}
             disabled={audioSources.length <= 1}
           >
             <SkipForward className="w-7 h-7 md:w-5 md:h-5 fill-current" />
-          </button>
-          <button className="text-gray-400 hover:text-white transition-colors cursor-default   hover:scale-105 duration-200">
+          </Button>
+          <Button variant={"ghost"} className="text-gray-400 hover:text-white transition-colors cursor-default   hover:scale-105 duration-200">
             <div className="relative">
               <Repeat className="w-4 h-4 relative text-primary-400" />
               <div className="absolute w-1 h-1 bg-green-500 rounded-full bottom-0 top-4.5 left-1/2 transform -translate-x-1/2 translate-y-1/2"></div>
             </div>
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-0">
           <span className="text-xs text-muted-foreground min-w-11 select-none">

@@ -217,8 +217,18 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     console.log("initializeAudio()");
 
     // Fetch default audio sources from server
-    const defaultSources = await fetchDefaultAudioSources();
+    let defaultSources = await fetchDefaultAudioSources();
     console.log("defaultSources", defaultSources);
+
+    // Fallback to local audio files if no default sources available
+    if (!defaultSources || defaultSources.length === 0) {
+      console.log("No default sources from server, using local fallback files");
+      defaultSources = [
+        { url: "/trndsttr.mp3" },
+        { url: "/joyful - chess (slowed).mp3" },
+        { url: "/Jacob Tillberg - Feel You.mp3" },
+      ];
+    }
 
     // Create fresh audio context
     const audioContext = initializeAudioContext();

@@ -48,10 +48,14 @@ export const TopBar = ({ roomId }: TopBarProps) => {
             <div className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></div>
             <span>Synced</span>
           </div>
-          <div className="flex items-center">
+            <div
+              className="flex items-center cursor-pointer hover:text-white transition-colors"
+              onClick={() => navigator.clipboard.writeText(`You can join room with ID: ${roomId} or at url: ${process.env.NEXT_PUBLIC_NEXT_URL}/room/${roomId}`)}
+              title="Click to copy room ID"
+            >
             <Hash size={12} className="mr-1" />
             <span className="flex items-center">{roomId}</span>
-          </div>
+            </div>
           <div className="flex items-center">
             <Users size={12} className="mr-1" />
             <span className="flex items-center">
@@ -83,23 +87,23 @@ export const TopBar = ({ roomId }: TopBarProps) => {
 
         <div className="flex items-center justify-center gap-2.5">
           {/* Discord icon */}
-          <a
+          <Link
             href={SOCIAL_LINKS.discord}
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-400 hover:text-white transition-colors"
           >
             <FaDiscord className="size-[17px]" />
-          </a>
+          </Link>
           {/* GitHub icon in the top right */}
-          <a
+          <Link
             href={SOCIAL_LINKS.github}
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-400 hover:text-white transition-colors"
           >
             <FaGithub className="size-4" />
-          </a>
+          </Link>
         </div>
       </div>
     );

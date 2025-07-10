@@ -1,6 +1,6 @@
 {
   "name": "beatsync",
-  "packageManager": "bun@1.2.2",
+  "packageManager": "bun@1.2.18",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -19,7 +19,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@aws-sdk/s3-request-presigner": "^3.828.0",
-    "turbo": "^2.4.4"
+    "@aws-sdk/s3-request-presigner": "^3.842.0",
+    "turbo": "^2.5.4"
   }
 }
