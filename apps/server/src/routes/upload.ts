@@ -106,7 +106,7 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
     const sources = roomManager.addAudioSource(roomId, { url: publicUrl });
 
     console.log(
-      `✅ Audio upload completed - broadcasting to room ${roomId}: (${publicUrl})`
+      `✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${sources}`
     );
 
     // Broadcast to room that new audio is available
