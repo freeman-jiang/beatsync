@@ -92,6 +92,23 @@ export const handleMessage = async (
 
       return;
     } else if (
+      parsedMessage.type === ClientActionEnum.enum.PLAY_YOUTUBE ||
+      parsedMessage.type === ClientActionEnum.enum.PAUSE_YOUTUBE ||
+      parsedMessage.type === ClientActionEnum.enum.SEEK_YOUTUBE
+    ) {
+      // Handle YouTube actions the same way as regular audio actions
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "SCHEDULED_ACTION",
+          scheduledAction: parsedMessage,
+          serverTimeToExecute: epochNow() + SCHEDULE_TIME_MS, // 500 ms from now
+        },
+      });
+
+      return;
+    } else if (
       parsedMessage.type === ClientActionEnum.enum.START_SPATIAL_AUDIO
     ) {
       // Start loop only if not already started

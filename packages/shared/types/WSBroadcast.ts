@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PauseActionSchema, PlayActionSchema } from "./WSRequest";
+import { PauseActionSchema, PlayActionSchema, PlayYouTubeActionSchema, PauseYouTubeActionSchema, SeekYouTubeActionSchema } from "./WSRequest";
 import { PositionSchema } from "./basic";
 
 const ClientSchema = z.object({
@@ -27,6 +27,16 @@ const AudioSourceSchema = z.object({
 });
 export type AudioSourceType = z.infer<typeof AudioSourceSchema>;
 
+const YouTubeSourceSchema = z.object({
+  type: z.literal("NEW_YOUTUBE_SOURCE"),
+  videoId: z.string(),
+  title: z.string(),
+  thumbnail: z.string().url().optional(),
+  addedAt: z.number(),
+  addedBy: z.string(),
+});
+export type YouTubeSourceType = z.infer<typeof YouTubeSourceSchema>;
+
 const SpatialConfigSchema = z.object({
   type: z.literal("SPATIAL_CONFIG"),
   gains: z.record(
@@ -51,6 +61,9 @@ const ScheduledActionSchema = z.object({
     PauseActionSchema,
     SpatialConfigSchema,
     StopSpatialAudioSchema,
+    PlayYouTubeActionSchema,
+    PauseYouTubeActionSchema,
+    SeekYouTubeActionSchema,
   ]),
 });
 
@@ -59,6 +72,7 @@ const RoomEventSchema = z.object({
   event: z.discriminatedUnion("type", [
     ClientChangeMessageSchema,
     AudioSourceSchema,
+    YouTubeSourceSchema,
   ]),
 });
 

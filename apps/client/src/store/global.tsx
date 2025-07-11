@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { LocalAudioSource, RawAudioSource } from "@/lib/localTypes";
+import { LocalAudioSource, RawAudioSource, YouTubeSource } from "@/lib/localTypes";
 import { fetchDefaultAudioSources } from "@/lib/api";
 import {
   NTPMeasurement,
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
 import { extractDefaultFileName } from "@/lib/utils";
+import type { YouTubeEvent } from "react-youtube";
 
 export const MAX_NTP_MEASUREMENTS = 40;
 
@@ -42,6 +43,15 @@ interface GlobalStateValues {
   selectedAudioId: string;
   uploadHistory: { name: string; timestamp: number; id: string }[];
   downloadedAudioIds: Set<string>;
+
+  // YouTube Sources
+  youtubeSources: YouTubeSource[];
+  selectedYouTubeId: string;
+  isYouTubePlayerReady: boolean;
+  youtubePlayer: YouTubeEvent['target'] | null;
+  
+  // UI Mode
+  currentMode: 'library' | 'youtube';
 
   // Websocket
   socket: WebSocket | null;
@@ -74,6 +84,9 @@ interface GlobalStateValues {
 
   // Shuffle state
   isShuffled: boolean;
+  
+  // Repeat mode
+  repeatMode: 'none' | 'all' | 'one';
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -122,6 +135,36 @@ interface GlobalState extends GlobalStateValues {
   skipToPreviousTrack: () => void;
   getCurrentGainValue: () => number;
   resetStore: () => void;
+  // YouTube methods
+  addYouTubeSource: (source: Omit<YouTubeSource, 'addedAt' | 'addedBy'>) => Promise<void>;
+  setYouTubeSources: (sources: YouTubeSource[]) => void;
+  setSelectedYouTubeId: (videoId: string) => void;
+  setYouTubePlayerReady: (isReady: boolean) => void;
+  setYouTubePlayer: (player: YouTubeEvent['target'] | null) => void;
+  broadcastPlayYouTube: (timeSeconds?: number) => void;
+  broadcastPauseYouTube: () => void;
+  broadcastSeekYouTube: (timeSeconds: number) => void;
+  schedulePlayYouTube: (data: {
+    videoId: string;
+    timeSeconds: number;
+    targetServerTime: number;
+  }) => void;
+  schedulePauseYouTube: (data: {
+    videoId: string;
+    targetServerTime: number;
+  }) => void;
+  scheduleSeekYouTube: (data: {
+    videoId: string;
+    timeSeconds: number;
+    targetServerTime: number;
+  }) => void;
+
+  // Player controls
+  setIsShuffled: (shuffled: boolean) => void;
+  setRepeatMode: (mode: 'none' | 'all' | 'one') => void;
+  playNextYouTubeVideo: () => void;
+  // UI Mode methods
+  setCurrentMode: (mode: 'library' | 'youtube') => void;
 }
 
 // Define initial state values
@@ -135,6 +178,7 @@ const initialState: GlobalStateValues = {
 
   // Spatial audio
   isShuffled: false,
+  repeatMode: 'none' as const,
   isSpatialAudioEnabled: false,
   isDraggingListeningSource: false,
   listeningSourcePosition: { x: GRID.SIZE / 2, y: GRID.SIZE / 2 },
@@ -160,6 +204,15 @@ const initialState: GlobalStateValues = {
   audioPlayer: null,
   duration: 0,
   volume: 0.5,
+
+  // YouTube state
+  youtubeSources: [],
+  selectedYouTubeId: "",
+  isYouTubePlayerReady: false,
+  youtubePlayer: null,
+  
+  // UI Mode
+  currentMode: 'library',
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -883,7 +936,222 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return state.audioPlayer.gainNode.gain.value;
     },
 
+    // YouTube methods
+    addYouTubeSource: async (source: Omit<YouTubeSource, 'addedAt' | 'addedBy'>) => {
+      // Create a YouTube source object
+      const youtubeSource: YouTubeSource = {
+        ...source,
+        addedAt: Date.now(),
+        addedBy: useRoomStore.getState().userId || "anonymous",
+      };
+
+      // Add to local state
+      set((state) => ({
+        youtubeSources: [...state.youtubeSources, youtubeSource],
+      }));
+
+      // If no video is currently selected, select this one
+      const state = get();
+      if (!state.selectedYouTubeId) {
+        set({ selectedYouTubeId: source.videoId });
+      }
+    },
+
+    setYouTubeSources: (sources: YouTubeSource[]) => 
+      set({ youtubeSources: sources }),
+
+    setSelectedYouTubeId: (videoId: string) => 
+      set({ selectedYouTubeId: videoId }),
+
+    setYouTubePlayerReady: (isReady: boolean) => 
+      set({ isYouTubePlayerReady: isReady }),
+
+    setYouTubePlayer: (player: YouTubeEvent['target'] | null) => 
+      set({ youtubePlayer: player }),
+
+    broadcastPlayYouTube: (timeSeconds: number = 0) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      if (!state.selectedYouTubeId) {
+        console.error("Cannot broadcast YouTube play: No video selected");
+        return;
+      }
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.PLAY_YOUTUBE,
+          videoId: state.selectedYouTubeId,
+          timeSeconds,
+        },
+      });
+    },
+
+    broadcastPauseYouTube: () => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      if (!state.selectedYouTubeId) {
+        console.error("Cannot broadcast YouTube pause: No video selected");
+        return;
+      }
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.PAUSE_YOUTUBE,
+          videoId: state.selectedYouTubeId,
+        },
+      });
+    },
+
+    broadcastSeekYouTube: (timeSeconds: number) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      if (!state.selectedYouTubeId) {
+        console.error("Cannot broadcast YouTube seek: No video selected");
+        return;
+      }
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SEEK_YOUTUBE,
+          videoId: state.selectedYouTubeId,
+          timeSeconds,
+        },
+      });
+    },
+
+    schedulePlayYouTube: (data: {
+      videoId: string;
+      timeSeconds: number;
+      targetServerTime: number;
+    }) => {
+      const state = get();
+      const { youtubePlayer } = state;
+
+      if (!youtubePlayer || !state.isYouTubePlayerReady) {
+        console.error("YouTube player not ready");
+        return;
+      }
+
+      const waitTimeMs = calculateWaitTimeMilliseconds(
+        data.targetServerTime,
+        state.offsetEstimate
+      );
+
+      console.log(`YouTube sync play: waiting ${waitTimeMs}ms, seeking to ${data.timeSeconds}s`);
+
+      setTimeout(() => {
+        if (data.timeSeconds > 0) {
+          youtubePlayer.seekTo(data.timeSeconds, true);
+        }
+        youtubePlayer.playVideo();
+      }, Math.max(0, waitTimeMs));
+    },
+
+    schedulePauseYouTube: (data: {
+      videoId: string;
+      targetServerTime: number;
+    }) => {
+      const state = get();
+      const { youtubePlayer } = state;
+
+      if (!youtubePlayer || !state.isYouTubePlayerReady) {
+        console.error("YouTube player not ready");
+        return;
+      }
+
+      const waitTimeMs = calculateWaitTimeMilliseconds(
+        data.targetServerTime,
+        state.offsetEstimate
+      );
+
+      console.log(`YouTube sync pause: waiting ${waitTimeMs}ms`);
+
+      setTimeout(() => {
+        youtubePlayer.pauseVideo();
+      }, Math.max(0, waitTimeMs));
+    },
+
+    scheduleSeekYouTube: (data: {
+      videoId: string;
+      timeSeconds: number;
+      targetServerTime: number;
+    }) => {
+      const state = get();
+      const { youtubePlayer } = state;
+
+      if (!youtubePlayer || !state.isYouTubePlayerReady) {
+        console.error("YouTube player not ready");
+        return;
+      }
+
+      const waitTimeMs = calculateWaitTimeMilliseconds(
+        data.targetServerTime,
+        state.offsetEstimate
+      );
+
+      console.log(`YouTube sync seek: waiting ${waitTimeMs}ms, seeking to ${data.timeSeconds}s`);
+
+      setTimeout(() => {
+        youtubePlayer.seekTo(data.timeSeconds, true);
+      }, Math.max(0, waitTimeMs));
+    },
+
+    // UI Mode methods
+    setCurrentMode: (mode: 'library' | 'youtube') => 
+      set({ currentMode: mode }),
+
     // Reset function to clean up state
+    // Player controls
+    setIsShuffled: (shuffled: boolean) => {
+      set({ isShuffled: shuffled });
+    },
+
+    setRepeatMode: (mode: 'none' | 'all' | 'one') => {
+      set({ repeatMode: mode });
+    },
+
+    playNextYouTubeVideo: () => {
+      const state = get();
+      const { youtubeSources, selectedYouTubeId, isShuffled, repeatMode } = state;
+      
+      if (youtubeSources.length === 0) return;
+      
+      const currentIndex = youtubeSources.findIndex(source => source.videoId === selectedYouTubeId);
+      let nextIndex = 0;
+      
+      if (isShuffled) {
+        // Shuffle mode: play random video
+        nextIndex = Math.floor(Math.random() * youtubeSources.length);
+      } else {
+        // Normal mode: play next in sequence
+        nextIndex = currentIndex + 1;
+        if (nextIndex >= youtubeSources.length) {
+          if (repeatMode === 'all') {
+            nextIndex = 0; // Loop back to beginning
+          } else if (repeatMode === 'one') {
+            nextIndex = currentIndex; // Repeat current video
+          } else {
+            return; // Stop playing if no repeat
+          }
+        }
+      }
+      
+      const nextVideo = youtubeSources[nextIndex];
+      if (nextVideo) {
+        set({ selectedYouTubeId: nextVideo.videoId });
+        // Auto-play the next video
+        if (state.isYouTubePlayerReady && state.youtubePlayer) {
+          state.broadcastPlayYouTube(0);
+        }
+      }
+    },
+
     resetStore: () => {
       const state = get();
 

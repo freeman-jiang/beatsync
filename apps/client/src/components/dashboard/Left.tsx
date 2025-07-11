@@ -1,12 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Library, Music, Search } from "lucide-react";
+import { Library, Music, Search, Youtube } from "lucide-react";
 import { motion } from "motion/react";
 import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { AudioControls } from "./AudioControls";
+import { useGlobalStore } from "@/store/global";
 import Link from "next/link";
 
 interface LeftProps {
@@ -14,7 +15,8 @@ interface LeftProps {
 }
 
 export const Left = ({ className }: LeftProps) => {
-
+  const currentMode = useGlobalStore((state) => state.currentMode);
+  const setCurrentMode = useGlobalStore((state) => state.setCurrentMode);
 
   return (
     <motion.div
@@ -43,14 +45,33 @@ export const Left = ({ className }: LeftProps) => {
       {/* Navigation menu */}
       <motion.div className="px-3.5 space-y-1.5 py-2">
         <Button
-          className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-md text-xs transition-colors duration-200"
+          className={cn(
+            "w-full flex justify-start gap-3 py-2 text-white font-medium rounded-md text-xs transition-colors duration-200",
+            currentMode === 'library' 
+              ? "bg-white/20 hover:bg-white/25" 
+              : "bg-white/10 hover:bg-white/15"
+          )}
           variant="ghost"
+          onClick={() => setCurrentMode('library')}
         >
           <Library className="h-4 w-4" />
-          <span>Default Library</span>
+          <span>Music Library</span>
+        </Button>
+
+        <Button
+          className={cn(
+            "w-full flex justify-start gap-3 py-2 text-white font-medium rounded-md text-xs transition-colors duration-200",
+            currentMode === 'youtube' 
+              ? "bg-red-600/30 hover:bg-red-600/40" 
+              : "bg-white/10 hover:bg-red-600/20"
+          )}
+          variant="ghost"
+          onClick={() => setCurrentMode('youtube')}
+        >
+          <Youtube className="h-4 w-4" />
+          <span>YouTube</span>
         </Button>
   
-
         <Link href="https://cobalt.tools/" target="_blank">
           <Button
             className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-md text-xs transition-colors duration-200 cursor-pointer"

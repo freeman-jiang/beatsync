@@ -1,6 +1,6 @@
 "use client";
 import { fetchAudio } from "@/lib/api";
-import { RawAudioSource } from "@/lib/localTypes";
+import { RawAudioSource, YouTubeSource } from "@/lib/localTypes";
 import { trimFileName } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
@@ -75,6 +75,12 @@ export const WebSocketManager = ({
   const processStopSpatialAudio = useGlobalStore(
     (state) => state.processStopSpatialAudio
   );
+  // YouTube scheduling methods
+  const schedulePlayYouTube = useGlobalStore((state) => state.schedulePlayYouTube);
+  const schedulePauseYouTube = useGlobalStore((state) => state.schedulePauseYouTube);
+  const scheduleSeekYouTube = useGlobalStore((state) => state.scheduleSeekYouTube);
+  const setYouTubeSources = useGlobalStore((state) => state.setYouTubeSources);
+  const youtubeSources = useGlobalStore((state) => state.youtubeSources);
 
   // Once room has been loaded, connect to the websocket
   useEffect(() => {
@@ -160,6 +166,21 @@ export const WebSocketManager = ({
               error: "Failed to load audio",
             }
           );
+        } else if (event.type === "NEW_YOUTUBE_SOURCE") {
+          console.log("Received new YouTube source:", response);
+          const { videoId, title, addedAt, addedBy } = event;
+
+          // Add the YouTube source to the store
+          const youtubeSource: YouTubeSource = {
+            videoId,
+            title,
+            addedAt,
+            addedBy,
+          };
+
+          setYouTubeSources([...youtubeSources, youtubeSource]);
+
+          toast.success(`YouTube video added: ${title}`);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
@@ -183,6 +204,23 @@ export const WebSocketManager = ({
           }
         } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
           processStopSpatialAudio();
+        } else if (scheduledAction.type === "PLAY_YOUTUBE") {
+          schedulePlayYouTube({
+            videoId: scheduledAction.videoId,
+            timeSeconds: scheduledAction.timeSeconds,
+            targetServerTime: serverTimeToExecute,
+          });
+        } else if (scheduledAction.type === "PAUSE_YOUTUBE") {
+          schedulePauseYouTube({
+            videoId: scheduledAction.videoId,
+            targetServerTime: serverTimeToExecute,
+          });
+        } else if (scheduledAction.type === "SEEK_YOUTUBE") {
+          scheduleSeekYouTube({
+            videoId: scheduledAction.videoId,
+            timeSeconds: scheduledAction.timeSeconds,
+            targetServerTime: serverTimeToExecute,
+          });
         }
       } else if (response.type === "SET_CLIENT_ID") {
         setUserId(response.clientId);
@@ -197,7 +235,7 @@ export const WebSocketManager = ({
       ws.close();
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
-  }, [isLoadingRoom, roomId, username]);
+  }, [isLoadingRoom, roomId, username, youtubeSources]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null; // This is a non-visual component
 };
