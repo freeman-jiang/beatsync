@@ -11,6 +11,7 @@ import {
 } from "./routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "./utils/responses";
 import { WSData } from "./utils/websocket";
+import { StateManager } from "./managers/StateManager";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
@@ -71,3 +72,49 @@ const server = Bun.serve<WSData, undefined>({
 });
 
 console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
+
+// Restore state from backup on startup
+StateManager.restoreState().catch((error) => {
+  console.error("Failed to restore state on startup:", error);
+});
+
+// Track if we're already shutting down to prevent multiple executions
+let isShuttingDown = false;
+
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) {
+    console.log("⏳ Shutdown already in progress...");
+    return;
+  }
+  
+  isShuttingDown = true;
+  console.log(`\n⚠️ ${signal} received, starting graceful shutdown...`);
+
+  try {
+    // Stop accepting new connections
+    server.stop();
+    console.log("🛑 Server stopped accepting new connections");
+
+    // Backup current state
+    await StateManager.backupState();
+    console.log("💾 State backed up successfully");
+
+    // Exit gracefully
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Error during graceful shutdown:", error);
+    process.exit(1);
+  }
+};
+
+// Handle graceful shutdown
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+// Prevent raw exit on multiple Ctrl+C
+process.on("SIGINT", () => {
+  if (isShuttingDown) {
+    console.log("\n⚠️ Force exit requested. Terminating immediately...");
+    process.exit(1);
+  }
+});

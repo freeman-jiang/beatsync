@@ -88,7 +88,6 @@ export class RoomManager {
     return Array.from(this.clients.values());
   }
 
-
   /**
    * Check if the room is empty
    */
@@ -257,6 +256,19 @@ export class RoomManager {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
     }
+  }
+
+  /**
+   * Get the backup state for this room
+   */
+  getBackupState() {
+    return {
+      clients: this.getClients().map((client) => ({
+        clientId: client.clientId,
+        username: client.username,
+      })),
+      audioSources: this.audioSources,
+    };
   }
 
   /**

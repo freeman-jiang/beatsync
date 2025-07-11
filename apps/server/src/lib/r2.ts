@@ -1,5 +1,6 @@
 import {
   DeleteObjectsCommand,
+  GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -193,4 +194,105 @@ export async function deleteObjectsWithPrefix(
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
+}
+
+/**
+ * Upload JSON data to R2
+ */
+export async function uploadJSON(
+  key: string,
+  data: object
+): Promise<void> {
+  const jsonData = JSON.stringify(data, null, 2);
+  
+  const command = new PutObjectCommand({
+    Bucket: S3_CONFIG.BUCKET_NAME,
+    Key: key,
+    Body: jsonData,
+    ContentType: "application/json",
+  });
+
+  await r2Client.send(command);
+}
+
+/**
+ * Download and parse JSON data from R2
+ */
+export async function downloadJSON<T = any>(key: string): Promise<T | null> {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: S3_CONFIG.BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await r2Client.send(command);
+    const jsonData = await response.Body?.transformToString();
+
+    if (!jsonData) {
+      return null;
+    }
+
+    return JSON.parse(jsonData) as T;
+  } catch (error) {
+    console.error(`Failed to download JSON from ${key}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get the latest file with a given prefix (sorted by key name)
+ */
+export async function getLatestFileWithPrefix(
+  prefix: string
+): Promise<string | null> {
+  const objects = await listObjectsWithPrefix(prefix);
+
+  if (!objects || objects.length === 0) {
+    return null;
+  }
+
+  // Sort by key name (descending) to get the latest
+  const sorted = objects
+    .filter(obj => obj.Key)
+    .sort((a, b) => (b.Key || "").localeCompare(a.Key || ""));
+
+  return sorted[0]?.Key || null;
+}
+
+/**
+ * Delete a single object from R2
+ */
+export async function deleteObject(key: string): Promise<void> {
+  const command = new DeleteObjectsCommand({
+    Bucket: S3_CONFIG.BUCKET_NAME,
+    Delete: {
+      Objects: [{ Key: key }],
+      Quiet: true,
+    },
+  });
+
+  await r2Client.send(command);
+}
+
+/**
+ * Get all files with a prefix, sorted by key name (newest first)
+ */
+export async function getSortedFilesWithPrefix(
+  prefix: string,
+  extension?: string
+): Promise<string[]> {
+  const objects = await listObjectsWithPrefix(prefix);
+
+  if (!objects || objects.length === 0) {
+    return [];
+  }
+
+  return objects
+    .filter(obj => {
+      if (!obj.Key) return false;
+      if (extension && !obj.Key.endsWith(extension)) return false;
+      return true;
+    })
+    .sort((a, b) => (b.Key || "").localeCompare(a.Key || ""))
+    .map(obj => obj.Key!);
 }
