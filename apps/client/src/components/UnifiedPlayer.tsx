@@ -217,9 +217,12 @@ export const UnifiedPlayer = () => {
         broadcastSeekYouTube(newTime);
       }
     } else if (currentMode === 'library' && duration > 0) {
-      // Library mode seeking would need to be implemented in the global store
-      // For now, library progress bar remains read-only
-      console.log('Library seeking not yet implemented');
+      // Calculate the target time from percentage
+      const newTime = (percentage / 100) * duration;
+      console.log(`Library seeking to ${newTime}s (${percentage}%)`);
+      
+      // Use broadcastPlay with the new time to seek in library mode
+      broadcastPlay(newTime);
     }
   };
 
@@ -426,15 +429,10 @@ export const UnifiedPlayer = () => {
                             ? (duration > 0 ? (livePosition / duration) * 100 : 0)
                             : (youtubeDuration > 0 ? (youtubePosition / youtubeDuration) * 100 : 0)
                         ]}
-                        onValueChange={currentMode === 'youtube' ? handleProgressChange : undefined}
+                        onValueChange={handleProgressChange}
                         max={100}
                         step={0.1}
-                        className={`w-full ${
-                          currentMode === 'youtube' 
-                            ? 'cursor-pointer' 
-                            : '[&>*]:pointer-events-none [&>*]:cursor-default'
-                        }`}
-                        disabled={currentMode === 'library'}
+                        className="w-full cursor-pointer"
                       />
                     </div>
                     <span className="text-xs text-neutral-400 w-12 text-right">

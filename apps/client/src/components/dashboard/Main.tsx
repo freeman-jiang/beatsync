@@ -3,7 +3,6 @@ import { motion } from "motion/react";
 import { Queue } from "../Queue";
 import { useGlobalStore } from "@/store/global";
 import { YouTubeQueue } from "../youtube/YouTubeQueue";
-import { YouTubePlayer } from "../youtube/YouTubePlayer";
 import { YouTubeSearch } from "../youtube/YouTubeSearch";
 import { Button } from "../ui/button";
 import { Search, List } from "lucide-react";
@@ -79,12 +78,12 @@ export const Main = () => {
             </div>
 
             {/* YouTube Player */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <h2 className="text-lg font-semibold text-white mb-3">Current Video</h2>
               <div className="bg-neutral-900/30 rounded-lg p-4">
                 <YouTubePlayer />
               </div>
-            </div>
+            </div> */}
           </>
         )}
       </motion.div>
