@@ -4,7 +4,10 @@
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
     "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
-    "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live"
+    "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.828.0",
@@ -17,6 +20,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/sinon": "^17.0.4",
+    "sinon": "^21.0.0"
   }
 }
