@@ -18,6 +18,28 @@ const S3_CONFIG = {
   SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY!,
 };
 
+// Validate configuration on startup
+function validateConfig() {
+  const missing = [];
+  if (!S3_CONFIG.BUCKET_NAME) missing.push('S3_BUCKET_NAME');
+  if (!S3_CONFIG.PUBLIC_URL) missing.push('S3_PUBLIC_URL');
+  if (!S3_CONFIG.ENDPOINT) missing.push('S3_ENDPOINT');
+  if (!S3_CONFIG.ACCESS_KEY_ID) missing.push('S3_ACCESS_KEY_ID');
+  if (!S3_CONFIG.SECRET_ACCESS_KEY) missing.push('S3_SECRET_ACCESS_KEY');
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing S3 configuration:', missing.join(', '));
+    console.error('Please check your .env file');
+  } else {
+    console.log('✅ S3 configuration loaded');
+    console.log('   Endpoint:', S3_CONFIG.ENDPOINT);
+    console.log('   Bucket:', S3_CONFIG.BUCKET_NAME);
+    console.log('   Public URL:', S3_CONFIG.PUBLIC_URL);
+  }
+}
+
+validateConfig();
+
 const r2Client = new S3Client({
   region: "auto",
   endpoint: S3_CONFIG.ENDPOINT,
@@ -25,6 +47,7 @@ const r2Client = new S3Client({
     accessKeyId: S3_CONFIG.ACCESS_KEY_ID,
     secretAccessKey: S3_CONFIG.SECRET_ACCESS_KEY,
   },
+  forcePathStyle: true, // Required for MinIO and some S3-compatible services
 });
 
 export interface AudioFileMetadata {
@@ -124,15 +147,22 @@ export function validateR2Config(): { isValid: boolean; errors: string[] } {
  */
 export async function listObjectsWithPrefix(prefix: string) {
   try {
+    console.log(`🔍 Listing objects with prefix: "${prefix}"`);
+    console.log(`📍 Using endpoint: ${S3_CONFIG.ENDPOINT}`);
+    console.log(`📦 Using bucket: ${S3_CONFIG.BUCKET_NAME}`);
+    
     const listCommand = new ListObjectsV2Command({
       Bucket: S3_CONFIG.BUCKET_NAME,
       Prefix: prefix,
     });
 
     const listResponse = await r2Client.send(listCommand);
+    console.log(`✅ Found ${listResponse.Contents?.length || 0} objects with prefix "${prefix}"`);
     return listResponse.Contents;
   } catch (error) {
-    console.error(`Failed to list objects with prefix "${prefix}":`, error);
+    console.error(`❌ Failed to list objects with prefix "${prefix}":`, error);
+    console.error(`   Endpoint: ${S3_CONFIG.ENDPOINT}`);
+    console.error(`   Bucket: ${S3_CONFIG.BUCKET_NAME}`);
     throw error;
   }
 }
@@ -146,12 +176,15 @@ export async function deleteObjectsWithPrefix(
   let deletedCount = 0;
 
   try {
+    console.log(`🗑️ Starting deletion for prefix: "${prefix}"`);
     const objects = await listObjectsWithPrefix(prefix);
 
     if (!objects || objects.length === 0) {
-      console.log(`No objects found with prefix "${prefix}"`);
+      console.log(`ℹ️ No objects found with prefix "${prefix}"`);
       return { deletedCount: 0 };
     }
+
+    console.log(`📋 Found ${objects.length} objects to delete`);
 
     // Prepare objects for batch deletion
     const objectsToDelete = objects.map((obj) => ({
@@ -162,6 +195,7 @@ export async function deleteObjectsWithPrefix(
     const batchSize = 1000;
     for (let i = 0; i < objectsToDelete.length; i += batchSize) {
       const batch = objectsToDelete.slice(i, i + batchSize);
+      console.log(`🔄 Deleting batch ${Math.floor(i / batchSize) + 1}: ${batch.length} objects`);
 
       const deleteCommand = new DeleteObjectsCommand({
         Bucket: S3_CONFIG.BUCKET_NAME,
@@ -177,20 +211,43 @@ export async function deleteObjectsWithPrefix(
       const batchDeletedCount =
         batch.length - (deleteResponse.Errors?.length || 0);
       deletedCount += batchDeletedCount;
+      
+      console.log(`✅ Batch completed: ${batchDeletedCount} deleted`);
 
-      // Throw on first error
+      // Report errors but don't throw on first error (log all errors)
       if (deleteResponse.Errors && deleteResponse.Errors.length > 0) {
-        const firstError = deleteResponse.Errors[0];
-        throw new Error(
-          `Failed to delete ${firstError.Key}: ${firstError.Message}`
-        );
+        console.error(`⚠️ Batch had ${deleteResponse.Errors.length} errors:`);
+        deleteResponse.Errors.forEach(error => {
+          console.error(`   ❌ ${error.Key}: ${error.Code} - ${error.Message}`);
+        });
+        
+        // Only throw if ALL items in batch failed
+        if (deleteResponse.Errors.length === batch.length) {
+          const firstError = deleteResponse.Errors[0];
+          throw new Error(
+            `Complete batch failure: ${firstError.Key}: ${firstError.Message}`
+          );
+        }
       }
     }
 
+    console.log(`🎉 Deletion complete! Total deleted: ${deletedCount}`);
     return { deletedCount };
   } catch (error) {
     const errorMessage = `Failed to delete objects with prefix "${prefix}": ${error}`;
-    console.error(errorMessage);
+    console.error(`❌ ${errorMessage}`);
+    
+    // Check if it's a connection error and provide helpful info
+    if (error instanceof Error) {
+      if (error.message.includes('url or port') || error.message.includes('FailedToOpenSocket')) {
+        console.error('🔧 Connection troubleshooting:');
+        console.error('   1. Is MinIO running? Try: docker-compose -f docker-compose.dev.yml up -d');
+        console.error('   2. Check MinIO health: curl http://localhost:9000/minio/health/live');
+        console.error('   3. Verify .env configuration');
+        console.error(`   4. Current endpoint: ${S3_CONFIG.ENDPOINT}`);
+      }
+    }
+    
     throw new Error(errorMessage);
   }
 }

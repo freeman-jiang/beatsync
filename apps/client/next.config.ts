@@ -24,21 +24,9 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "img.youtube.com",
+        hostname: "i.ytimg.com",
         port: "",
-        pathname: "/vi/**",
-      },
-      {
-        protocol: "https",
-        hostname: "us-assets.i.posthog.com",
-        port: "",
-        pathname: "/static/**",
-      },
-      {
-        protocol: "https",
-        hostname: "i.posthog.com",
-        port: "",
-        pathname: "/static/**",
+        pathname: "/**",
       },
     ],
   },

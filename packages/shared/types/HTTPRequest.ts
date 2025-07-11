@@ -50,7 +50,6 @@ export const GetAudioSchema = z.object({
 });
 export type GetAudioType = z.infer<typeof GetAudioSchema>;
 
-// Default audio fetch response
 export const GetDefaultAudioSchema = z.array(
   z.object({
     url: z.string(),

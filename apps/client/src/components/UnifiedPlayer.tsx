@@ -21,89 +21,177 @@ import { useGlobalStore } from "@/store/global";
 import { Card } from "./ui/card";
 import { motion, AnimatePresence } from "motion/react";
 import Image from "next/image";
+import { YouTubePlayer } from "./youtube/YouTubePlayer";
 
 export const UnifiedPlayer = () => {
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
-  const [volume, setVolume] = useState(75);
+  const [localVolume, setLocalVolume] = useState(75);
   const [isMuted, setIsMuted] = useState(false);
+  const [livePosition, setLivePosition] = useState(0);
+  const [youtubeDuration, setYoutubeDuration] = useState(0);
+  const [youtubePosition, setYoutubePosition] = useState(0);
   
+  // Global state
   const currentMode = useGlobalStore((state) => state.currentMode);
+  const isPlaying = useGlobalStore((state) => state.isPlaying);
+  const isShuffled = useGlobalStore((state) => state.isShuffled);
+  const repeatMode = useGlobalStore((state) => state.repeatMode);
+  const isInitingSystem = useGlobalStore((state) => state.isInitingSystem);
+  
+  // YouTube state
   const selectedYouTubeId = useGlobalStore((state) => state.selectedYouTubeId);
   const youtubeSources = useGlobalStore((state) => state.youtubeSources);
   const youtubePlayer = useGlobalStore((state) => state.youtubePlayer);
   const isYouTubePlayerReady = useGlobalStore((state) => state.isYouTubePlayerReady);
-  const isPlaying = useGlobalStore((state) => state.isPlaying);
-  const isShuffled = useGlobalStore((state) => state.isShuffled);
-  const repeatMode = useGlobalStore((state) => state.repeatMode);
   
+  // Library state
+  const selectedAudioId = useGlobalStore((state) => state.selectedAudioId);
+  const audioSources = useGlobalStore((state) => state.audioSources);
+  const currentTime = useGlobalStore((state) => state.currentTime);
+  const duration = useGlobalStore((state) => state.duration);
+  const getCurrentTrackPosition = useGlobalStore((state) => state.getCurrentTrackPosition);
+  
+  // Actions
+  const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
+  const broadcastPause = useGlobalStore((state) => state.broadcastPause);
+  const skipToNextTrack = useGlobalStore((state) => state.skipToNextTrack);
+  const skipToPreviousTrack = useGlobalStore((state) => state.skipToPreviousTrack);
   const broadcastPlayYouTube = useGlobalStore((state) => state.broadcastPlayYouTube);
   const broadcastPauseYouTube = useGlobalStore((state) => state.broadcastPauseYouTube);
-  const setSelectedYouTubeId = useGlobalStore((state) => state.setSelectedYouTubeId);
+  const skipToNextYouTubeVideo = useGlobalStore((state) => state.skipToNextYouTubeVideo);
+  const skipToPreviousYouTubeVideo = useGlobalStore((state) => state.skipToPreviousYouTubeVideo);
+  const broadcastSeekYouTube = useGlobalStore((state) => state.broadcastSeekYouTube);
   const setIsShuffled = useGlobalStore((state) => state.setIsShuffled);
   const setRepeatMode = useGlobalStore((state) => state.setRepeatMode);
+  const setVolume = useGlobalStore((state) => state.setVolume);
+  const getVolume = useGlobalStore((state) => state.getVolume);
 
-  // Get current video info
+  // Get current content info
   const currentVideo = youtubeSources.find(source => source.videoId === selectedYouTubeId);
+  const currentAudio = audioSources.find(source => source.id === selectedAudioId);
+
+  // Helper function to format time
+  const formatTime = (seconds: number) => {
+    if (!seconds || !isFinite(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Update live position for both library and YouTube modes
+  useEffect(() => {
+    if (currentMode === 'library' && isPlaying) {
+      const interval = setInterval(() => {
+        const position = getCurrentTrackPosition();
+        setLivePosition(position);
+      }, 100); // Update every 100ms for smooth progress
+
+      return () => clearInterval(interval);
+    } else if (currentMode === 'youtube' && isPlaying && youtubePlayer) {
+      const interval = setInterval(() => {
+        try {
+          const currentTime = youtubePlayer.getCurrentTime();
+          const duration = youtubePlayer.getDuration();
+          setYoutubePosition(currentTime);
+          setYoutubeDuration(duration);
+        } catch {
+          // YouTube player might not be ready yet
+          console.log("YouTube player not ready for time tracking");
+        }
+      }, 100); // Update every 100ms for smooth progress
+
+      return () => clearInterval(interval);
+    } else {
+      setLivePosition(currentTime);
+      if (currentMode === 'youtube') {
+        setYoutubePosition(0);
+      }
+    }
+  }, [currentMode, isPlaying, getCurrentTrackPosition, currentTime, youtubePlayer]);
 
   // Player controls
   const handlePlayPause = () => {
+    console.log("UnifiedPlayer: Play/Pause clicked", { 
+      currentMode, 
+      isPlaying, 
+      selectedAudioId, 
+      currentAudio: !!currentAudio,
+      isInitingSystem,
+      audioSourcesLength: audioSources.length 
+    });
+    
+    if (isInitingSystem) {
+      console.log("UnifiedPlayer: System still initializing, cannot play");
+      return;
+    }
+    
     if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
       if (isPlaying) {
+        // Pause the YouTube player directly
+        youtubePlayer.pauseVideo();
+        // Also broadcast the pause to other clients
         broadcastPauseYouTube();
       } else {
-        broadcastPlayYouTube();
+        // Play the YouTube player directly
+        youtubePlayer.playVideo();
+        // Also broadcast the play to other clients
+        const currentTime = youtubePlayer.getCurrentTime();
+        broadcastPlayYouTube(currentTime);
+      }
+    } else if (currentMode === 'library') {
+      if (isPlaying) {
+        console.log("UnifiedPlayer: Broadcasting pause");
+        broadcastPause();
+      } else {
+        console.log("UnifiedPlayer: Broadcasting play");
+        broadcastPlay();
       }
     }
-    // Add library mode play/pause logic here
   };
 
   const handlePrevious = () => {
-    if (currentMode === 'youtube' && youtubeSources.length > 0) {
-      const currentIndex = youtubeSources.findIndex(source => source.videoId === selectedYouTubeId);
-      if (currentIndex > 0) {
-        setSelectedYouTubeId(youtubeSources[currentIndex - 1].videoId);
-      } else if (youtubeSources.length > 0) {
-        // Loop to last video
-        setSelectedYouTubeId(youtubeSources[youtubeSources.length - 1].videoId);
-      }
+    if (currentMode === 'youtube') {
+      skipToPreviousYouTubeVideo();
+    } else if (currentMode === 'library') {
+      skipToPreviousTrack();
     }
-    // Add library mode previous logic here
   };
 
   const handleNext = () => {
-    if (currentMode === 'youtube' && youtubeSources.length > 0) {
-      const currentIndex = youtubeSources.findIndex(source => source.videoId === selectedYouTubeId);
-      if (currentIndex < youtubeSources.length - 1) {
-        setSelectedYouTubeId(youtubeSources[currentIndex + 1].videoId);
-      } else if (youtubeSources.length > 0) {
-        // Loop to first video
-        setSelectedYouTubeId(youtubeSources[0].videoId);
-      }
+    if (currentMode === 'youtube') {
+      skipToNextYouTubeVideo();
+    } else if (currentMode === 'library') {
+      skipToNextTrack();
     }
-    // Add library mode next logic here
   };
 
   const handleVolumeChange = (newVolume: number[]) => {
     const vol = newVolume[0];
-    setVolume(vol);
+    setLocalVolume(vol);
     setIsMuted(vol === 0);
     
     if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
       youtubePlayer.setVolume(vol);
+    } else if (currentMode === 'library') {
+      // Set the actual audio volume using the global store
+      setVolume(vol);
     }
-    // Add library mode volume logic here
   };
 
   const handleMute = () => {
     if (isMuted) {
       setIsMuted(false);
       if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
-        youtubePlayer.setVolume(volume);
+        youtubePlayer.setVolume(localVolume);
+      } else if (currentMode === 'library') {
+        setVolume(localVolume);
       }
     } else {
       setIsMuted(true);
       if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
         youtubePlayer.setVolume(0);
+      } else if (currentMode === 'library') {
+        setVolume(0);
       }
     }
   };
@@ -119,60 +207,89 @@ export const UnifiedPlayer = () => {
     setRepeatMode(modes[nextIndex]);
   };
 
+  const handleProgressChange = (newValue: number[]) => {
+    const percentage = newValue[0];
+    
+    if (currentMode === 'youtube' && youtubeDuration > 0) {
+      const newTime = (percentage / 100) * youtubeDuration;
+      if (youtubePlayer && isYouTubePlayerReady) {
+        youtubePlayer.seekTo(newTime, true);
+        broadcastSeekYouTube(newTime);
+      }
+    } else if (currentMode === 'library' && duration > 0) {
+      // Library mode seeking would need to be implemented in the global store
+      // For now, library progress bar remains read-only
+      console.log('Library seeking not yet implemented');
+    }
+  };
+
   // Set initial volume when YouTube player is ready
   useEffect(() => {
     if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
-      youtubePlayer.setVolume(isMuted ? 0 : volume);
+      youtubePlayer.setVolume(isMuted ? 0 : localVolume);
     }
-  }, [youtubePlayer, isYouTubePlayerReady, volume, isMuted, currentMode]);
+  }, [youtubePlayer, isYouTubePlayerReady, localVolume, isMuted, currentMode]);
+
+  // Initialize local volume from global store
+  useEffect(() => {
+    const currentVolume = getVolume();
+    setLocalVolume(currentVolume);
+  }, [getVolume]);
 
   return (
     <Card className="bg-neutral-900/80 backdrop-blur-xl border-neutral-800/50">
       <div className="p-4">
         {/* Video Display (YouTube Mode Only) */}
         <AnimatePresence>
-          {currentMode === 'youtube' && selectedYouTubeId && (
+            {currentMode === 'youtube' && selectedYouTubeId && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: isVideoExpanded ? 400 : 200 }}
+              animate={{ 
+              opacity: 1, 
+              height: isVideoExpanded ? 400 : 200 
+              }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mb-4 relative overflow-hidden rounded-lg bg-black"
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="mb-4 relative overflow-hidden rounded-lg bg-black group"
             >
-              <div 
-                id="youtube-player-mini"
-                className="w-full h-full aspect-video"
+              <div className={`w-full h-full transition-all duration-300 ease-in-out ${
+              isVideoExpanded ? 'min-h-[400px]' : 'min-h-[200px]'
+              }`}>
+              <YouTubePlayer 
+                videoId={selectedYouTubeId}
+                className="w-full h-full"
               />
+              </div>
               
               {/* Video Overlay Controls */}
-              <div className="absolute top-2 right-2 flex gap-2">
-                <Button
-                  onClick={() => setIsVideoExpanded(!isVideoExpanded)}
-                  size="sm"
-                  variant="secondary"
-                  className="bg-black/60 hover:bg-black/80 backdrop-blur-sm"
-                >
-                  {isVideoExpanded ? (
-                    <Minimize2 className="h-4 w-4" />
-                  ) : (
-                    <Maximize2 className="h-4 w-4" />
-                  )}
-                </Button>
+              <div className="absolute top-2 right-2 flex gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <Button
+                onClick={() => setIsVideoExpanded(!isVideoExpanded)}
+                size="sm"
+                variant="secondary"
+                className="bg-black/60 hover:bg-black/80 backdrop-blur-sm"
+              >
+                {isVideoExpanded ? (
+                <Minimize2 className="h-4 w-4" />
+                ) : (
+                <Maximize2 className="h-4 w-4" />
+                )}
+              </Button>
               </div>
               
               {/* Video Info Overlay */}
-              {currentVideo && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <h3 className="text-white font-medium text-sm line-clamp-1">
-                    {currentVideo.title}
-                  </h3>
-                  <p className="text-neutral-300 text-xs">
-                    {currentVideo.channel}
-                  </p>
-                </div>
-              )}
+              {/* {currentVideo && (
+              <div className="absolute top-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <h3 className="text-white font-medium text-sm line-clamp-1">
+                {currentVideo.title}
+                </h3>
+                <p className="text-neutral-300 text-xs">
+                {currentVideo.channel}
+                </p>
+              </div>
+              )} */}
             </motion.div>
-          )}
+            )}
         </AnimatePresence>
 
         {/* Track Info */}
@@ -201,6 +318,24 @@ export const UnifiedPlayer = () => {
               <div className="flex items-center gap-1 text-red-500">
                 <Youtube className="h-4 w-4" />
                 <span className="text-xs">YouTube</span>
+              </div>
+            </>
+          ) : currentMode === 'library' && currentAudio ? (
+            <>
+              <div className="w-12 h-12 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <Music className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-white font-medium text-sm line-clamp-1">
+                  {currentAudio.name}
+                </h3>
+                <p className="text-neutral-400 text-xs">
+                  {isInitingSystem ? 'System initializing...' : isPlaying ? 'Playing' : 'Ready to play'}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 text-blue-500">
+                <Music className="h-4 w-4" />
+                <span className="text-xs">Library</span>
               </div>
             </>
           ) : (
@@ -235,6 +370,44 @@ export const UnifiedPlayer = () => {
 
         {/* Controls */}
         <div className="space-y-4">
+          {/* Progress Bar */}
+          {((currentMode === 'library' && currentAudio) || (currentMode === 'youtube' && currentVideo)) && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-neutral-400 w-12 text-left">
+                  {currentMode === 'library' 
+                    ? formatTime(livePosition) 
+                    : formatTime(youtubePosition)
+                  }
+                </span>
+                <div className="flex-1">
+                  <Slider
+                    value={[
+                      currentMode === 'library' 
+                        ? (duration > 0 ? (livePosition / duration) * 100 : 0)
+                        : (youtubeDuration > 0 ? (youtubePosition / youtubeDuration) * 100 : 0)
+                    ]}
+                    onValueChange={currentMode === 'youtube' ? handleProgressChange : undefined}
+                    max={100}
+                    step={0.1}
+                    className={`w-full ${
+                      currentMode === 'youtube' 
+                        ? 'cursor-pointer' 
+                        : '[&>*]:pointer-events-none [&>*]:cursor-default'
+                    }`}
+                    disabled={currentMode === 'library'}
+                  />
+                </div>
+                <span className="text-xs text-neutral-400 w-12 text-right">
+                  {currentMode === 'library' 
+                    ? formatTime(duration) 
+                    : formatTime(youtubeDuration)
+                  }
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Primary Controls */}
           <div className="flex items-center justify-center gap-2">
             <Button
@@ -242,6 +415,9 @@ export const UnifiedPlayer = () => {
               variant={isShuffled ? "default" : "ghost"}
               size="sm"
               className="text-neutral-400 hover:text-white"
+              disabled={
+                (currentMode === 'library' && audioSources.length <= 1)
+              }
             >
               <Shuffle className="h-4 w-4" />
             </Button>
@@ -251,6 +427,10 @@ export const UnifiedPlayer = () => {
               variant="ghost"
               size="sm"
               className="text-neutral-400 hover:text-white"
+              disabled={
+                (currentMode === 'youtube' && youtubeSources.length === 0) ||
+                (currentMode === 'library' && audioSources.length <= 1)
+              }
             >
               <SkipBack className="h-5 w-5" />
             </Button>
@@ -258,7 +438,11 @@ export const UnifiedPlayer = () => {
             <Button
               onClick={handlePlayPause}
               className="bg-white text-black hover:bg-neutral-200 w-12 h-12 rounded-full"
-              disabled={currentMode === 'youtube' && (!selectedYouTubeId || !isYouTubePlayerReady)}
+              disabled={
+                isInitingSystem ||
+                (currentMode === 'youtube' && (!selectedYouTubeId || !isYouTubePlayerReady)) ||
+                (currentMode === 'library' && (!selectedAudioId || audioSources.length === 0))
+              }
             >
               {isPlaying ? (
                 <Pause className="h-6 w-6" />
@@ -272,6 +456,10 @@ export const UnifiedPlayer = () => {
               variant="ghost"
               size="sm"
               className="text-neutral-400 hover:text-white"
+              disabled={
+                (currentMode === 'youtube' && youtubeSources.length === 0) ||
+                (currentMode === 'library' && audioSources.length <= 1)
+              }
             >
               <SkipForward className="h-5 w-5" />
             </Button>
@@ -299,7 +487,7 @@ export const UnifiedPlayer = () => {
               size="sm"
               className="text-neutral-400 hover:text-white flex-shrink-0"
             >
-              {isMuted || volume === 0 ? (
+              {isMuted || localVolume === 0 ? (
                 <VolumeX className="h-4 w-4" />
               ) : (
                 <Volume2 className="h-4 w-4" />
@@ -308,7 +496,7 @@ export const UnifiedPlayer = () => {
             
             <div className="flex-1">
               <Slider
-                value={[isMuted ? 0 : volume]}
+                value={[isMuted ? 0 : localVolume]}
                 onValueChange={handleVolumeChange}
                 max={100}
                 step={1}
@@ -317,7 +505,7 @@ export const UnifiedPlayer = () => {
             </div>
             
             <span className="text-xs text-neutral-500 w-8 text-right">
-              {isMuted ? 0 : volume}
+              {isMuted ? 0 : localVolume}
             </span>
           </div>
         </div>

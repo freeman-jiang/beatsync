@@ -4,15 +4,14 @@ import { Queue } from "../Queue";
 import { useGlobalStore } from "@/store/global";
 import { YouTubeQueue } from "../youtube/YouTubeQueue";
 import { YouTubePlayer } from "../youtube/YouTubePlayer";
-import { YouTubeUrlInput } from "../youtube/YouTubeUrlInput";
 import { YouTubeSearch } from "../youtube/YouTubeSearch";
 import { Button } from "../ui/button";
-import { Search, Plus, List } from "lucide-react";
+import { Search, List } from "lucide-react";
 import { useState } from "react";
 
 export const Main = () => {
   const currentMode = useGlobalStore((state) => state.currentMode);
-  const [youtubeTab, setYoutubeTab] = useState<'search' | 'url' | 'queue'>('search');
+  const [youtubeTab, setYoutubeTab] = useState<'search' | 'queue'>('search');
 
   return (
     <motion.div
@@ -50,15 +49,6 @@ export const Main = () => {
                   Search
                 </Button>
                 <Button
-                  onClick={() => setYoutubeTab('url')}
-                  variant={youtubeTab === 'url' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add URL
-                </Button>
-                <Button
                   onClick={() => setYoutubeTab('queue')}
                   variant={youtubeTab === 'queue' ? 'default' : 'ghost'}
                   size="sm"
@@ -78,12 +68,6 @@ export const Main = () => {
                   </div>
                 )}
                 
-                {youtubeTab === 'url' && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Add by URL</h3>
-                    <YouTubeUrlInput />
-                  </div>
-                )}
                 
                 {youtubeTab === 'queue' && (
                   <div>

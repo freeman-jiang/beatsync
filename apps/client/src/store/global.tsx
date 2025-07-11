@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { LocalAudioSource, RawAudioSource, YouTubeSource } from "@/lib/localTypes";
-import { fetchDefaultAudioSources } from "@/lib/api";
 import {
   NTPMeasurement,
   _sendNTPRequest,
@@ -19,6 +18,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
 import { extractDefaultFileName } from "@/lib/utils";
+import { fetchDefaultAudioSources } from "@/lib/api";
 import type { YouTubeEvent } from "react-youtube";
 
 export const MAX_NTP_MEASUREMENTS = 40;
@@ -134,6 +134,8 @@ interface GlobalState extends GlobalStateValues {
   skipToNextTrack: (isAutoplay?: boolean) => void;
   skipToPreviousTrack: () => void;
   getCurrentGainValue: () => number;
+  setVolume: (volume: number) => void;
+  getVolume: () => number;
   resetStore: () => void;
   // YouTube methods
   addYouTubeSource: (source: Omit<YouTubeSource, 'addedAt' | 'addedBy'>) => Promise<void>;
@@ -163,6 +165,9 @@ interface GlobalState extends GlobalStateValues {
   setIsShuffled: (shuffled: boolean) => void;
   setRepeatMode: (mode: 'none' | 'all' | 'one') => void;
   playNextYouTubeVideo: () => void;
+  playPreviousYouTubeVideo: () => void;
+  skipToNextYouTubeVideo: () => void;
+  skipToPreviousYouTubeVideo: () => void;
   // UI Mode methods
   setCurrentMode: (mode: 'library' | 'youtube') => void;
 }
@@ -248,6 +253,7 @@ const loadAudioSourceUrl = async ({
   url: string;
   audioContext: AudioContext;
 }) => {
+  console.log("loadAudioSourceUrl called with URL:", url);
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -265,23 +271,9 @@ const initializeAudioContext = () => {
 };
 
 export const useGlobalStore = create<GlobalState>((set, get) => {
-  // Function to initialize or reinitialize audio system
+  // Function to initialize audio system without default sources
   const initializeAudio = async () => {
-    console.log("initializeAudio()");
-
-    // Fetch default audio sources from server
-    let defaultSources = await fetchDefaultAudioSources();
-    console.log("defaultSources", defaultSources);
-
-    // Fallback to local audio files if no default sources available
-    if (!defaultSources || defaultSources.length === 0) {
-      console.log("No default sources from server, using local fallback files");
-      defaultSources = [
-        { url: "/trndsttr.mp3" },
-        { url: "/joyful - chess (slowed).mp3" },
-        { url: "/Jacob Tillberg - Feel You.mp3" },
-      ];
-    }
+    console.log("initializeAudio() - skipping default sources");
 
     // Create fresh audio context
     const audioContext = initializeAudioContext();
@@ -289,43 +281,83 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     // Create master gain node for volume control
     const gainNode = audioContext.createGain();
     gainNode.gain.value = 1; // Default volume
-    const sourceNode = audioContext.createBufferSource();
-
-    // Load first source
-    const firstSource = await loadAudioSourceUrl({
-      url: defaultSources[0].url,
-      audioContext,
-    });
-
-    // Decode initial first audio source
-    sourceNode.buffer = firstSource.audioBuffer;
-    sourceNode.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(audioContext.destination); // Connect gain node to speakers
 
     set({
-      audioSources: [firstSource],
+      audioSources: [], // Start with no audio sources
       audioPlayer: {
         audioContext,
-        sourceNode,
+        sourceNode: audioContext.createBufferSource(), // Create empty source node
         gainNode,
       },
       downloadedAudioIds: new Set<string>(),
-      duration: firstSource.audioBuffer.duration,
-      selectedAudioId: firstSource.id, // Set the first loaded audio as selected
+      duration: 0, // No initial duration
+      selectedAudioId: undefined, // No initial selection
     });
 
-    console.log(`${0} Decoded source ${firstSource.name}`);
+    console.log("Audio system initialized without default sources");
+  };
 
-    // Load rest asynchronously, keep updating state
-    for (let i = 1; i < defaultSources.length; i++) {
-      const { url } = defaultSources[i];
+  // Function to load default audio files from the server
+  const loadDefaultAudio = async () => {
+    try {
+      console.log("Loading default audio files...");
+      const defaultAudioList = await fetchDefaultAudioSources();
+      console.log("Default audio list received:", defaultAudioList);
+      
       const state = get();
-      const loadedSource = await loadAudioSourceUrl({
-        url,
-        audioContext,
-      });
-      set({ audioSources: [...state.audioSources, loadedSource] });
-      console.log(`${i} Decoded source ${loadedSource.name}`);
+      let audioContext = state.audioPlayer?.audioContext;
+      
+      // Create audio context if it doesn't exist
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 1;
+        gainNode.connect(audioContext.destination); // Connect to speakers
+        const sourceNode = audioContext.createBufferSource();
+        
+        set({
+          audioPlayer: {
+            audioContext,
+            sourceNode,
+            gainNode,
+          },
+        });
+      }
+
+      // Load each default audio file
+      for (const audioFile of defaultAudioList) {
+        try {
+          console.log("Attempting to load audio file:", audioFile.url);
+          const audioSource = await loadAudioSourceUrl({
+            url: audioFile.url,
+            audioContext,
+          });
+          
+          // Mark as downloaded and add to audio sources
+          state.markAudioAsDownloaded(audioSource.id);
+          
+          set((state) => {
+            const isFirstAudio = state.audioSources.length === 0;
+            return {
+              audioSources: [...state.audioSources, audioSource],
+              // Auto-select the first audio file loaded
+              ...(isFirstAudio ? { 
+                selectedAudioId: audioSource.id,
+                duration: audioSource.audioBuffer?.duration || 0 
+              } : {}),
+            };
+          });
+          
+          console.log(`Loaded default audio: ${audioSource.name}`);
+        } catch (error) {
+          console.error(`Failed to load default audio file ${audioFile.url}:`, error);
+        }
+      }
+      
+      console.log("Default audio files loaded");
+    } catch (error) {
+      console.error("Failed to load default audio files:", error);
     }
   };
 
@@ -336,8 +368,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       window.navigator.audioSession.type = "playback";
     }
 
-    console.log("Detected that no audio sources were loaded, initializing");
-    initializeAudio();
+    console.log("Initializing audio system");
+    initializeAudio().then(() => {
+      // Load default audio files after audio system is initialized
+      loadDefaultAudio();
+    });
   }
 
   return {
@@ -397,9 +432,29 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     addAudioSource: async (source: RawAudioSource) => {
       const state = get();
-      const { audioContext } = state.audioPlayer || {
-        audioContext: new AudioContext(),
-      };
+      let audioContext = state.audioPlayer?.audioContext;
+      
+      // If no audio context exists, create one
+      if (!audioContext) {
+        console.log("No audio context found, creating new one for audio processing");
+        audioContext = new AudioContext();
+        
+        // Create the full audio player state if it doesn't exist
+        if (!state.audioPlayer) {
+          const gainNode = audioContext.createGain();
+          gainNode.gain.value = 1;
+          gainNode.connect(audioContext.destination); // Connect to speakers
+          const sourceNode = audioContext.createBufferSource();
+          
+          set({
+            audioPlayer: {
+              audioContext,
+              sourceNode,
+              gainNode,
+            },
+          });
+        }
+      }
 
       try {
         const audioBuffer = await audioContext.decodeAudioData(
@@ -424,14 +479,22 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         set((state) => {
           // If this is the currently selected audio, update the duration
           const shouldUpdateDuration = source.id === state.selectedAudioId;
+          
+          // Auto-select this audio if no audio is currently selected
+          const shouldSelectThisAudio = !state.selectedAudioId || state.audioSources.length === 0;
 
           return {
             audioSources: [...state.audioSources, newAudioSource],
             ...(shouldUpdateDuration ? { duration: audioBuffer.duration } : {}),
+            ...(shouldSelectThisAudio ? { 
+              selectedAudioId: source.id,
+              duration: audioBuffer.duration 
+            } : {}),
           };
         });
       } catch (error) {
         console.error("Failed to decode audio data:", error);
+        toast.error("Failed to process audio file");
       }
     },
 
@@ -527,6 +590,27 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         console.log("Not playing audio, still loading");
         // Non-interactive state, can't play audio
         return;
+      }
+
+      // Check if audio player is initialized, if not, try to initialize it
+      if (!state.audioPlayer) {
+        console.log("Audio player not initialized, attempting to initialize...");
+        // Try to initialize the audio system
+        const audioContext = new AudioContext();
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 1;
+        gainNode.connect(audioContext.destination); // Connect to speakers
+        const sourceNode = audioContext.createBufferSource();
+        
+        set({
+          audioPlayer: {
+            audioContext,
+            sourceNode,
+            gainNode,
+          },
+        });
+        
+        console.log("Audio player initialized");
       }
 
       const waitTimeSeconds = getWaitTimeSeconds(state, data.targetServerTime);
@@ -701,13 +785,27 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       audioIndex?: number;
     }) => {
       const state = get();
-      const { sourceNode, audioContext, gainNode } = getAudioPlayer(state);
+      
+      // Ensure we have an audio player before trying to play
+      if (!state.audioPlayer) {
+        console.error("Cannot play audio: Audio player not initialized");
+        toast.error("Audio system not ready. Please try again.");
+        return;
+      }
+      
+      const { sourceNode, audioContext, gainNode } = state.audioPlayer;
 
       // Before any audio playback, ensure the context is running
       if (audioContext.state !== "running") {
-        console.log("AudioContext still suspended, aborting play");
-        toast.error("Audio context is suspended. Please try again.");
-        return;
+        console.log("AudioContext still suspended, attempting to resume...");
+        try {
+          await audioContext.resume();
+          console.log("AudioContext resumed successfully");
+        } catch (error) {
+          console.error("Failed to resume AudioContext:", error);
+          toast.error("Audio context is suspended. Please try again.");
+          return;
+        }
       }
 
       // Stop any existing source node before creating a new one
@@ -717,7 +815,26 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       const startTime = audioContext.currentTime + data.when;
       const audioIndex = data.audioIndex ?? 0;
+      
+      // Ensure we have audio sources and the index is valid
+      if (!state.audioSources || state.audioSources.length === 0) {
+        console.error("No audio sources available");
+        toast.error("No audio files available to play");
+        return;
+      }
+      
+      if (audioIndex >= state.audioSources.length) {
+        console.error(`Invalid audio index: ${audioIndex}`);
+        toast.error("Audio file not found");
+        return;
+      }
+      
       const audioBuffer = state.audioSources[audioIndex].audioBuffer;
+      if (!audioBuffer) {
+        console.error("Audio buffer not available");
+        toast.error("Audio file not properly loaded");
+        return;
+      }
 
       // Create a new source node
       const newSourceNode = audioContext.createBufferSource();
@@ -978,6 +1095,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         return;
       }
 
+      // Don't update isPlaying here - let the YouTube player state change handler manage it
+      // This prevents conflicts between local control and WebSocket sync
+
       sendWSRequest({
         ws: socket,
         request: {
@@ -996,6 +1116,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         console.error("Cannot broadcast YouTube pause: No video selected");
         return;
       }
+
+      // Don't update isPlaying here - let the YouTube player state change handler manage it
+      // This prevents conflicts between local control and WebSocket sync
 
       sendWSRequest({
         ws: socket,
@@ -1045,6 +1168,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       console.log(`YouTube sync play: waiting ${waitTimeMs}ms, seeking to ${data.timeSeconds}s`);
 
+      // Update isPlaying state immediately for UI sync
+      set({ isPlaying: true });
+
       setTimeout(() => {
         if (data.timeSeconds > 0) {
           youtubePlayer.seekTo(data.timeSeconds, true);
@@ -1071,6 +1197,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       );
 
       console.log(`YouTube sync pause: waiting ${waitTimeMs}ms`);
+
+      // Update isPlaying state immediately for UI sync
+      set({ isPlaying: false });
 
       setTimeout(() => {
         youtubePlayer.pauseVideo();
@@ -1135,8 +1264,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           if (repeatMode === 'all') {
             nextIndex = 0; // Loop back to beginning
           } else if (repeatMode === 'one') {
-            nextIndex = currentIndex; // Repeat current video
+            // For repeat one, replay the current video from the beginning
+            if (state.isYouTubePlayerReady && state.youtubePlayer) {
+              state.broadcastPlayYouTube(0);
+            }
+            return; // Don't change the selected video
           } else {
+            // No repeat mode - stop playing
+            set({ isPlaying: false });
             return; // Stop playing if no repeat
           }
         }
@@ -1149,6 +1284,88 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         if (state.isYouTubePlayerReady && state.youtubePlayer) {
           state.broadcastPlayYouTube(0);
         }
+      }
+    },
+
+    playPreviousYouTubeVideo: () => {
+      const state = get();
+      const { youtubeSources, selectedYouTubeId, isShuffled } = state;
+      
+      if (youtubeSources.length === 0) return;
+      
+      const currentIndex = youtubeSources.findIndex(source => source.videoId === selectedYouTubeId);
+      let prevIndex = 0;
+      
+      if (isShuffled) {
+        // Shuffle mode: play random video (different from current)
+        do {
+          prevIndex = Math.floor(Math.random() * youtubeSources.length);
+        } while (prevIndex === currentIndex && youtubeSources.length > 1);
+      } else {
+        // Normal mode: play previous in sequence
+        prevIndex = currentIndex - 1;
+        if (prevIndex < 0) {
+          prevIndex = youtubeSources.length - 1; // Loop to end
+        }
+      }
+      
+      const prevVideo = youtubeSources[prevIndex];
+      if (prevVideo) {
+        set({ selectedYouTubeId: prevVideo.videoId });
+        // Auto-play the previous video
+        if (state.isYouTubePlayerReady && state.youtubePlayer) {
+          state.broadcastPlayYouTube(0);
+        }
+      }
+    },
+
+    skipToNextYouTubeVideo: () => {
+      const state = get();
+      const { youtubeSources, selectedYouTubeId, isShuffled } = state;
+      
+      if (youtubeSources.length === 0) return;
+      
+      const currentIndex = youtubeSources.findIndex(source => source.videoId === selectedYouTubeId);
+      let nextIndex = 0;
+      
+      if (isShuffled) {
+        // Shuffle mode: play random video (different from current)
+        do {
+          nextIndex = Math.floor(Math.random() * youtubeSources.length);
+        } while (nextIndex === currentIndex && youtubeSources.length > 1);
+      } else {
+        // Normal mode: play next in sequence
+        nextIndex = (currentIndex + 1) % youtubeSources.length;
+      }
+      
+      const nextVideo = youtubeSources[nextIndex];
+      if (nextVideo) {
+        set({ selectedYouTubeId: nextVideo.videoId });
+      }
+    },
+
+    skipToPreviousYouTubeVideo: () => {
+      const state = get();
+      const { youtubeSources, selectedYouTubeId, isShuffled } = state;
+      
+      if (youtubeSources.length === 0) return;
+      
+      const currentIndex = youtubeSources.findIndex(source => source.videoId === selectedYouTubeId);
+      let prevIndex = 0;
+      
+      if (isShuffled) {
+        // Shuffle mode: play random video (different from current)
+        do {
+          prevIndex = Math.floor(Math.random() * youtubeSources.length);
+        } while (prevIndex === currentIndex && youtubeSources.length > 1);
+      } else {
+        // Normal mode: play previous in sequence
+        prevIndex = (currentIndex - 1 + youtubeSources.length) % youtubeSources.length;
+      }
+      
+      const prevVideo = youtubeSources[prevIndex];
+      if (prevVideo) {
+        set({ selectedYouTubeId: prevVideo.videoId });
       }
     },
 
@@ -1179,6 +1396,24 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Reinitialize audio from scratch
       initializeAudio();
+    },
+
+    setVolume: (volume: number) => {
+      const state = get();
+      if (state.audioPlayer?.gainNode) {
+        // Convert volume from 0-100 to 0-1 range
+        const gainValue = volume / 100;
+        state.audioPlayer.gainNode.gain.value = gainValue;
+        console.log("Volume set to:", volume, "gain:", gainValue);
+      }
+      // Update the volume state
+      set({ volume: volume / 100 }); // Store as 0-1 range
+    },
+
+    getVolume: () => {
+      const state = get();
+      // Return volume as 0-100 range
+      return state.volume * 100;
     },
   };
 });

@@ -6,7 +6,6 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card, CardContent } from "../ui/card";
 import { useGlobalStore } from "@/store/global";
-import { searchYouTubeVideos, type YouTubeSearchResult } from "@/lib/youtube";
 import Image from "next/image";
 
 interface SearchResult {
@@ -19,54 +18,82 @@ interface SearchResult {
   publishedAt: string;
 }
 
+interface YouTubeSearchItem {
+  id: {
+    videoId: string;
+  };
+  snippet: {
+    title: string;
+    channelTitle: string;
+    publishedAt: string;
+    thumbnails: {
+      default?: { url: string };
+      medium?: { url: string };
+      high?: { url: string };
+    };
+  };
+}
+
+interface YouTubeSearchResponse {
+  items?: YouTubeSearchItem[];
+  error?: {
+    message: string;
+  };
+}
+
 export const YouTubeSearch = () => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isUsingMockData, setIsUsingMockData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const addYouTubeSource = useGlobalStore((state) => state.addYouTubeSource);
   const setSelectedYouTubeId = useGlobalStore((state) => state.setSelectedYouTubeId);
 
-  // Real YouTube search function
+  // YouTube search function
   const handleSearch = async () => {
     if (!query.trim()) return;
-    
+
     setIsLoading(true);
     setError(null);
     
     try {
-      const searchResults = await searchYouTubeVideos(query, 12);
-      // Check if we're getting mock data (look for the telltale Rick Roll video)
-      const usingMock = searchResults.some(result => result.id === "dQw4w9WgXcQ");
-      setIsUsingMockData(usingMock);
-      
-      // Convert YouTubeSearchResult to SearchResult format
-      const convertedResults: SearchResult[] = searchResults.map(result => ({
-        id: result.id,
-        title: result.title,
-        channelTitle: result.channelTitle,
-        thumbnail: result.thumbnail,
-        duration: result.duration,
-        viewCount: result.viewCount,
-        publishedAt: result.publishedAt
+      const response = await fetch('https://www.googleapis.com/youtube/v3/search?' + new URLSearchParams({
+        q: query,
+        part: 'snippet',
+        type: 'video',
+        videoCategoryId: '10', // Music category
+        key: process.env.NEXT_PUBLIC_YOUTUBE_API_KEY!, // 🔐 consider hiding in .env + API proxy
+        maxResults: '10',
       }));
-      setResults(convertedResults);
       
-      if (convertedResults.length === 0) {
-        setError("No videos found for this search query.");
+      const data: YouTubeSearchResponse = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error.message || 'YouTube API Error');
       }
+
+      // Transform YouTube API response to our SearchResult format
+      const transformedResults: SearchResult[] = data.items?.map((item: YouTubeSearchItem) => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        channelTitle: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url || '',
+        duration: 'N/A', // YouTube Search API doesn't provide duration, would need additional API call
+        viewCount: 'N/A', // YouTube Search API doesn't provide view count, would need additional API call
+        publishedAt: new Date(item.snippet.publishedAt).toLocaleDateString(),
+      })) || [];
+
+      setResults(transformedResults);
     } catch (error) {
-      console.error('Search failed:', error);
-      setError("Search failed. Please try again or check your internet connection.");
+      console.error('YouTube API Error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to search YouTube videos');
       setResults([]);
-      setIsUsingMockData(false);
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   const handlePlay = (video: SearchResult) => {
     addYouTubeSource({
@@ -115,16 +142,6 @@ export const YouTubeSearch = () => {
           )}
         </Button>
       </div>
-
-      {/* API Status Notice */}
-      {isUsingMockData && results.length > 0 && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4">
-          <p className="text-yellow-400 text-sm">
-            <strong>Demo Mode:</strong> Using mock data. To get real YouTube search results, 
-            add your YouTube Data API key to <code className="bg-yellow-500/20 px-1 rounded">.env.local</code>
-          </p>
-        </div>
-      )}
 
       {/* Error Message */}
       {error && (

@@ -1,9 +1,9 @@
 import { handleCleanup } from "./routes/cleanup";
+import { handleGetDefaultAudio } from "./routes/default";
 import { handleRoot } from "./routes/root";
 import { handleStats } from "./routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "./routes/upload";
 import { handleWebSocketUpgrade } from "./routes/websocket";
-import { handleGetDefaultAudio } from "./routes/default";
 import {
   handleClose,
   handleMessage,

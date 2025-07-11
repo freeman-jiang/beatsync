@@ -100,10 +100,27 @@ class RoomManager {
     console.log(`🧹 Starting room cleanup for room ${roomId}...`);
 
     try {
-      const result = await deleteObjectsWithPrefix(`room-${roomId}`);
-      console.log(`✅ Room ${roomId} objects deleted: ${result.deletedCount}`);
+      // Add a timeout to prevent cleanup from hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Cleanup timeout after 30 seconds')), 30000);
+      });
+
+      const cleanupPromise = deleteObjectsWithPrefix(`room-${roomId}`);
+      
+      const result = await Promise.race([cleanupPromise, timeoutPromise]) as { deletedCount: number };
+      console.log(`✅ Room ${roomId} cleanup completed: ${result.deletedCount} objects deleted`);
     } catch (error) {
       console.error(`❌ Room ${roomId} cleanup failed:`, error);
+      
+      // Don't re-throw the error - room cleanup failure shouldn't break the app
+      // The room will still be cleaned up from memory, just not from object storage
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          console.error('⏰ Cleanup timed out - this might indicate MinIO connection issues');
+        } else if (error.message.includes('url or port') || error.message.includes('FailedToOpenSocket')) {
+          console.error('🔌 MinIO connection failed - is MinIO running?');
+        }
+      }
     }
   }
 

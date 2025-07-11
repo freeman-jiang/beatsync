@@ -86,7 +86,6 @@ export const fetchAudio = async (url: string) => {
     throw new Error(`Failed to fetch audio: ${error}`);
   }
 };
-
 export async function fetchDefaultAudioSources() {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/default`);
@@ -102,4 +101,4 @@ export async function fetchDefaultAudioSources() {
     console.error("Error fetching default audio sources:", error);
     return [];
   }
-}
+};

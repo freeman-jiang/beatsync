@@ -2,7 +2,11 @@
   "name": "server",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "build": "echo 'No build step needed for Bun'",
     "start": "bun run src/index.ts",
+    "test:s3": "bun run src/lib/test-s3.ts",
+    "test:cleanup": "bun run src/lib/test-cleanup.ts",
+    "upload:defaults": "bun run src/lib/upload-defaults.ts",
     "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
     "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live"
   },

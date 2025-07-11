@@ -21,8 +21,6 @@ export const YouTubePlayer = ({
   const isYouTubePlayerReady = useGlobalStore((state) => state.isYouTubePlayerReady);
   const setYouTubePlayerReady = useGlobalStore((state) => state.setYouTubePlayerReady);
   const setYouTubePlayer = useGlobalStore((state) => state.setYouTubePlayer);
-  const broadcastPlayYouTube = useGlobalStore((state) => state.broadcastPlayYouTube);
-  const broadcastPauseYouTube = useGlobalStore((state) => state.broadcastPauseYouTube);
   const playNextYouTubeVideo = useGlobalStore((state) => state.playNextYouTubeVideo);
 
   // Use selectedYouTubeId from store if no videoId prop is provided
@@ -30,7 +28,7 @@ export const YouTubePlayer = ({
 
   // Player options
   const opts: YouTubeProps['opts'] = {
-    height: '200',
+    height: '100%',
     width: '100%',
     playerVars: {
       autoplay: 0, // Controlled programmatically
@@ -41,6 +39,8 @@ export const YouTubePlayer = ({
       modestbranding: 1, // Minimal YouTube branding
       rel: 0, // Don't show related videos
       showinfo: 0, // Hide video info
+      origin: typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_NEXT_URL, // Fix CORS issue
+      enablejsapi: 1, // Enable JavaScript API
     },
   };
 
@@ -67,19 +67,20 @@ export const YouTubePlayer = ({
     // 3 (buffering)
     // 5 (video cued)
     
-    // Only broadcast state changes if this is user-initiated
-    // (not from our own synchronized commands)
     if (isYouTubePlayerReady && playerRef.current) {
-      const currentTime = playerRef.current.getCurrentTime();
+      // Update global playing state based on YouTube player state
+      const newIsPlaying = state === 1; // 1 = playing
       
+      // Use Zustand's setState directly to update isPlaying
+      useGlobalStore.setState({ isPlaying: newIsPlaying });
+      
+      // Handle specific state transitions
       switch (state) {
         case 1: // Playing
-          console.log("User started YouTube playback, broadcasting play");
-          broadcastPlayYouTube(currentTime);
+          console.log("YouTube player is playing");
           break;
         case 2: // Paused
-          console.log("User paused YouTube playback, broadcasting pause");
-          broadcastPauseYouTube();
+          console.log("YouTube player is paused");
           break;
         case 0: // Ended
           console.log("YouTube video ended, playing next video");
@@ -87,7 +88,7 @@ export const YouTubePlayer = ({
           break;
       }
     }
-  }, [isYouTubePlayerReady, broadcastPlayYouTube, broadcastPauseYouTube, playNextYouTubeVideo]);
+  }, [isYouTubePlayerReady, playNextYouTubeVideo]);
 
   // Handle errors
   const handleError = useCallback((event: { data: number; target: YouTubeEvent['target'] }) => {
@@ -106,21 +107,22 @@ export const YouTubePlayer = ({
 
   if (!activeVideoId) {
     return (
-      <div className={`w-full h-[200px] bg-neutral-800/30 rounded-lg flex items-center justify-center ${className}`}>
+      <div className={`w-full h-full bg-neutral-800/30 rounded-lg flex items-center justify-center ${className}`}>
         <p className="text-neutral-400">No YouTube video selected</p>
       </div>
     );
   }
 
   return (
-    <div className={`w-full rounded-lg overflow-hidden bg-black ${className}`}>
+    <div className={`w-full h-full rounded-lg overflow-hidden bg-black ${className}`}>
       <YouTube
         videoId={activeVideoId}
         opts={opts}
         onReady={handlePlayerReady}
         onStateChange={handleStateChange}
         onError={handleError}
-        className="w-full"
+        className="w-full h-full"
+        iframeClassName="w-full h-full"
       />
       {/* Show player state for debugging */}
       {process.env.NODE_ENV === 'development' && (
