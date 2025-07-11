@@ -1,6 +1,6 @@
 import type { CpuInfo } from "os";
 import * as os from "os";
-import { roomManager } from "../roomManager";
+import { globalManager } from "../managers";
 import { formatBytes, getBlobStats } from "../utils/blobStats";
 import { corsHeaders } from "../utils/responses";
 
@@ -39,19 +39,17 @@ export async function handleStats(): Promise<Response> {
   const blobStats = await getBlobStats();
 
   // --- Add Room Manager Stats with enriched storage info ---
-  const activeRooms = Array.from(roomManager.rooms.entries()).map(
-    ([roomId, roomData]) => {
-      const storageInfo = blobStats.activeRooms[roomId];
-      return {
-        roomId,
-        clientCount: roomData.clients.size,
-        fileCount: storageInfo?.fileCount || 0,
-        totalSize: storageInfo?.totalSize || "0 B",
-        totalSizeBytes: storageInfo?.totalSizeBytes || 0,
-        files: storageInfo?.files || [],
-      };
-    }
-  );
+  const activeRooms = globalManager.getRooms().map(([roomId, room]) => {
+    const roomStats = room.getStats();
+    const storageInfo = blobStats.activeRooms[roomId];
+    return {
+      ...roomStats,
+      fileCount: storageInfo?.fileCount || 0,
+      totalSize: storageInfo?.totalSize || "0 B",
+      totalSizeBytes: storageInfo?.totalSizeBytes || 0,
+      files: storageInfo?.files || [],
+    };
+  });
 
   // Sort rooms by total size (largest first)
   activeRooms.sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);

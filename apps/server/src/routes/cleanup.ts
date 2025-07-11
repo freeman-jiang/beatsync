@@ -1,5 +1,5 @@
 import { listObjectsWithPrefix, deleteObjectsWithPrefix, validateR2Config } from "../lib/r2";
-import { roomManager } from "../roomManager";
+import { globalManager } from "../managers";
 import { errorResponse, jsonResponse } from "../utils/responses";
 
 interface CleanupResult {
@@ -75,7 +75,7 @@ export async function handleCleanup(req: Request) {
     const activeRooms = new Set<string>();
     
     // Get rooms from the running server instance
-    roomManager.rooms.forEach((_, roomId) => {
+    globalManager.forEachRoom((room, roomId) => {
       activeRooms.add(roomId);
     });
     console.log(`🏃 Found ${activeRooms.size} active rooms in server memory\n`);
