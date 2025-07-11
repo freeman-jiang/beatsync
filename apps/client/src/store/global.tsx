@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
+import { Mutex } from "async-mutex";
 
 export const MAX_NTP_MEASUREMENTS = 40;
 
@@ -205,6 +206,8 @@ const initializeAudioContext = () => {
   return audioContext;
 };
 
+const initializationMutex = new Mutex();
+
 export const useGlobalStore = create<GlobalState>((set, get) => {
   const processNewAudioSource = async ({ url }: AudioSourceType) => {
     console.log(`Processing new audio source ${url}`);
@@ -220,7 +223,19 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   };
 
   // Function to initialize or reinitialize audio system
-  const initializeAudio = async () => {
+  // If concurrent initialization is detected, only first one will continue
+  const initializeAudioExclusively = async () => {
+    if (initializationMutex.isLocked()) {
+      console.log("Audio initialization already in progress, skipping");
+      return;
+    }
+
+    await initializationMutex.runExclusive(async () => {
+      await _initializeAudio();
+    });
+  };
+
+  const _initializeAudio = async () => {
     console.log("initializeAudio()");
 
     // Fetch default audio sources from server
@@ -260,7 +275,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     }
 
     console.log("Detected that no audio sources were loaded, initializing");
-    initializeAudio();
+    initializeAudioExclusively();
   }
 
   return {
@@ -856,7 +871,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
 
       // Reinitialize audio from scratch
-      initializeAudio();
+      initializeAudioExclusively();
     },
   };
 });
