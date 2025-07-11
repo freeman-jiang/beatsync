@@ -123,6 +123,7 @@ export const YouTubePlayer = ({
         onError={handleError}
         className="w-full h-full"
         iframeClassName="w-full h-full"
+        
       />
       {/* Show player state for debugging */}
       {process.env.NODE_ENV === 'development' && (

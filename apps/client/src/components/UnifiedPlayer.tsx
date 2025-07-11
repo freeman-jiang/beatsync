@@ -241,272 +241,315 @@ export const UnifiedPlayer = () => {
       <div className="p-4">
         {/* Video Display (YouTube Mode Only) */}
         <AnimatePresence>
-            {currentMode === 'youtube' && selectedYouTubeId && (
+          {currentMode === 'youtube' && selectedYouTubeId && isVideoExpanded && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ 
-              opacity: 1, 
-              height: isVideoExpanded ? 400 : 200 
+                opacity: 1, 
+                height: 400 
               }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="mb-4 relative overflow-hidden rounded-lg bg-black group"
             >
-              <div className={`w-full h-full transition-all duration-300 ease-in-out ${
-              isVideoExpanded ? 'min-h-[400px]' : 'min-h-[200px]'
-              }`}>
-              <YouTubePlayer 
-                videoId={selectedYouTubeId}
-                className="w-full h-full"
-              />
+              <div className="w-full h-full transition-all duration-300 ease-in-out min-h-[400px]">
+                <YouTubePlayer 
+                  videoId={selectedYouTubeId}
+                  className="w-full h-full"
+                />
               </div>
               
               {/* Video Overlay Controls */}
               <div className="absolute top-2 right-2 flex gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <Button
-                onClick={() => setIsVideoExpanded(!isVideoExpanded)}
-                size="sm"
-                variant="secondary"
-                className="bg-black/60 hover:bg-black/80 backdrop-blur-sm"
-              >
-                {isVideoExpanded ? (
-                <Minimize2 className="h-4 w-4" />
-                ) : (
-                <Maximize2 className="h-4 w-4" />
-                )}
-              </Button>
+                <Button
+                  onClick={() => setIsVideoExpanded(!isVideoExpanded)}
+                  size="sm"
+                  variant="secondary"
+                  className="bg-black/60 hover:bg-black/80 backdrop-blur-sm"
+                >
+                  <Minimize2 className="h-4 w-4" />
+                </Button>
               </div>
-              
-              {/* Video Info Overlay */}
-              {/* {currentVideo && (
-              <div className="absolute top-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <h3 className="text-white font-medium text-sm line-clamp-1">
-                {currentVideo.title}
-                </h3>
-                <p className="text-neutral-300 text-xs">
-                {currentVideo.channel}
-                </p>
-              </div>
-              )} */}
             </motion.div>
-            )}
+          )}
         </AnimatePresence>
 
-        {/* Track Info */}
-        <div className="flex items-center gap-4 mb-4">
-          {currentMode === 'youtube' && currentVideo ? (
-            <>
-              {currentVideo.thumbnail && (
-                <div className="w-12 h-12 rounded-md overflow-hidden bg-neutral-800 flex-shrink-0">
-                  <Image
-                    src={currentVideo.thumbnail}
-                    alt={currentVideo.title}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+        {/* Player Layout */}
+        <div className={`flex ${isVideoExpanded ? 'flex-col' : 'items-center gap-4'}`}>
+          {/* Video Thumbnail/Player (Minimized) */}
+          {currentMode === 'youtube' && selectedYouTubeId && !isVideoExpanded && (
+            <div className="relative w-32 h-20 rounded-lg overflow-hidden bg-black flex-shrink-0 group">
+              <YouTubePlayer 
+                videoId={selectedYouTubeId}
+                className="w-full h-full"
+              />
+              <Button
+                onClick={() => setIsVideoExpanded(true)}
+                size="sm"
+                variant="secondary"
+                className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Maximize2 className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          {/* Track Info and Controls Container */}
+          <div className="flex-1 space-y-3">
+            {/* Track Info */}
+            <div className="flex items-center gap-3">
+              {!isVideoExpanded && (
+                <>
+                  {currentMode === 'youtube' && currentVideo ? (
+                    <>
+                      {currentVideo.thumbnail && !selectedYouTubeId && (
+                        <div className="w-12 h-12 rounded-md overflow-hidden bg-neutral-800 flex-shrink-0">
+                          <Image
+                            src={currentVideo.thumbnail}
+                            alt={currentVideo.title}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium text-sm line-clamp-1">
+                          {currentVideo.title}
+                        </h3>
+                        <p className="text-neutral-400 text-xs">
+                          {currentVideo.channel}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-red-500">
+                        <Youtube className="h-4 w-4" />
+                        <span className="text-xs">YouTube</span>
+                      </div>
+                    </>
+                  ) : currentMode === 'library' && currentAudio ? (
+                    <>
+                      <div className="w-12 h-12 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <Music className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium text-sm line-clamp-1">
+                          {currentAudio.name}
+                        </h3>
+                        <p className="text-neutral-400 text-xs">
+                          {isInitingSystem ? 'System initializing...' : isPlaying ? 'Playing' : 'Ready to play'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-blue-500">
+                        <Music className="h-4 w-4" />
+                        <span className="text-xs">Library</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 rounded-md bg-neutral-800 flex items-center justify-center flex-shrink-0">
+                        <Music className="h-6 w-6 text-neutral-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium text-sm">
+                          {currentMode === 'library' ? 'Select a track' : 'No video selected'}
+                        </h3>
+                        <p className="text-neutral-400 text-xs">
+                          {currentMode === 'library' ? 'Upload music to get started' : 'Search for YouTube videos'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-neutral-500">
+                        {currentMode === 'library' ? (
+                          <>
+                            <Music className="h-4 w-4" />
+                            <span className="text-xs">Library</span>
+                          </>
+                        ) : (
+                          <>
+                            <Youtube className="h-4 w-4" />
+                            <span className="text-xs">YouTube</span>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
               )}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-medium text-sm line-clamp-1">
-                  {currentVideo.title}
-                </h3>
-                <p className="text-neutral-400 text-xs">
-                  {currentVideo.channel}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-red-500">
-                <Youtube className="h-4 w-4" />
-                <span className="text-xs">YouTube</span>
-              </div>
-            </>
-          ) : currentMode === 'library' && currentAudio ? (
-            <>
-              <div className="w-12 h-12 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <Music className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-medium text-sm line-clamp-1">
-                  {currentAudio.name}
-                </h3>
-                <p className="text-neutral-400 text-xs">
-                  {isInitingSystem ? 'System initializing...' : isPlaying ? 'Playing' : 'Ready to play'}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-blue-500">
-                <Music className="h-4 w-4" />
-                <span className="text-xs">Library</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-12 h-12 rounded-md bg-neutral-800 flex items-center justify-center flex-shrink-0">
-                <Music className="h-6 w-6 text-neutral-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-medium text-sm">
-                  {currentMode === 'library' ? 'Select a track' : 'No video selected'}
-                </h3>
-                <p className="text-neutral-400 text-xs">
-                  {currentMode === 'library' ? 'Upload music to get started' : 'Search for YouTube videos'}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-neutral-500">
-                {currentMode === 'library' ? (
-                  <>
-                    <Music className="h-4 w-4" />
-                    <span className="text-xs">Library</span>
-                  </>
-                ) : (
-                  <>
+
+              {/* Expanded mode track info */}
+              {isVideoExpanded && (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-3">
+                    {currentVideo?.thumbnail && (
+                      <div className="w-12 h-12 rounded-md overflow-hidden bg-neutral-800 flex-shrink-0">
+                        <Image
+                          src={currentVideo.thumbnail}
+                          alt={currentVideo.title}
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-medium text-sm line-clamp-1">
+                        {currentVideo?.title || 'No video selected'}
+                      </h3>
+                      <p className="text-neutral-400 text-xs">
+                        {currentVideo?.channel || 'Search for YouTube videos'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-red-500">
                     <Youtube className="h-4 w-4" />
                     <span className="text-xs">YouTube</span>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Controls */}
-        <div className="space-y-4">
-          {/* Progress Bar */}
-          {((currentMode === 'library' && currentAudio) || (currentMode === 'youtube' && currentVideo)) && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-neutral-400 w-12 text-left">
-                  {currentMode === 'library' 
-                    ? formatTime(livePosition) 
-                    : formatTime(youtubePosition)
-                  }
-                </span>
-                <div className="flex-1">
-                  <Slider
-                    value={[
-                      currentMode === 'library' 
-                        ? (duration > 0 ? (livePosition / duration) * 100 : 0)
-                        : (youtubeDuration > 0 ? (youtubePosition / youtubeDuration) * 100 : 0)
-                    ]}
-                    onValueChange={currentMode === 'youtube' ? handleProgressChange : undefined}
-                    max={100}
-                    step={0.1}
-                    className={`w-full ${
-                      currentMode === 'youtube' 
-                        ? 'cursor-pointer' 
-                        : '[&>*]:pointer-events-none [&>*]:cursor-default'
-                    }`}
-                    disabled={currentMode === 'library'}
-                  />
+                  </div>
                 </div>
-                <span className="text-xs text-neutral-400 w-12 text-right">
-                  {currentMode === 'library' 
-                    ? formatTime(duration) 
-                    : formatTime(youtubeDuration)
-                  }
-                </span>
+              )}
+            </div>
+
+            {/* Controls */}
+            <div className="space-y-3">
+              {/* Progress Bar */}
+              {((currentMode === 'library' && currentAudio) || (currentMode === 'youtube' && currentVideo)) && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-neutral-400 w-12 text-left">
+                      {currentMode === 'library' 
+                        ? formatTime(livePosition) 
+                        : formatTime(youtubePosition)
+                      }
+                    </span>
+                    <div className="flex-1">
+                      <Slider
+                        value={[
+                          currentMode === 'library' 
+                            ? (duration > 0 ? (livePosition / duration) * 100 : 0)
+                            : (youtubeDuration > 0 ? (youtubePosition / youtubeDuration) * 100 : 0)
+                        ]}
+                        onValueChange={currentMode === 'youtube' ? handleProgressChange : undefined}
+                        max={100}
+                        step={0.1}
+                        className={`w-full ${
+                          currentMode === 'youtube' 
+                            ? 'cursor-pointer' 
+                            : '[&>*]:pointer-events-none [&>*]:cursor-default'
+                        }`}
+                        disabled={currentMode === 'library'}
+                      />
+                    </div>
+                    <span className="text-xs text-neutral-400 w-12 text-right">
+                      {currentMode === 'library' 
+                        ? formatTime(duration) 
+                        : formatTime(youtubeDuration)
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Primary Controls */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleShuffle}
+                    variant={isShuffled ? "default" : "ghost"}
+                    size="sm"
+                    className="text-neutral-400 hover:text-white"
+                    disabled={
+                      (currentMode === 'library' && audioSources.length <= 1)
+                    }
+                  >
+                    <Shuffle className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    onClick={handlePrevious}
+                    variant="ghost"
+                    size="sm"
+                    className="text-neutral-400 hover:text-white"
+                    disabled={
+                      (currentMode === 'youtube' && youtubeSources.length === 0) ||
+                      (currentMode === 'library' && audioSources.length <= 1)
+                    }
+                  >
+                    <SkipBack className="h-5 w-5" />
+                  </Button>
+
+                  <Button
+                    onClick={handlePlayPause}
+                    className="bg-white text-black hover:bg-neutral-200 w-12 h-12 rounded-full"
+                    disabled={
+                      isInitingSystem ||
+                      (currentMode === 'youtube' && (!selectedYouTubeId || !isYouTubePlayerReady)) ||
+                      (currentMode === 'library' && (!selectedAudioId || audioSources.length === 0))
+                    }
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-6 w-6" />
+                    ) : (
+                      <Play className="h-6 w-6 ml-0.5" />
+                    )}
+                  </Button>
+
+                  <Button
+                    onClick={handleNext}
+                    variant="ghost"
+                    size="sm"
+                    className="text-neutral-400 hover:text-white"
+                    disabled={
+                      (currentMode === 'youtube' && youtubeSources.length === 0) ||
+                      (currentMode === 'library' && audioSources.length <= 1)
+                    }
+                  >
+                    <SkipForward className="h-5 w-5" />
+                  </Button>
+
+                  <Button
+                    onClick={handleRepeat}
+                    variant={repeatMode !== 'none' ? "default" : "ghost"}
+                    size="sm"
+                    className="text-neutral-400 hover:text-white relative"
+                  >
+                    <Repeat className="h-4 w-4" />
+                    {repeatMode === 'one' && (
+                      <span className="absolute -top-1 -right-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                        1
+                      </span>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Volume Control */}
+                <div className="flex items-center gap-3 w-64">
+                  <Button
+                    onClick={handleMute}
+                    variant="ghost"
+                    size="sm"
+                    className="text-neutral-400 hover:text-white flex-shrink-0"
+                  >
+                    {isMuted || localVolume === 0 ? (
+                      <VolumeX className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                  
+                  <div className="flex-1">
+                    <Slider
+                      value={[isMuted ? 0 : localVolume]}
+                      onValueChange={handleVolumeChange}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <span className="text-xs text-neutral-500 w-8 text-right">
+                    {isMuted ? 0 : localVolume}
+                  </span>
+                </div>
               </div>
             </div>
-          )}
-
-          {/* Primary Controls */}
-          <div className="flex items-center justify-center gap-2">
-            <Button
-              onClick={handleShuffle}
-              variant={isShuffled ? "default" : "ghost"}
-              size="sm"
-              className="text-neutral-400 hover:text-white"
-              disabled={
-                (currentMode === 'library' && audioSources.length <= 1)
-              }
-            >
-              <Shuffle className="h-4 w-4" />
-            </Button>
-
-            <Button
-              onClick={handlePrevious}
-              variant="ghost"
-              size="sm"
-              className="text-neutral-400 hover:text-white"
-              disabled={
-                (currentMode === 'youtube' && youtubeSources.length === 0) ||
-                (currentMode === 'library' && audioSources.length <= 1)
-              }
-            >
-              <SkipBack className="h-5 w-5" />
-            </Button>
-
-            <Button
-              onClick={handlePlayPause}
-              className="bg-white text-black hover:bg-neutral-200 w-12 h-12 rounded-full"
-              disabled={
-                isInitingSystem ||
-                (currentMode === 'youtube' && (!selectedYouTubeId || !isYouTubePlayerReady)) ||
-                (currentMode === 'library' && (!selectedAudioId || audioSources.length === 0))
-              }
-            >
-              {isPlaying ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6 ml-0.5" />
-              )}
-            </Button>
-
-            <Button
-              onClick={handleNext}
-              variant="ghost"
-              size="sm"
-              className="text-neutral-400 hover:text-white"
-              disabled={
-                (currentMode === 'youtube' && youtubeSources.length === 0) ||
-                (currentMode === 'library' && audioSources.length <= 1)
-              }
-            >
-              <SkipForward className="h-5 w-5" />
-            </Button>
-
-            <Button
-              onClick={handleRepeat}
-              variant={repeatMode !== 'none' ? "default" : "ghost"}
-              size="sm"
-              className="text-neutral-400 hover:text-white relative"
-            >
-              <Repeat className="h-4 w-4" />
-              {repeatMode === 'one' && (
-                <span className="absolute -top-1 -right-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                  1
-                </span>
-              )}
-            </Button>
-          </div>
-
-          {/* Volume Control */}
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleMute}
-              variant="ghost"
-              size="sm"
-              className="text-neutral-400 hover:text-white flex-shrink-0"
-            >
-              {isMuted || localVolume === 0 ? (
-                <VolumeX className="h-4 w-4" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </Button>
-            
-            <div className="flex-1">
-              <Slider
-                value={[isMuted ? 0 : localVolume]}
-                onValueChange={handleVolumeChange}
-                max={100}
-                step={1}
-                className="w-full"
-              />
-            </div>
-            
-            <span className="text-xs text-neutral-500 w-8 text-right">
-              {isMuted ? 0 : localVolume}
-            </span>
           </div>
         </div>
       </div>
