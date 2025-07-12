@@ -20,7 +20,7 @@ import { create } from "zustand";
 import { useRoomStore } from "./room";
 import { Mutex } from "async-mutex";
 
-export const MAX_NTP_MEASUREMENTS = 8;
+export const MAX_NTP_MEASUREMENTS = 40;
 
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
 
@@ -44,6 +44,7 @@ interface GlobalStateValues {
 
   // Websocket
   socket: WebSocket | null;
+  lastMessageReceivedTime: number | null;
 
   // Spatial audio
   spatialConfig?: SpatialConfigType;
@@ -142,6 +143,7 @@ const initialState: GlobalStateValues = {
 
   // Network state
   socket: null,
+  lastMessageReceivedTime: null,
   connectedClients: [],
 
   // NTP state
@@ -506,28 +508,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     sendNTPRequest: () => {
       const state = get();
-      if (state.ntpMeasurements.length >= MAX_NTP_MEASUREMENTS) {
-        const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(
-          state.ntpMeasurements
-        );
-        set({
-          offsetEstimate: averageOffset,
-          roundTripEstimate: averageRoundTrip,
-          isSynced: true,
-        });
-
-        if (averageRoundTrip > 750) {
-          toast.error("Latency is very high (>750ms). Sync may be unstable.");
-        }
-
-        return;
-      }
-
-      // Otherwise not done, keep sending
       const { socket } = getSocket(state);
 
-      // Send the first one
+      // Always send NTP request for continuous heartbeat
       _sendNTPRequest(socket);
+
+      // Show warning if latency is high
+      if (state.isSynced && state.roundTripEstimate > 750) {
+        console.warn("Latency is very high (>750ms). Sync may be unstable.");
+      }
     },
 
     resetNTPConfig() {
@@ -540,9 +529,27 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     addNTPMeasurement: (measurement) =>
-      set((state) => ({
-        ntpMeasurements: [...state.ntpMeasurements, measurement],
-      })),
+      set((state) => {
+        let measurements = [...state.ntpMeasurements];
+
+        // Rolling queue: keep only last MAX_NTP_MEASUREMENTS
+        if (measurements.length >= MAX_NTP_MEASUREMENTS) {
+          measurements = [...measurements.slice(1), measurement];
+        } else {
+          measurements.push(measurement);
+        }
+
+        // Always recalculate offset with current measurements
+        const { averageOffset, averageRoundTrip } =
+          calculateOffsetEstimate(measurements);
+
+        return {
+          ntpMeasurements: measurements,
+          offsetEstimate: averageOffset,
+          roundTripEstimate: averageRoundTrip,
+          isSynced: true,
+        };
+      }),
 
     getCurrentTrackPosition: () => {
       const state = get();

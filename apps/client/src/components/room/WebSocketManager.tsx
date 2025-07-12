@@ -1,5 +1,5 @@
 "use client";
-import { useGlobalStore } from "@/store/global";
+import { useGlobalStore, MAX_NTP_MEASUREMENTS } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { NTPMeasurement } from "@/utils/ntp";
 import {
@@ -7,7 +7,12 @@ import {
   NTPResponseMessageType,
   WSResponseSchema,
 } from "@beatsync/shared";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+
+// NTP scheduling constants
+const INITIAL_NTP_INTERVAL = 30; // ms
+const STEADY_STATE_NTP_INTERVAL = 5000; // 5 seconds
+const NTP_RESPONSE_TIMEOUT = 15000; // 15 seconds
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -45,6 +50,10 @@ export const WebSocketManager = ({
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
   const setUserId = useRoomStore((state) => state.setUserId);
 
+  // NTP heartbeat state
+  const ntpTimerRef = useRef<number | null>(null);
+  const lastNtpRequestTime = useRef<number | null>(null);
+
   // WebSocket and audio state
   const setSocket = useGlobalStore((state) => state.setSocket);
   const socket = useGlobalStore((state) => state.socket);
@@ -71,6 +80,40 @@ export const WebSocketManager = ({
     (state) => state.handleSetAudioSources
   );
 
+  // Schedule next NTP request
+  const scheduleNextNtpRequest = () => {
+    // Cancel any existing timeout
+    if (ntpTimerRef.current) {
+      clearTimeout(ntpTimerRef.current);
+    }
+
+    // Check if we have a pending request that timed out
+    if (
+      lastNtpRequestTime.current &&
+      Date.now() - lastNtpRequestTime.current > NTP_RESPONSE_TIMEOUT
+    ) {
+      console.error("NTP request timed out - connection may be stale");
+      // Close the socket to trigger reconnection
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+      return;
+    }
+
+    // Determine interval based on whether we have initial measurements
+    const currentMeasurements = useGlobalStore.getState().ntpMeasurements;
+    const interval =
+      currentMeasurements.length < MAX_NTP_MEASUREMENTS
+        ? INITIAL_NTP_INTERVAL
+        : STEADY_STATE_NTP_INTERVAL;
+
+    ntpTimerRef.current = window.setTimeout(() => {
+      lastNtpRequestTime.current = Date.now();
+      sendNTPRequest(); // Send this one
+      scheduleNextNtpRequest(); // Schedule the next one
+    }, interval);
+  };
+
   // Once room has been loaded, connect to the websocket
   useEffect(() => {
     // Only run this effect once after room is loaded
@@ -90,25 +133,33 @@ export const WebSocketManager = ({
     ws.onopen = () => {
       console.log("Websocket onopen fired.");
 
-      // Start syncing
-      sendNTPRequest();
+      // Start NTP pinging schedule
+      scheduleNextNtpRequest();
     };
 
     ws.onclose = () => {
       console.log("Websocket onclose fired.");
+
+      // Clean up NTP timer
+      if (ntpTimerRef.current) {
+        clearTimeout(ntpTimerRef.current);
+        ntpTimerRef.current = null;
+      }
+      lastNtpRequestTime.current = null;
     };
 
     ws.onmessage = async (msg) => {
+      // Update last message received time for connection health
+      useGlobalStore.setState({ lastMessageReceivedTime: Date.now() });
+
       const response = WSResponseSchema.parse(JSON.parse(msg.data));
 
       if (response.type === "NTP_RESPONSE") {
         const ntpMeasurement = handleNTPResponse(response);
         addNTPMeasurement(ntpMeasurement);
 
-        // Check that we have not exceeded the max and then send another NTP request
-        setTimeout(() => {
-          sendNTPRequest();
-        }, 30); // 30ms delay to not overload
+        // Clear the last request time since we got a response
+        lastNtpRequestTime.current = null;
       } else if (response.type === "ROOM_EVENT") {
         const { event } = response;
         console.log("Room event:", event);
@@ -151,9 +202,18 @@ export const WebSocketManager = ({
     return () => {
       // Runs on unmount and dependency change
       console.log("Running cleanup for WebSocket connection");
+
+      // Clean up NTP timer
+      if (ntpTimerRef.current) {
+        clearTimeout(ntpTimerRef.current);
+        ntpTimerRef.current = null;
+      }
+      lastNtpRequestTime.current = null;
+
       ws.close();
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingRoom, roomId, username]);
 
   return null; // This is a non-visual component
