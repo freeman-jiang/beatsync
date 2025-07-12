@@ -64,7 +64,7 @@ export const YouTubeSearch = () => {
         part: 'snippet',
         type: 'video',
         videoCategoryId: '10', // Music category
-        key: process.env.NEXT_PUBLIC_YOUTUBE_API_KEY!, // 🔐 consider hiding in .env + API proxy
+        key: process.env.YOUTUBE_API_KEY!, // 🔐 consider hiding in .env + API proxy
         maxResults: '10',
       }));
       
