@@ -9,6 +9,7 @@ import {
 } from "../lib/r2";
 import { z } from "zod";
 import { AudioSourceSchema } from "@beatsync/shared/types/basic";
+import pLimit from "p-limit";
 
 // Define Zod schemas for backup validation
 const BackupClientSchema = z.object({
@@ -30,8 +31,44 @@ const BackupStateSchema = z.object({
 
 type BackupState = z.infer<typeof BackupStateSchema>;
 
+interface RoomRestoreResult {
+  roomId: string;
+  success: boolean;
+  error?: string;
+}
+
 export class StateManager {
   private static readonly BACKUP_PREFIX = "state-backup/";
+  private static readonly DEFAULT_RESTORE_CONCURRENCY = 1000;
+
+  /**
+   * Restore a single room from backup data
+   */
+  private static async restoreRoom(
+    roomId: string,
+    roomData: z.infer<typeof BackupRoomSchema>
+  ): Promise<RoomRestoreResult> {
+    try {
+      const room = globalManager.getOrCreateRoom(roomId);
+
+      // Restore audio sources
+      roomData.audioSources.forEach((source) => {
+        room.addAudioSource(source);
+      });
+
+      // Schedule cleanup for rooms with no active connections
+      globalManager.scheduleRoomCleanup(roomId);
+
+      return { roomId, success: true };
+    } catch (error) {
+      console.error(`❌ Failed to restore room ${roomId}:`, error);
+      return {
+        roomId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
 
   /**
    * Generate a timestamped backup filename
@@ -123,25 +160,58 @@ export class StateManager {
 
       const backupData = parseResult.data;
 
-      for (const [roomId, roomData] of Object.entries(backupData.data.rooms)) {
-        const room = globalManager.getOrCreateRoom(roomId);
+      // Get configurable concurrency limit
+      const concurrency = this.DEFAULT_RESTORE_CONCURRENCY;
+      const limit = pLimit(concurrency);
 
-        // Restore audio sources
-        roomData.audioSources.forEach((source) => {
-          room.addAudioSource(source);
-        });
+      const roomEntries = Object.entries(backupData.data.rooms);
+      console.log(
+        `🔄 Restoring ${roomEntries.length} rooms with concurrency limit of ${concurrency}...`
+      );
 
-        // Schedule cleanup for rooms with no active connections
-        globalManager.scheduleRoomCleanup(roomId);
-      }
+      // Process rooms in parallel with concurrency control using p-limit
+      const restorePromises = roomEntries.map(([roomId, roomData]) =>
+        limit(() => this.restoreRoom(roomId, roomData))
+      );
+
+      const results = await Promise.allSettled(restorePromises);
+
+      // Analyze results
+      const successful: RoomRestoreResult[] = [];
+      const failed: RoomRestoreResult[] = [];
+
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          if (result.value.success) {
+            successful.push(result.value);
+          } else {
+            failed.push(result.value);
+          }
+        } else {
+          // This shouldn't happen since we catch errors in restoreRoom, but handle it just in case
+          failed.push({
+            roomId: "unknown",
+            success: false,
+            error: result.reason?.message || "Unknown error",
+          });
+        }
+      });
 
       const ageMinutes = Math.floor(
         (Date.now() - backupData.timestamp) / 60000
       );
+
       console.log(
-        `✅ State restored from ${ageMinutes} minutes ago:`,
-        backupData
+        `✅ State restoration completed from ${ageMinutes} minutes ago:`
       );
+      console.log(`   - Successfully restored: ${successful.length} rooms`);
+
+      if (failed.length > 0) {
+        console.log(`   - Failed to restore: ${failed.length} rooms`);
+        failed.forEach((failure) => {
+          console.log(`     ❌ ${failure.roomId}: ${failure.error}`);
+        });
+      }
 
       // Clean up orphaned rooms after state restore
       await this.cleanupOrphanedRooms();

@@ -331,7 +331,6 @@ export async function cleanupOrphanedRooms(
       );
     }
 
-    console.log("📋 Listing room objects in R2...");
     const roomObjects = await listObjectsWithPrefix("room-");
 
     if (!roomObjects || roomObjects.length === 0) {

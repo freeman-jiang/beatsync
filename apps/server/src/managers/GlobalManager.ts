@@ -87,17 +87,10 @@ export class GlobalManager {
 
     // Only schedule cleanup if room has no active connections
     if (!room.hasActiveConnections()) {
-      console.log(
-        `Room ${roomId} has no active connections, scheduling cleanup in ${CLEANUP_DELAY_MS}ms`
-      );
-
       room.scheduleCleanup(async () => {
         // Re-check if room still has no active connections when timer fires
         const currentRoom = this.getRoom(roomId);
         if (currentRoom && !currentRoom.hasActiveConnections()) {
-          console.log(
-            `Room ${roomId} still has no active connections after ${CLEANUP_DELAY_MS}ms. Cleaning up.`
-          );
           await currentRoom.cleanup();
           await this.deleteRoom(roomId);
         } else {

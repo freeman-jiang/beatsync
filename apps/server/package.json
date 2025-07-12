@@ -16,6 +16,7 @@
     "dotenv": "^16.5.0",
     "hono": "^4.7.2",
     "nanoid": "^5.1.5",
+    "p-limit": "^6.2.0",
     "sanitize-filename": "^1.6.3",
     "zod": "^3.24.2"
   },
