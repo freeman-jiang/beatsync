@@ -33,7 +33,11 @@ const BackupStateSchema = z.object({
 type BackupState = z.infer<typeof BackupStateSchema>;
 
 interface RoomRestoreResult {
-  roomId: string;
+  room: {
+    id: string;
+    numClients: number;
+    numAudioSources: number;
+  };
   success: boolean;
   error?: string;
 }
@@ -68,11 +72,22 @@ export class BackupManager {
 
       // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
       globalManager.scheduleRoomCleanup(roomId);
-      return { roomId, success: true };
+      return {
+        room: {
+          id: roomId,
+          numClients: roomData.clients.length,
+          numAudioSources: validAudioSources.length,
+        },
+        success: true,
+      };
     } catch (error) {
       console.error(`❌ Failed to restore room ${roomId}:`, error);
       return {
-        roomId,
+        room: {
+          id: roomId,
+          numClients: roomData.clients.length,
+          numAudioSources: roomData.audioSources.length,
+        },
         success: false,
         error: error instanceof Error ? error.message : String(error),
       };
@@ -192,19 +207,15 @@ export class BackupManager {
       const failed: RoomRestoreResult[] = [];
 
       results.forEach((result) => {
-        if (result.status === "fulfilled") {
-          if (result.value.success) {
-            successful.push(result.value);
-          } else {
-            failed.push(result.value);
-          }
+        if (result.status !== "fulfilled") {
+          failed.push(result.reason);
+          return;
+        }
+
+        if (result.value.success) {
+          successful.push(result.value);
         } else {
-          // This shouldn't happen since we catch errors in restoreRoom, but handle it just in case
-          failed.push({
-            roomId: "unknown",
-            success: false,
-            error: result.reason?.message || "Unknown error",
-          });
+          failed.push(result.value);
         }
       });
 
@@ -215,12 +226,19 @@ export class BackupManager {
       console.log(
         `✅ State restoration completed from ${ageMinutes} minutes ago:`
       );
-      console.log(`   - Successfully restored: ${successful.length} rooms`);
+      console.log(`   - Successfully restored ${successful.length} rooms`);
+      if (successful.length > 0) {
+        successful.forEach((result) => {
+          console.log(
+            `     Room ${result.room.id}: ${result.room.numClients} clients, ${result.room.numAudioSources} audio sources`
+          );
+        });
+      }
 
       if (failed.length > 0) {
         console.log(`   - Failed to restore: ${failed.length} rooms`);
         failed.forEach((failure) => {
-          console.log(`     ❌ ${failure.roomId}: ${failure.error}`);
+          console.log(`     ❌ ${failure.room.id}: ${failure.error}`);
         });
       }
 
@@ -251,8 +269,6 @@ export class BackupManager {
 
       // Identify files to delete (everything after the first keepCount)
       const filesToDelete = backupFiles.slice(keepCount);
-
-      console.log(`🧹 Cleaning up ${filesToDelete.length} old backup(s)...`);
 
       // Delete old backups
       for (const fileKey of filesToDelete) {

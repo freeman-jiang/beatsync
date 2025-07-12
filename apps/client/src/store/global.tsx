@@ -20,7 +20,7 @@ import { create } from "zustand";
 import { useRoomStore } from "./room";
 import { Mutex } from "async-mutex";
 
-export const MAX_NTP_MEASUREMENTS = 40;
+export const MAX_NTP_MEASUREMENTS = 8;
 
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
 

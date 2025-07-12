@@ -24,7 +24,6 @@ export class GlobalManager {
     if (!room) {
       room = new RoomManager(roomId);
       this.rooms.set(roomId, room);
-      console.log(`Room ${roomId} created`);
     }
     return room;
   }
