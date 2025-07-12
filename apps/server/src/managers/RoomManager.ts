@@ -100,6 +100,23 @@ export class RoomManager {
   }
 
   /**
+   * Check if the room has any active WebSocket connections
+   * (as opposed to ghost clients from restored state)
+   */
+  hasActiveConnections(): boolean {
+    const clients = Array.from(this.clients.values());
+    for (const client of clients) {
+      const ws: ServerWebSocket<WSData> = client.ws;
+      // Check if the WebSocket is still active
+      // 1 = OPEN
+      if (ws && ws.readyState === 1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Get the room state
    */
   getState(): RoomData {

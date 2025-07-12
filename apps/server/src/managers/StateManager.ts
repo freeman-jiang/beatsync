@@ -118,12 +118,7 @@ export class StateManager {
 
       const backupData = parseResult.data;
 
-      // Restore rooms
-      const rooms = backupData.data.rooms;
-      let restoredRooms = 0;
-      let restoredClients = 0;
-
-      for (const [roomId, roomData] of Object.entries(rooms)) {
+      for (const [roomId, roomData] of Object.entries(backupData.data.rooms)) {
         const room = globalManager.getOrCreateRoom(roomId);
 
         // Restore audio sources
@@ -131,10 +126,24 @@ export class StateManager {
           room.addAudioSource(source);
         });
 
-        // Note: We don't restore clients as they need active WebSocket connections
-        // This is just for logging purposes
-        restoredClients += roomData.clients.length;
-        restoredRooms++;
+        // Schedule cleanup for empty rooms or rooms with no active connections
+        // This uses the same mechanism as normal operation
+        if (!room.hasActiveConnections()) {
+          console.log(
+            `Room ${roomId} has no active connections, scheduling cleanup`
+          );
+          room.scheduleCleanup(async () => {
+            // Re-check if room is still empty when timer fires
+            const currentRoom = globalManager.getRoom(roomId);
+            if (currentRoom && !currentRoom.hasActiveConnections()) {
+              console.log(
+                `Room ${roomId} still has no active connections after restore grace period. Cleaning up.`
+              );
+              await currentRoom.cleanup();
+              await globalManager.deleteRoom(roomId);
+            }
+          }, 5 * 60 * 1000); // 5 minute grace period for restored rooms
+        }
       }
 
       const ageMinutes = Math.floor(
