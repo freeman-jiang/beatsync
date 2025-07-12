@@ -5,7 +5,7 @@ import { RoomManager } from "./RoomManager";
  * It handles room creation, deletion, and provides access to individual room managers.
  */
 
-const CLEANUP_DELAY_MS = 1000 * 3;
+const CLEANUP_DELAY_MS = 1000 * 60; // 60 seconds
 export class GlobalManager {
   private rooms = new Map<string, RoomManager>();
 

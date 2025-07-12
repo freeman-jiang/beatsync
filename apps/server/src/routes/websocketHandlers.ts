@@ -75,7 +75,7 @@ export const handleMessage = async (
 
     if (parsedMessage.type !== ClientActionEnum.enum.NTP_REQUEST) {
       console.log(
-        `Room: ${roomId} | User: ${username} | Message: ${JSON.stringify(
+        `[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(
           parsedMessage
         )}`
       );
