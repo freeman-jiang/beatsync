@@ -5,6 +5,7 @@ import {
   getLatestFileWithPrefix,
   getSortedFilesWithPrefix,
   deleteObject,
+  cleanupOrphanedRooms,
 } from "../lib/r2";
 import { z } from "zod";
 import { AudioSourceSchema } from "@beatsync/shared/types/basic";
@@ -95,6 +96,10 @@ export class StateManager {
 
       if (!latestBackupKey) {
         console.log("📭 No backups found");
+
+        // Still clean up orphaned rooms even if no backup exists
+        await this.cleanupOrphanedRooms();
+
         return false;
       }
 
@@ -137,6 +142,9 @@ export class StateManager {
         `✅ State restored from ${ageMinutes} minutes ago:`,
         backupData
       );
+
+      // Clean up orphaned rooms after state restore
+      await this.cleanupOrphanedRooms();
 
       return true;
     } catch (error) {
@@ -181,6 +189,29 @@ export class StateManager {
     } catch (error) {
       // Don't throw - cleanup failures shouldn't break the backup process
       console.error("⚠️ Backup cleanup failed (non-critical):", error);
+    }
+  }
+
+  /**
+   * Clean up orphaned rooms that exist in R2 but not in server memory
+   */
+  static async cleanupOrphanedRooms(): Promise<void> {
+    try {
+      console.log("🧹 Cleaning up orphaned rooms...");
+
+      const activeRooms = new Set<string>(globalManager.getRoomIds());
+      const cleanupResult = await cleanupOrphanedRooms(activeRooms, true);
+
+      if (cleanupResult.totalRooms > 0) {
+        console.log(
+          `✅ Orphan cleanup completed: deleted ${cleanupResult.deletedFiles} files from ${cleanupResult.totalRooms} orphaned rooms`
+        );
+      } else {
+        console.log("✅ No orphaned rooms found");
+      }
+    } catch (error) {
+      // Don't throw - cleanup failures shouldn't break the restore process
+      console.error("⚠️ Orphaned room cleanup failed:", error);
     }
   }
 }

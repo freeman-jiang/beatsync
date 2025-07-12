@@ -78,44 +78,16 @@ StateManager.restoreState().catch((error) => {
   console.error("Failed to restore state on startup:", error);
 });
 
-// Track if we're already shutting down to prevent multiple executions
-let isShuttingDown = false;
+// Simple graceful shutdown
+const shutdown = async () => {
+  console.log("\n⚠️ Shutting down...");
 
-const gracefulShutdown = async (signal: string) => {
-  if (isShuttingDown) {
-    console.log("⏳ Shutdown already in progress...");
-    return;
-  }
-  
-  isShuttingDown = true;
-  console.log(`\n⚠️ ${signal} received, starting graceful shutdown...`);
+  server.stop(); // Stop accepting new connections
+  await StateManager.backupState(); // Save state
 
-  try {
-    // Stop accepting new connections
-    server.stop();
-    console.log("🛑 Server stopped accepting new connections");
-
-    // Backup current state
-    await StateManager.backupState();
-    console.log("💾 State backed up successfully");
-
-    // Exit gracefully
-    process.exit(0);
-  } catch (error) {
-    console.error("❌ Error during graceful shutdown:", error);
-    process.exit(1);
-  }
+  process.exit(0);
 };
 
-// Handle graceful shutdown
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-
-// Handle SIGINT with force exit on multiple Ctrl+C
-process.on("SIGINT", () => {
-  if (isShuttingDown) {
-    console.log("\n⚠️ Force exit requested. Terminating immediately...");
-    process.exit(1);
-  } else {
-    gracefulShutdown("SIGINT");
-  }
-});
+// Handle shutdown signals
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

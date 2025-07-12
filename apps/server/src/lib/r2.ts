@@ -199,12 +199,9 @@ export async function deleteObjectsWithPrefix(
 /**
  * Upload JSON data to R2
  */
-export async function uploadJSON(
-  key: string,
-  data: object
-): Promise<void> {
+export async function uploadJSON(key: string, data: object): Promise<void> {
   const jsonData = JSON.stringify(data, null, 2);
-  
+
   const command = new PutObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
     Key: key,
@@ -253,7 +250,7 @@ export async function getLatestFileWithPrefix(
 
   // Sort by key name (descending) to get the latest
   const sorted = objects
-    .filter(obj => obj.Key)
+    .filter((obj) => obj.Key)
     .sort((a, b) => (b.Key || "").localeCompare(a.Key || ""));
 
   return sorted[0]?.Key || null;
@@ -288,11 +285,139 @@ export async function getSortedFilesWithPrefix(
   }
 
   return objects
-    .filter(obj => {
+    .filter((obj) => {
       if (!obj.Key) return false;
       if (extension && !obj.Key.endsWith(extension)) return false;
       return true;
     })
     .sort((a, b) => (b.Key || "").localeCompare(a.Key || ""))
-    .map(obj => obj.Key!);
+    .map((obj) => obj.Key!);
+}
+
+export interface OrphanedRoomInfo {
+  roomId: string;
+  fileCount: number;
+}
+
+export interface OrphanCleanupResult {
+  orphanedRooms: OrphanedRoomInfo[];
+  totalRooms: number;
+  totalFiles: number;
+  deletedFiles?: number;
+  errors?: string[];
+}
+
+/**
+ * Clean up orphaned rooms that exist in R2 but not in server memory
+ */
+export async function cleanupOrphanedRooms(
+  activeRoomIds: Set<string>,
+  performDeletion: boolean = false
+): Promise<OrphanCleanupResult> {
+  const result: OrphanCleanupResult = {
+    orphanedRooms: [],
+    totalRooms: 0,
+    totalFiles: 0,
+    deletedFiles: 0,
+    errors: [],
+  };
+
+  try {
+    // Validate R2 configuration
+    const r2Config = validateR2Config();
+    if (!r2Config.isValid) {
+      throw new Error(
+        `R2 configuration is invalid: ${r2Config.errors.join(", ")}`
+      );
+    }
+
+    console.log("📋 Listing all objects in R2...");
+    const allObjects = await listObjectsWithPrefix("");
+
+    if (!allObjects || allObjects.length === 0) {
+      console.log("✅ No objects found in R2. Nothing to clean up!");
+      return result;
+    }
+
+    console.log(`Found ${allObjects.length} total objects in R2`);
+
+    // Group objects by room
+    const roomsInR2 = new Map<string, string[]>();
+
+    allObjects.forEach((obj) => {
+      if (obj.Key) {
+        const match = obj.Key.match(/^room-([^\/]+)\//);
+        if (match) {
+          const roomId = match[1];
+          if (!roomsInR2.has(roomId)) {
+            roomsInR2.set(roomId, []);
+          }
+          roomsInR2.get(roomId)!.push(obj.Key);
+        }
+      }
+    });
+
+    console.log(`📁 Found ${roomsInR2.size} unique rooms in R2`);
+    console.log(`🏃 Found ${activeRoomIds.size} active rooms in server memory`);
+
+    // Identify orphaned rooms
+    const orphanedRooms: string[] = [];
+
+    roomsInR2.forEach((files, roomId) => {
+      if (!activeRoomIds.has(roomId)) {
+        orphanedRooms.push(roomId);
+        result.orphanedRooms.push({
+          roomId,
+          fileCount: files.length,
+        });
+      }
+    });
+
+    result.totalRooms = orphanedRooms.length;
+
+    if (orphanedRooms.length === 0) {
+      console.log("✅ No orphaned rooms found. R2 is in sync with server!");
+      return result;
+    }
+
+    console.log(`🗑️  Found ${orphanedRooms.length} orphaned rooms to clean up`);
+
+    // Calculate total files to be deleted
+    orphanedRooms.forEach((roomId) => {
+      result.totalFiles += roomsInR2.get(roomId)?.length || 0;
+    });
+
+    console.log(`📊 Total files to delete: ${result.totalFiles}`);
+
+    // Delete orphaned rooms if requested
+    if (performDeletion) {
+      console.log("🚀 Starting deletion process...");
+
+      let totalDeleted = 0;
+
+      for (const roomId of orphanedRooms) {
+        try {
+          const deleteResult = await deleteObjectsWithPrefix(`room-${roomId}`);
+          console.log(
+            `✅ Deleted room-${roomId}: ${deleteResult.deletedCount} files`
+          );
+          totalDeleted += deleteResult.deletedCount;
+        } catch (error) {
+          const errorMsg = `Failed to delete room-${roomId}: ${error}`;
+          console.error(`❌ ${errorMsg}`);
+          result.errors!.push(errorMsg);
+        }
+      }
+
+      result.deletedFiles = totalDeleted;
+      console.log(`✨ Cleanup complete! Files deleted: ${totalDeleted}`);
+    } else {
+      console.log("⚠️  DRY RUN MODE - No files were deleted");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("❌ Orphaned room cleanup failed:", error);
+    throw error;
+  }
 }
