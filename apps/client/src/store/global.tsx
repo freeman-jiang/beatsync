@@ -436,9 +436,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const { socket } = getSocket(state);
 
-      // Make sure we have a selected audio ID
-      if (!state.selectedAudioUrl) {
-        console.error("Cannot broadcast play: No audio selected");
+      // Use selected audio or fall back to first audio source
+      let audioId = state.selectedAudioUrl;
+      if (!audioId && state.audioSources.length > 0) {
+        audioId = state.audioSources[0].url;
+      }
+
+      if (!audioId) {
+        console.error("Cannot broadcast play: No audio available");
         return;
       }
 
@@ -447,7 +452,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         request: {
           type: ClientActionEnum.enum.PLAY,
           trackTimeSeconds: trackTimeSeconds ?? state.getCurrentTrackPosition(),
-          audioId: state.selectedAudioUrl,
+          audioId,
         },
       });
     },

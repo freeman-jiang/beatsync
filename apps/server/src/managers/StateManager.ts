@@ -6,6 +6,7 @@ import {
   getSortedFilesWithPrefix,
   deleteObject,
   cleanupOrphanedRooms,
+  validateAudioFileExists,
 } from "../lib/r2";
 import { z } from "zod";
 import { AudioSourceSchema } from "@beatsync/shared/types/basic";
@@ -51,14 +52,22 @@ export class StateManager {
     try {
       const room = globalManager.getOrCreateRoom(roomId);
 
+      // Concurrently validate all audio sources in R2 (no limit on concurrency)
+      const validationPromises = roomData.audioSources.map((source) =>
+        validateAudioFileExists(source.url)
+      );
+      const validationResults = await Promise.all(validationPromises);
+
+      // Filter out audio sources that are not valid
+      const validAudioSources = roomData.audioSources.filter(
+        (_, index) => validationResults[index]
+      );
+
       // Restore audio sources
-      roomData.audioSources.forEach((source) => {
-        room.addAudioSource(source);
-      });
+      room.setAudioSources(validAudioSources);
 
-      // Schedule cleanup for rooms with no active connections
+      // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
       globalManager.scheduleRoomCleanup(roomId);
-
       return { roomId, success: true };
     } catch (error) {
       console.error(`❌ Failed to restore room ${roomId}:`, error);
@@ -270,15 +279,7 @@ export class StateManager {
       console.log("🧹 Cleaning up orphaned rooms...");
 
       const activeRooms = new Set<string>(globalManager.getRoomIds());
-      const cleanupResult = await cleanupOrphanedRooms(activeRooms, true);
-
-      if (cleanupResult.totalRooms > 0) {
-        console.log(
-          `✅ Orphan cleanup completed: deleted ${cleanupResult.deletedFiles} files from ${cleanupResult.totalRooms} orphaned rooms`
-        );
-      } else {
-        console.log("✅ No orphaned rooms found");
-      }
+      await cleanupOrphanedRooms(activeRooms, true);
     } catch (error) {
       // Don't throw - cleanup failures shouldn't break the restore process
       console.error("⚠️ Orphaned room cleanup failed:", error);

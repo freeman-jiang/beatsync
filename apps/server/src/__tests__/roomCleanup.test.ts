@@ -10,6 +10,12 @@ mock.module("../lib/r2", () => ({
   getLatestFileWithPrefix: mock(async () => null),
   getSortedFilesWithPrefix: mock(async () => []),
   deleteObject: mock(async () => {}),
+  validateAudioFileExists: mock(async () => true), // Mock to always return true for tests
+  cleanupOrphanedRooms: mock(async () => ({
+    orphanedRooms: [],
+    totalRooms: 0,
+    totalFiles: 0,
+  })),
 }));
 
 describe("Room Cleanup Timer", () => {

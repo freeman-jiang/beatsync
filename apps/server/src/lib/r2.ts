@@ -1,6 +1,7 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -66,6 +67,34 @@ export async function generatePresignedUploadUrl(
  */
 export function getPublicAudioUrl(roomId: string, fileName: string): string {
   return `${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${fileName}`;
+}
+
+/**
+ * Validate if an audio file exists in R2 by checking its URL
+ * @param audioUrl The public URL of the audio file
+ * @returns true if the file exists, false otherwise
+ */
+export async function validateAudioFileExists(
+  audioUrl: string
+): Promise<boolean> {
+  try {
+    // Extract the key from the public URL
+    // URL format: ${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${fileName}
+    const urlPath = audioUrl.replace(S3_CONFIG.PUBLIC_URL, "");
+    const key = urlPath.startsWith("/") ? urlPath.substring(1) : urlPath;
+
+    // Perform HEAD request to check if object exists
+    const command = new HeadObjectCommand({
+      Bucket: S3_CONFIG.BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await r2Client.send(command);
+    return true; // File exists
+  } catch (error) {
+    console.error(`Error validating audio file ${audioUrl}:`);
+    return false;
+  }
 }
 
 /**
@@ -237,7 +266,11 @@ export async function downloadJSON<T = any>(key: string): Promise<T | null> {
 }
 
 /**
- * Get the latest file with a given prefix (sorted by key name)
+ * Get the latest file with a given prefix (sorted by key name) lexically:
+ * Year 2024 > 2023
+ * Month 12 > 01
+ * Day 31 > 01
+ * Time 235959 > 000000
  */
 export async function getLatestFileWithPrefix(
   prefix: string
@@ -334,11 +367,11 @@ export async function cleanupOrphanedRooms(
     const roomObjects = await listObjectsWithPrefix("room-");
 
     if (!roomObjects || roomObjects.length === 0) {
-      console.log("✅ No room objects found in R2. Nothing to clean up!");
+      console.log("  ✅ No room objects found in R2. Nothing to clean up!");
       return result;
     }
 
-    console.log(`Found ${roomObjects.length} room objects in R2`);
+    console.log(`  Found ${roomObjects.length} room objects in R2`);
 
     // Group objects by room
     const roomsInR2 = new Map<string, string[]>();
@@ -356,8 +389,10 @@ export async function cleanupOrphanedRooms(
       }
     });
 
-    console.log(`📁 Found ${roomsInR2.size} unique rooms in R2`);
-    console.log(`🏃 Found ${activeRoomIds.size} active rooms in server memory`);
+    console.log(`  📁 Found ${roomsInR2.size} unique rooms in R2`);
+    console.log(
+      `  🏃 Found ${activeRoomIds.size} active rooms in server memory`
+    );
 
     // Identify orphaned rooms
     const orphanedRooms: string[] = [];
@@ -375,22 +410,23 @@ export async function cleanupOrphanedRooms(
     result.totalRooms = orphanedRooms.length;
 
     if (orphanedRooms.length === 0) {
-      console.log("✅ No orphaned rooms found. R2 is in sync with server!");
       return result;
     }
 
-    console.log(`🗑️  Found ${orphanedRooms.length} orphaned rooms to clean up`);
+    console.log(
+      `  🗑️  Found ${orphanedRooms.length} orphaned rooms to clean up`
+    );
 
     // Calculate total files to be deleted
     orphanedRooms.forEach((roomId) => {
       result.totalFiles += roomsInR2.get(roomId)?.length || 0;
     });
 
-    console.log(`📊 Total files to delete: ${result.totalFiles}`);
+    console.log(`  📊 Total files to delete: ${result.totalFiles}`);
 
     // Delete orphaned rooms if requested
     if (performDeletion) {
-      console.log("🚀 Starting deletion process...");
+      console.log("  🚀 Starting deletion process...");
 
       let totalDeleted = 0;
 
@@ -398,20 +434,20 @@ export async function cleanupOrphanedRooms(
         try {
           const deleteResult = await deleteObjectsWithPrefix(`room-${roomId}`);
           console.log(
-            `✅ Deleted room-${roomId}: ${deleteResult.deletedCount} files`
+            `    ✅ Deleted room-${roomId}: ${deleteResult.deletedCount} files`
           );
           totalDeleted += deleteResult.deletedCount;
         } catch (error) {
           const errorMsg = `Failed to delete room-${roomId}: ${error}`;
-          console.error(`❌ ${errorMsg}`);
+          console.error(`    ❌ ${errorMsg}`);
           result.errors!.push(errorMsg);
         }
       }
 
       result.deletedFiles = totalDeleted;
-      console.log(`✨ Cleanup complete! Files deleted: ${totalDeleted}`);
+      console.log(`  ✨ Cleanup complete! Files deleted: ${totalDeleted}`);
     } else {
-      console.log("⚠️  DRY RUN MODE - No files were deleted");
+      console.log("  ⚠️  DRY RUN MODE - No files were deleted");
     }
 
     return result;
