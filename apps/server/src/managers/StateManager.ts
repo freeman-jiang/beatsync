@@ -6,27 +6,31 @@ import {
   getSortedFilesWithPrefix,
   deleteObject,
 } from "../lib/r2";
+import { z } from "zod";
+import { AudioSourceSchema } from "@beatsync/shared/types/basic";
 
-interface BackupState {
-  version: number;
-  timestamp: number;
-  data: {
-    rooms: Record<
-      string,
-      {
-        clients: Array<{
-          clientId: string;
-          username: string;
-        }>;
-        audioSources: Array<{ url: string }>;
-      }
-    >;
-  };
-}
+// Define Zod schemas for backup validation
+const BackupClientSchema = z.object({
+  clientId: z.string(),
+  username: z.string(),
+});
+
+const BackupRoomSchema = z.object({
+  clients: z.array(BackupClientSchema),
+  audioSources: z.array(AudioSourceSchema),
+});
+
+const BackupStateSchema = z.object({
+  timestamp: z.number(),
+  data: z.object({
+    rooms: z.record(z.string(), BackupRoomSchema),
+  }),
+});
+
+type BackupState = z.infer<typeof BackupStateSchema>;
 
 export class StateManager {
   private static readonly BACKUP_PREFIX = "state-backup/";
-  private static readonly CURRENT_VERSION = 1;
 
   /**
    * Generate a timestamped backup filename
@@ -56,7 +60,6 @@ export class StateManager {
       });
 
       const backupData: BackupState = {
-        version: this.CURRENT_VERSION,
         timestamp: Date.now(),
         data: { rooms },
       };
@@ -98,18 +101,22 @@ export class StateManager {
       console.log(`📥 Restoring from: ${latestBackupKey}`);
 
       // Download and parse the backup
-      const backupData = await downloadJSON<BackupState>(latestBackupKey);
+      const rawBackupData = await downloadJSON(latestBackupKey);
 
-      if (!backupData) {
+      if (!rawBackupData) {
         throw new Error("Failed to read backup data");
       }
 
-      // Check version compatibility
-      if (backupData.version > this.CURRENT_VERSION) {
+      // Validate backup data with Zod schema
+      const parseResult = BackupStateSchema.safeParse(rawBackupData);
+      
+      if (!parseResult.success) {
         throw new Error(
-          `Backup version ${backupData.version} is newer than current version ${this.CURRENT_VERSION}`
+          `Invalid backup data format: ${parseResult.error.message}`
         );
       }
+
+      const backupData = parseResult.data;
 
       // Restore rooms
       const rooms = backupData.data.rooms;

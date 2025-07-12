@@ -88,6 +88,28 @@ describe("StateManager (Simplified Tests)", () => {
     });
   });
 
+  describe("Zod Schema Validation", () => {
+    it("should validate backup data structure", async () => {
+      // Create a room with data
+      const room = globalManager.getOrCreateRoom("validation-test");
+      room.addAudioSource({ url: "https://example.com/test.mp3" });
+      
+      const backupState = room.getBackupState();
+      
+      // Verify the structure matches our schema expectations
+      expect(backupState).toHaveProperty("clients");
+      expect(backupState).toHaveProperty("audioSources");
+      expect(Array.isArray(backupState.clients)).toBe(true);
+      expect(Array.isArray(backupState.audioSources)).toBe(true);
+      
+      // Each audio source should have a url property
+      backupState.audioSources.forEach(source => {
+        expect(source).toHaveProperty("url");
+        expect(typeof source.url).toBe("string");
+      });
+    });
+  });
+
   describe("RoomManager Integration", () => {
     it("should collect backup state from all rooms", async () => {
       // Create multiple rooms

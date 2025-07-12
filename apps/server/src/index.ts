@@ -109,12 +109,13 @@ const gracefulShutdown = async (signal: string) => {
 
 // Handle graceful shutdown
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-// Prevent raw exit on multiple Ctrl+C
+// Handle SIGINT with force exit on multiple Ctrl+C
 process.on("SIGINT", () => {
   if (isShuttingDown) {
     console.log("\n⚠️ Force exit requested. Terminating immediately...");
     process.exit(1);
+  } else {
+    gracefulShutdown("SIGINT");
   }
 });
