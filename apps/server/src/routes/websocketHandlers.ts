@@ -200,21 +200,11 @@ export const handleClose = async (
     if (room) {
       room.removeClient(clientId);
 
-      // Check if this was the last client in the room
-      if (room.isEmpty()) {
+      // Check if room has no active connections
+      if (!room.hasActiveConnections()) {
         room.stopSpatialAudio();
-
-        room.scheduleCleanup(async () => {
-          // Double-check room is still empty
-          const currentRoom = globalManager.getRoom(roomId);
-          if (currentRoom && currentRoom.isEmpty()) {
-            console.log(
-              `Room ${roomId} still empty after 1 minute. Cleaning up.`
-            );
-            await currentRoom.cleanup();
-            await globalManager.deleteRoom(roomId);
-          }
-        }, 1000 * 3);
+        // Schedule cleanup with 3 second delay
+        globalManager.scheduleRoomCleanup(roomId, 3000);
       }
     }
 

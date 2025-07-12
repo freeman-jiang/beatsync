@@ -126,24 +126,9 @@ export class StateManager {
           room.addAudioSource(source);
         });
 
-        // Schedule cleanup for empty rooms or rooms with no active connections
-        // This uses the same mechanism as normal operation
-        if (!room.hasActiveConnections()) {
-          console.log(
-            `Room ${roomId} has no active connections, scheduling cleanup`
-          );
-          room.scheduleCleanup(async () => {
-            // Re-check if room is still empty when timer fires
-            const currentRoom = globalManager.getRoom(roomId);
-            if (currentRoom && !currentRoom.hasActiveConnections()) {
-              console.log(
-                `Room ${roomId} still has no active connections after restore grace period. Cleaning up.`
-              );
-              await currentRoom.cleanup();
-              await globalManager.deleteRoom(roomId);
-            }
-          }, 5 * 60 * 1000); // 5 minute grace period for restored rooms
-        }
+        // Schedule cleanup for rooms with no active connections
+        // Use 5 minute grace period for restored rooms
+        globalManager.scheduleRoomCleanup(roomId, 5 * 60 * 1000);
       }
 
       const ageMinutes = Math.floor(

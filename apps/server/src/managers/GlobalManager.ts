@@ -72,6 +72,34 @@ export class GlobalManager {
   getRoomIds(): string[] {
     return Array.from(this.rooms.keys());
   }
+
+  /**
+   * Schedule cleanup for a room if it has no active connections
+   */
+  scheduleRoomCleanup(roomId: string, delayMs: number): void {
+    const room = this.getRoom(roomId);
+    if (!room) {
+      console.warn(`Cannot schedule cleanup for non-existent room: ${roomId}`);
+      return;
+    }
+
+    // Only schedule cleanup if room has no active connections
+    if (!room.hasActiveConnections()) {
+      console.log(`Room ${roomId} has no active connections, scheduling cleanup in ${delayMs}ms`);
+      
+      room.scheduleCleanup(async () => {
+        // Re-check if room still has no active connections when timer fires
+        const currentRoom = this.getRoom(roomId);
+        if (currentRoom && !currentRoom.hasActiveConnections()) {
+          console.log(`Room ${roomId} still has no active connections after ${delayMs}ms. Cleaning up.`);
+          await currentRoom.cleanup();
+          await this.deleteRoom(roomId);
+        } else {
+          console.log(`Room ${roomId} has active connections now, skipping cleanup.`);
+        }
+      }, delayMs);
+    }
+  }
 }
 
 // Export singleton instance
