@@ -84,11 +84,13 @@ export class StateManager {
    */
   private static generateBackupFilename(): string {
     const now = new Date();
+    // Convert ISO timestamp to filename-safe format
+    // e.g., "2024-01-15T14:30:45.123Z" -> "2024-01-15_14-30-45"
     const timestamp = now
       .toISOString()
-      .replace(/[:.]/g, "-")
-      .replace("T", "_")
-      .slice(0, -5);
+      .replace(/[:.]/g, "-") // Replace colons and dots with dashes
+      .replace("T", "_") // Replace T separator with underscore
+      .slice(0, -5); // Remove milliseconds and Z suffix
     return `${this.BACKUP_PREFIX}backup-${timestamp}.json`;
   }
 
