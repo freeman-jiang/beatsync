@@ -42,19 +42,20 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
 
   // Send audio sources to the newly joined client if any exist
   const { audioSources } = room.getState();
-  console.log(
-    `Sending audio source(s) to newly joined client ${ws.data.username}: `,
-    audioSources
-  );
-  const audioSourcesMessage: WSBroadcastType = {
-    type: "ROOM_EVENT",
-    event: {
-      type: "SET_AUDIO_SOURCES",
-      sources: audioSources,
-    },
-  };
-  // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
-  ws.send(JSON.stringify(audioSourcesMessage));
+  if (audioSources.length > 0) {
+    console.log(
+      `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
+    );
+    const audioSourcesMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_AUDIO_SOURCES",
+        sources: audioSources,
+      },
+    };
+    // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
+    ws.send(JSON.stringify(audioSourcesMessage));
+  }
 
   const message = createClientUpdate(roomId);
   sendBroadcast({ server, roomId, message });
@@ -203,14 +204,17 @@ export const handleClose = async (
       if (room.isEmpty()) {
         room.stopSpatialAudio();
 
-        // Cleanup room resources
-        await room.cleanup();
-
-        // Re-check the room state after async operation
-        const currentRoom = globalManager.getRoom(roomId);
-        if (currentRoom && currentRoom.isEmpty()) {
-          await globalManager.deleteRoom(roomId);
-        }
+        room.scheduleCleanup(async () => {
+          // Double-check room is still empty
+          const currentRoom = globalManager.getRoom(roomId);
+          if (currentRoom && currentRoom.isEmpty()) {
+            console.log(
+              `Room ${roomId} still empty after 1 minute. Cleaning up.`
+            );
+            await currentRoom.cleanup();
+            await globalManager.deleteRoom(roomId);
+          }
+        }, 1000 * 3);
       }
     }
 

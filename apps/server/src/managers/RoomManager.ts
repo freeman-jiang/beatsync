@@ -31,6 +31,7 @@ export class RoomManager {
   private audioSources: AudioSourceType[] = [];
   private listeningSource: PositionType;
   private intervalId?: NodeJS.Timeout;
+  private cleanupTimer?: NodeJS.Timeout;
 
   constructor(private readonly roomId: string) {
     this.listeningSource = { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y };
@@ -47,6 +48,9 @@ export class RoomManager {
    * Add a client to the room
    */
   addClient(ws: ServerWebSocket<WSData>): void {
+    // Cancel any pending cleanup since room is active again
+    this.cancelCleanup();
+
     const { username, clientId } = ws.data;
 
     // Add the new client
@@ -269,6 +273,29 @@ export class RoomManager {
       })),
       audioSources: this.audioSources,
     };
+  }
+
+  /**
+   * Schedule cleanup after a delay
+   */
+  scheduleCleanup(callback: () => Promise<void>, delayMs: number): void {
+    // Cancel any existing timer
+    this.cancelCleanup();
+
+    // Schedule new cleanup after specified delay
+    this.cleanupTimer = setTimeout(callback, delayMs);
+    console.log(`⏱️ Scheduled cleanup for room ${this.roomId} in ${delayMs}ms`);
+  }
+
+  /**
+   * Cancel pending cleanup
+   */
+  cancelCleanup(): void {
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer);
+      this.cleanupTimer = undefined;
+      console.log(`🚫 Cleanup timer cleared for room ${this.roomId}`);
+    }
   }
 
   /**

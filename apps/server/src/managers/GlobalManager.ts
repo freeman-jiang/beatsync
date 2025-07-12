@@ -28,12 +28,11 @@ export class GlobalManager {
   }
 
   /**
-   * Delete a room and clean up its resources
+   * Delete a room from the map
    */
   async deleteRoom(roomId: string): Promise<void> {
     const room = this.rooms.get(roomId);
     if (room) {
-      await room.cleanup();
       this.rooms.delete(roomId);
       console.log(`Room ${roomId} deleted from GlobalManager`);
     }
