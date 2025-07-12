@@ -331,20 +331,20 @@ export async function cleanupOrphanedRooms(
       );
     }
 
-    console.log("📋 Listing all objects in R2...");
-    const allObjects = await listObjectsWithPrefix("");
+    console.log("📋 Listing room objects in R2...");
+    const roomObjects = await listObjectsWithPrefix("room-");
 
-    if (!allObjects || allObjects.length === 0) {
-      console.log("✅ No objects found in R2. Nothing to clean up!");
+    if (!roomObjects || roomObjects.length === 0) {
+      console.log("✅ No room objects found in R2. Nothing to clean up!");
       return result;
     }
 
-    console.log(`Found ${allObjects.length} total objects in R2`);
+    console.log(`Found ${roomObjects.length} room objects in R2`);
 
     // Group objects by room
     const roomsInR2 = new Map<string, string[]>();
 
-    allObjects.forEach((obj) => {
+    roomObjects.forEach((obj) => {
       if (obj.Key) {
         const match = obj.Key.match(/^room-([^\/]+)\//);
         if (match) {
