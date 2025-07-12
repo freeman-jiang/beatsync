@@ -7,6 +7,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { R2_AUDIO_FILE_NAME_DELIMITER } from "@beatsync/shared";
 import { config } from "dotenv";
 import sanitize = require("sanitize-filename");
 
@@ -107,8 +108,11 @@ export function generateAudioFileName(originalName: string): string {
   // Remove extension from name for processing
   const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
 
+  // Remove slashes from the original name
+  const nameWithoutSlashes = nameWithoutExt.replace(/[\/\\]/g, "-");
+
   // Sanitize filename using the library
-  let safeName = sanitize(nameWithoutExt, { replacement: "-" });
+  let safeName = sanitize(nameWithoutSlashes, { replacement: "-" });
 
   // Truncate if too long (leave room for timestamp and extension)
   const maxNameLength = 400;
@@ -123,12 +127,9 @@ export function generateAudioFileName(originalName: string): string {
 
   // Generate timestamp with date and random component
   const now = new Date();
-  const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
-  const randomComponent = Math.floor(Math.random() * 100000)
-    .toString()
-    .padStart(5, "0");
+  const dateStr = now.toISOString().replace(":", "-");
 
-  return `${safeName}-${dateStr}-${randomComponent}.${extension}`;
+  return `${safeName}${R2_AUDIO_FILE_NAME_DELIMITER}${dateStr}.${extension}`;
 }
 
 /**
