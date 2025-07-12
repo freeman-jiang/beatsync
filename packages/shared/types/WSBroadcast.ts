@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { PauseActionSchema, PlayActionSchema } from "./WSRequest";
-import { PositionSchema } from "./basic";
+import { AudioSourceSchema, PositionSchema } from "./basic";
 
+// ROOM EVENTS
+
+// Client change
 const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
@@ -10,23 +13,27 @@ const ClientSchema = z.object({
   position: PositionSchema,
 });
 export type ClientType = z.infer<typeof ClientSchema>;
-
 const ClientChangeMessageSchema = z.object({
   type: z.literal("CLIENT_CHANGE"),
   clients: z.array(ClientSchema),
 });
 
-const AudioSourceSchema = z.object({
-  type: z.literal("NEW_AUDIO_SOURCE"),
-  id: z.string(),
-  title: z.string(),
-  duration: z.number().positive(),
-  thumbnail: z.string().url().optional(),
-  addedAt: z.number(),
-  addedBy: z.string(),
+// Set audio sources
+const SetAudioSourcesSchema = z.object({
+  type: z.literal("SET_AUDIO_SOURCES"),
+  sources: z.array(AudioSourceSchema),
 });
-export type AudioSourceType = z.infer<typeof AudioSourceSchema>;
+export type SetAudioSourcesType = z.infer<typeof SetAudioSourcesSchema>;
 
+const RoomEventSchema = z.object({
+  type: z.literal("ROOM_EVENT"),
+  event: z.discriminatedUnion("type", [
+    ClientChangeMessageSchema,
+    SetAudioSourcesSchema,
+  ]),
+});
+
+// SCHEDULED ACTIONS
 const SpatialConfigSchema = z.object({
   type: z.literal("SPATIAL_CONFIG"),
   gains: z.record(
@@ -54,15 +61,7 @@ const ScheduledActionSchema = z.object({
   ]),
 });
 
-const RoomEventSchema = z.object({
-  type: z.literal("ROOM_EVENT"),
-  event: z.discriminatedUnion("type", [
-    ClientChangeMessageSchema,
-    AudioSourceSchema,
-  ]),
-});
-
-// HERE
+// Export both broadcast types
 export const WSBroadcastSchema = z.discriminatedUnion("type", [
   ScheduledActionSchema,
   RoomEventSchema,

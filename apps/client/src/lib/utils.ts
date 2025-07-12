@@ -24,11 +24,11 @@ export const trimFileName = (fileName: string) => {
   return fileName.replace(/\.[^/.]+$/, "");
 };
 
-export const extractDefaultFileName = (url: string) => {
-  // Get everything after "default/"
-  const parts = url.split("default/");
+export const extractFileNameFromUrl = (url: string) => {
+  // Get everything after the last slash
+  const parts = url.split("/");
   if (parts.length > 1) {
-    return trimFileName(parts[1]);
+    return trimFileName(parts[parts.length - 1]); // And trim the file extension (.*) at the end
   }
 
   throw new Error("Invalid URL: " + url);

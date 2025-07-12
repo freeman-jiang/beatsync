@@ -146,7 +146,6 @@ ConnectedUserItem.displayName = "ConnectedUserItem";
 
 export const UserGrid = () => {
   const userId = useRoomStore((state) => state.userId);
-  const spatialConfig = useGlobalStore((state) => state.spatialConfig);
   const listeningSource = useGlobalStore(
     (state) => state.listeningSourcePosition
   );
@@ -369,7 +368,7 @@ export const UserGrid = () => {
       const isCurrentUser = client.clientId === userId;
       return { client, isCurrentUser };
     });
-  }, [clients, spatialConfig?.gains, userId]);
+  }, [clients, userId]);
 
   const reorderClient = useGlobalStore((state) => state.reorderClient);
 

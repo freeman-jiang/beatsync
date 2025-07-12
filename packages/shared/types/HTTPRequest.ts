@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AudioSourceSchema } from "./basic";
 
 // Legacy upload schema (deprecated)
 export const UploadAudioSchema = z.object({
@@ -51,9 +52,5 @@ export const GetAudioSchema = z.object({
 export type GetAudioType = z.infer<typeof GetAudioSchema>;
 
 // Default audio fetch response
-export const GetDefaultAudioSchema = z.array(
-  z.object({
-    url: z.string(),
-  })
-);
+export const GetDefaultAudioSchema = z.array(AudioSourceSchema);
 export type GetDefaultAudioType = z.infer<typeof GetDefaultAudioSchema>;

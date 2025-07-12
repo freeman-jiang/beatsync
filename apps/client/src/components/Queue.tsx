@@ -4,9 +4,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LocalAudioSource } from "@/lib/localTypes";
-import { cn, formatTime } from "@/lib/utils";
+import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
+import { AudioSourceType } from "@beatsync/shared";
 import { MoreHorizontal, Pause, Play, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
@@ -14,46 +14,36 @@ import { usePostHog } from "posthog-js/react";
 export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const posthog = usePostHog();
   const audioSources = useGlobalStore((state) => state.audioSources);
-  const selectedAudioId = useGlobalStore((state) => state.selectedAudioId);
+  const selectedAudioId = useGlobalStore((state) => state.selectedAudioUrl);
   const setSelectedAudioId = useGlobalStore(
-    (state) => state.setSelectedAudioId
+    (state) => state.setSelectedAudioUrl
   );
   const isInitingSystem = useGlobalStore((state) => state.isInitingSystem);
   const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
   const isPlaying = useGlobalStore((state) => state.isPlaying);
-  const reuploadAudio = useGlobalStore((state) => state.reuploadAudio);
+  const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
 
-  const handleItemClick = (source: LocalAudioSource) => {
-    if (source.id === selectedAudioId) {
+  const handleItemClick = (source: AudioSourceType) => {
+    if (source.url === selectedAudioId) {
       if (isPlaying) {
         broadcastPause();
-        posthog.capture("pause_track", { track_id: source.id });
+        posthog.capture("pause_track", { track_id: source.url });
       } else {
         broadcastPlay();
-        posthog.capture("play_track", { track_id: source.id });
+        posthog.capture("play_track", { track_id: source.url });
       }
     } else {
       // Track selection event
       posthog.capture("select_track", {
-        track_id: source.id,
-        track_name: source.name,
+        track_id: source.url,
+        track_name: source.url,
         previous_track_id: selectedAudioId,
       });
 
-      setSelectedAudioId(source.id);
+      setSelectedAudioId(source.url);
       broadcastPlay(0);
     }
-  };
-
-  const handleReupload = (sourceId: string, sourceName: string) => {
-    reuploadAudio(sourceId, sourceName);
-
-    // Track reupload event
-    posthog.capture("reupload_track", {
-      track_id: sourceId,
-      track_name: sourceName,
-    });
   };
 
   return (
@@ -63,12 +53,12 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
         {audioSources.length > 0 ? (
           <AnimatePresence initial={true}>
             {audioSources.map((source, index) => {
-              const isSelected = source.id === selectedAudioId;
+              const isSelected = source.url === selectedAudioId;
               const isPlayingThis = isSelected && isPlaying;
 
               return (
                 <motion.div
-                  key={source.id}
+                  key={source.url}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
@@ -124,14 +114,14 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         isSelected ? "text-primary-400" : ""
                       )}
                     >
-                      {source.name}
+                      {extractFileNameFromUrl(source.url)}
                     </div>
                   </div>
 
                   {/* Duration & Optional Re-upload Menu */}
                   <div className="ml-4 flex items-center gap-2">
                     <div className="text-xs text-neutral-500 select-none">
-                      {formatTime(source.audioBuffer.duration)}
+                      {formatTime(getAudioDuration({ url: source.url }))}
                     </div>
 
                     {/* Dropdown for re-uploading - Always shown */}
@@ -149,13 +139,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         align="center"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <DropdownMenuItem
-                          onSelect={() =>
-                            handleReupload(source.id, source.name)
-                          }
-                          className="flex items-center gap-2 cursor-pointer text-sm"
-                          disabled={source.id.includes("default/")}
-                        >
+                        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-sm">
                           <UploadCloud className="size-3.5 text-neutral-400" />
                           <span>Reupload to room</span>
                         </DropdownMenuItem>
