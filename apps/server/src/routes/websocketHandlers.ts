@@ -200,11 +200,10 @@ export const handleClose = async (
     if (room) {
       room.removeClient(clientId);
 
-      // Check if room has no active connections
+      // Schedule cleanup for rooms with no active connections
       if (!room.hasActiveConnections()) {
         room.stopSpatialAudio();
-        // Schedule cleanup with 3 second delay
-        globalManager.scheduleRoomCleanup(roomId, 3000);
+        globalManager.scheduleRoomCleanup(roomId);
       }
     }
 

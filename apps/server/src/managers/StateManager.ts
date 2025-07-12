@@ -127,8 +127,7 @@ export class StateManager {
         });
 
         // Schedule cleanup for rooms with no active connections
-        // Use 5 minute grace period for restored rooms
-        globalManager.scheduleRoomCleanup(roomId, 5 * 60 * 1000);
+        globalManager.scheduleRoomCleanup(roomId);
       }
 
       const ageMinutes = Math.floor(

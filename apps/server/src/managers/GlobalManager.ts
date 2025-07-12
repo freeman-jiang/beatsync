@@ -4,6 +4,8 @@ import { RoomManager } from "./RoomManager";
  * GlobalManager is a singleton that manages all active rooms.
  * It handles room creation, deletion, and provides access to individual room managers.
  */
+
+const CLEANUP_DELAY_MS = 1000 * 3;
 export class GlobalManager {
   private rooms = new Map<string, RoomManager>();
 
@@ -76,7 +78,7 @@ export class GlobalManager {
   /**
    * Schedule cleanup for a room if it has no active connections
    */
-  scheduleRoomCleanup(roomId: string, delayMs: number): void {
+  scheduleRoomCleanup(roomId: string): void {
     const room = this.getRoom(roomId);
     if (!room) {
       console.warn(`Cannot schedule cleanup for non-existent room: ${roomId}`);
@@ -85,19 +87,25 @@ export class GlobalManager {
 
     // Only schedule cleanup if room has no active connections
     if (!room.hasActiveConnections()) {
-      console.log(`Room ${roomId} has no active connections, scheduling cleanup in ${delayMs}ms`);
-      
+      console.log(
+        `Room ${roomId} has no active connections, scheduling cleanup in ${CLEANUP_DELAY_MS}ms`
+      );
+
       room.scheduleCleanup(async () => {
         // Re-check if room still has no active connections when timer fires
         const currentRoom = this.getRoom(roomId);
         if (currentRoom && !currentRoom.hasActiveConnections()) {
-          console.log(`Room ${roomId} still has no active connections after ${delayMs}ms. Cleaning up.`);
+          console.log(
+            `Room ${roomId} still has no active connections after ${CLEANUP_DELAY_MS}ms. Cleaning up.`
+          );
           await currentRoom.cleanup();
           await this.deleteRoom(roomId);
         } else {
-          console.log(`Room ${roomId} has active connections now, skipping cleanup.`);
+          console.log(
+            `Room ${roomId} has active connections now, skipping cleanup.`
+          );
         }
-      }, delayMs);
+      }, CLEANUP_DELAY_MS);
     }
   }
 }
