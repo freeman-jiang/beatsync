@@ -11,7 +11,7 @@ import {
 } from "./routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "./utils/responses";
 import { WSData } from "./utils/websocket";
-import { StateManager } from "./managers/StateManager";
+import { BackupManager } from "./managers/BackupManager";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
@@ -74,7 +74,7 @@ const server = Bun.serve<WSData, undefined>({
 console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
 
 // Restore state from backup on startup
-StateManager.restoreState().catch((error) => {
+BackupManager.restoreState().catch((error) => {
   console.error("Failed to restore state on startup:", error);
 });
 
@@ -83,7 +83,7 @@ const shutdown = async () => {
   console.log("\n⚠️ Shutting down...");
 
   server.stop(); // Stop accepting new connections
-  await StateManager.backupState(); // Save state
+  await BackupManager.backupState(); // Save state
 
   process.exit(0);
 };

@@ -38,7 +38,7 @@ interface RoomRestoreResult {
   error?: string;
 }
 
-export class StateManager {
+export class BackupManager {
   private static readonly BACKUP_PREFIX = "state-backup/";
   private static readonly DEFAULT_RESTORE_CONCURRENCY = 1000;
 

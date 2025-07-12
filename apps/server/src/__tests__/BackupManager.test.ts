@@ -1,8 +1,8 @@
 import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { StateManager } from "../managers/StateManager";
+import { BackupManager } from "../managers/BackupManager";
 import { globalManager } from "../managers/GlobalManager";
 
-// Mock the r2 module before importing StateManager
+// Mock the r2 module before importing BackupManager
 mock.module("../lib/r2", () => ({
   uploadJSON: mock(async () => {}),
   downloadJSON: mock(async () => null),
@@ -17,7 +17,7 @@ mock.module("../lib/r2", () => ({
   })),
 }));
 
-describe("StateManager (Simplified Tests)", () => {
+describe("BackupManager (Simplified Tests)", () => {
   beforeEach(async () => {
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
@@ -40,7 +40,7 @@ describe("StateManager (Simplified Tests)", () => {
       const room1Backup = room1.getBackupState();
       const room2Backup = room2.getBackupState();
 
-      // Verify the structure matches what StateManager expects
+      // Verify the structure matches what BackupManager expects
       expect(room1Backup).toMatchObject({
         clients: [],
         audioSources: [
@@ -70,7 +70,7 @@ describe("StateManager (Simplified Tests)", () => {
       await globalManager.deleteRoom("restore-test");
       expect(globalManager.hasRoom("restore-test")).toBe(false);
       
-      // Manually restore (simulating what StateManager.restoreState does)
+      // Manually restore (simulating what BackupManager.restoreState does)
       const restoredRoom = globalManager.getOrCreateRoom("restore-test");
       backupState.audioSources.forEach(source => {
         restoredRoom.addAudioSource(source);
@@ -130,7 +130,7 @@ describe("StateManager (Simplified Tests)", () => {
       rooms["room-b"].addAudioSource({ url: "https://example.com/b.mp3" });
       // room-c is left empty
       
-      // Collect backup states (like StateManager does)
+      // Collect backup states (like BackupManager does)
       const backupData: Record<string, any> = {};
       globalManager.forEachRoom((room, roomId) => {
         backupData[roomId] = room.getBackupState();

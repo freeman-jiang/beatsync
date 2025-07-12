@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, mock } from "bun:test";
 import { globalManager } from "../managers/GlobalManager";
-import { StateManager } from "../managers/StateManager";
+import { BackupManager } from "../managers/BackupManager";
 
 // Mock the R2 operations
 mock.module("../lib/r2", () => ({
@@ -57,7 +57,7 @@ describe("Restore Cleanup", () => {
     };
 
     // Restore state
-    const restored = await StateManager.restoreState();
+    const restored = await BackupManager.restoreState();
     expect(restored).toBe(true);
 
     // Check that rooms were created
@@ -77,7 +77,7 @@ describe("Restore Cleanup", () => {
 
   it("should not have active connections for restored rooms", async () => {
     // Restore state
-    await StateManager.restoreState();
+    await BackupManager.restoreState();
 
     const room = globalManager.getRoom("test-room-1")!;
     
@@ -91,7 +91,7 @@ describe("Restore Cleanup", () => {
 
   it("should cancel cleanup when a real client connects to restored room", async () => {
     // Restore state
-    await StateManager.restoreState();
+    await BackupManager.restoreState();
     
     const room = globalManager.getRoom("test-room-1")!;
     let cleanupCalled = false;
@@ -127,7 +127,7 @@ describe("Restore Cleanup", () => {
 
   it("should execute cleanup for abandoned restored rooms", async () => {
     // Restore state
-    await StateManager.restoreState();
+    await BackupManager.restoreState();
     
     const room = globalManager.getRoom("test-room-1")!;
     let cleanupCalled = false;
