@@ -40,6 +40,22 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   const room = globalManager.getOrCreateRoom(roomId);
   room.addClient(ws);
 
+  // Send audio sources to the newly joined client if any exist
+  const { audioSources } = room.getState();
+  console.log(
+    `Sending audio source(s) to newly joined client ${ws.data.username}: `,
+    audioSources
+  );
+  const audioSourcesMessage: WSBroadcastType = {
+    type: "ROOM_EVENT",
+    event: {
+      type: "SET_AUDIO_SOURCES",
+      sources: audioSources,
+    },
+  };
+  // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
+  ws.send(JSON.stringify(audioSourcesMessage));
+
   const message = createClientUpdate(roomId);
   sendBroadcast({ server, roomId, message });
 };

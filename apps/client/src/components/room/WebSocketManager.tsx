@@ -116,7 +116,6 @@ export const WebSocketManager = ({
         if (event.type === "CLIENT_CHANGE") {
           setConnectedClients(event.clients);
         } else if (event.type === "SET_AUDIO_SOURCES") {
-          console.log("Received set audio sources event:", event.sources);
           handleSetAudioSources({ sources: event.sources });
         }
       } else if (response.type === "SCHEDULED_ACTION") {

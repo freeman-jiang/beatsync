@@ -109,7 +109,7 @@ export class StateManager {
 
       // Validate backup data with Zod schema
       const parseResult = BackupStateSchema.safeParse(rawBackupData);
-      
+
       if (!parseResult.success) {
         throw new Error(
           `Invalid backup data format: ${parseResult.error.message}`
@@ -141,7 +141,8 @@ export class StateManager {
         (Date.now() - backupData.timestamp) / 60000
       );
       console.log(
-        `✅ State restored: ${restoredRooms} rooms, ${restoredClients} clients (backup age: ${ageMinutes} minutes)`
+        `✅ State restored from ${ageMinutes} minutes ago:`,
+        backupData
       );
 
       return true;

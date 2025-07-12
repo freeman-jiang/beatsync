@@ -824,6 +824,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     async handleSetAudioSources({ sources }) {
+      // Wait for audio initialization to complete if it's in progress
+      if (initializationMutex.isLocked()) {
+        await initializationMutex.waitForUnlock();
+      }
+
       const state = get();
 
       // Find only new sources that have not already been loaded and then load them with loadAudioSourceUrl
