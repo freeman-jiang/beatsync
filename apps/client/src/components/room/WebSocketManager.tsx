@@ -9,7 +9,7 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -83,6 +83,15 @@ export const WebSocketManager = ({
       },
     });
 
+  // Use the WebSocket reconnection hook
+  const {
+    onConnectionOpen,
+    scheduleReconnection,
+    cleanup: cleanupReconnection,
+  } = useWebSocketReconnection({
+    createConnection: () => createConnection(),
+  });
+
   const createConnection = () => {
     const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
     console.log("Creating new WS connection to", SOCKET_URL);
@@ -103,6 +112,9 @@ export const WebSocketManager = ({
     ws.onopen = () => {
       console.log("Websocket onopen fired.");
 
+      // Reset reconnection state
+      onConnectionOpen();
+
       // Start NTP heartbeat
       startHeartbeat();
     };
@@ -115,13 +127,11 @@ export const WebSocketManager = ({
       // Stop NTP heartbeat
       stopHeartbeat();
 
-      toast.error("WS onclose fired");
-
       // Clear NTP measurements on new connection to avoid stale data
       useGlobalStore.getState().onConnectionReset();
 
-      // Try reconnect every 5 seconds
-      createConnection();
+      // Schedule reconnection with exponential backoff
+      scheduleReconnection();
     };
 
     ws.onmessage = async (msg) => {
@@ -194,6 +204,9 @@ export const WebSocketManager = ({
     return () => {
       // Runs on unmount and dependency change
       console.log("Running cleanup for WebSocket connection");
+
+      // Clean up reconnection state
+      cleanupReconnection();
 
       // Clear the onclose handler to prevent reconnection attempts - this is an intentional close
       ws.onclose = () => {
