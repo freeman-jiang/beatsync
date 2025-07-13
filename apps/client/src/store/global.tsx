@@ -107,6 +107,7 @@ interface GlobalState extends GlobalStateValues {
   sendNTPRequest: () => void;
   resetNTPConfig: () => void;
   addNTPMeasurement: (measurement: NTPMeasurement) => void;
+  onConnectionReset: () => void;
   playAudio: (data: {
     offset: number;
     when: number;
@@ -536,6 +537,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         // Rolling queue: keep only last MAX_NTP_MEASUREMENTS
         if (measurements.length >= MAX_NTP_MEASUREMENTS) {
           measurements = [...measurements.slice(1), measurement];
+          if (!state.isSynced) {
+            set({ isSynced: true });
+          }
         } else {
           measurements.push(measurement);
         }
@@ -548,9 +552,23 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           ntpMeasurements: measurements,
           offsetEstimate: averageOffset,
           roundTripEstimate: averageRoundTrip,
-          isSynced: true,
         };
       }),
+    onConnectionReset: () => {
+      const state = get();
+
+      // Stop spatial audio if enabled
+      if (state.isSpatialAudioEnabled) {
+        state.processStopSpatialAudio();
+      }
+
+      set({
+        ntpMeasurements: [],
+        offsetEstimate: 0,
+        roundTripEstimate: 0,
+        isSynced: false,
+      });
+    },
 
     getCurrentTrackPosition: () => {
       const state = get();

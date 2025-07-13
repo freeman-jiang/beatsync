@@ -1,5 +1,5 @@
 "use client";
-import { useGlobalStore } from "@/store/global";
+import { useGlobalStore, MAX_NTP_MEASUREMENTS } from "@/store/global";
 import { Hash, Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ export const TopBar = ({ roomId }: TopBarProps) => {
   const connectedClients = useGlobalStore((state) => state.connectedClients);
   const setIsLoadingAudio = useGlobalStore((state) => state.setIsInitingSystem);
   const clockOffset = useGlobalStore((state) => state.offsetEstimate);
+  const ntpMeasurements = useGlobalStore((state) => state.ntpMeasurements);
   const resync = () => {
     try {
       pauseAudio({ when: 0 });
@@ -47,6 +48,45 @@ export const TopBar = ({ roomId }: TopBarProps) => {
           <div className="flex items-center">
             <div className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></div>
             <span>Synced</span>
+          </div>
+          {/* NTP Measurements Indicator */}
+          <div className="flex items-center">
+            <motion.svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              className="mr-1"
+            >
+              <circle
+                cx="7"
+                cy="7"
+                r="5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="text-neutral-600"
+              />
+              <motion.circle
+                cx="7"
+                cy="7"
+                r="5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="text-green-500"
+                strokeDasharray={`${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`}
+                strokeLinecap="round"
+                transform="rotate(-90 7 7)"
+                initial={{ strokeDasharray: "0 31.4" }}
+                animate={{
+                  strokeDasharray: `${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`
+                }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              />
+            </motion.svg>
+            <span className="text-xs">
+              {ntpMeasurements.length}/{MAX_NTP_MEASUREMENTS}
+            </span>
           </div>
           <div className="flex items-center">
             <Hash size={12} className="mr-1" />

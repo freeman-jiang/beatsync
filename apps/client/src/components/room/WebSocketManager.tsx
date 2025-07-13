@@ -117,6 +117,9 @@ export const WebSocketManager = ({
 
       toast.error("WS onclose fired");
 
+      // Clear NTP measurements on new connection to avoid stale data
+      useGlobalStore.getState().onConnectionReset();
+
       // Try reconnect every 5 seconds
       createConnection();
     };
