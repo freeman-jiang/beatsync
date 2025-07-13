@@ -23,6 +23,7 @@ export const SyncProgress = ({
   );
   const isSyncComplete = useGlobalStore((state) => state.isSynced);
   const setIsLoadingAudio = useGlobalStore((state) => state.setIsInitingSystem);
+  const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
   // Message state based on current progress phase
@@ -61,6 +62,11 @@ export const SyncProgress = ({
   const normalizedProgress = Math.min(Math.max(animatedProgress, 0), 1);
 
   if (isSyncComplete) {
+    // If user has already started the system (reconnection), auto-dismiss
+    if (hasUserStartedSystem) {
+      return null;
+    }
+    
     return (
       <motion.div
         className="fixed inset-0 flex flex-col items-center justify-center z-50 bg-neutral-950 backdrop-blur-sm"

@@ -41,6 +41,7 @@ interface GlobalStateValues {
   audioSources: AudioSourceType[]; // Playlist order, server-synced, based on URL
   audioCache: Map<string, AudioBuffer>; // URL -> AudioBuffer
   isInitingSystem: boolean;
+  hasUserStartedSystem: boolean; // Track if user has clicked "Start System" at least once
   selectedAudioUrl: string;
 
   // Websocket
@@ -156,6 +157,7 @@ const initialState: GlobalStateValues = {
 
   // Loading state
   isInitingSystem: true,
+  hasUserStartedSystem: false,
 
   // These need to be initialized to prevent type errors
   audioPlayer: null,
@@ -319,6 +321,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // When initialization is complete (isIniting = false), check if we need to resume audio
       if (!isIniting) {
         const state = get();
+        // Mark that user has started the system
+        set({ hasUserStartedSystem: true });
+        
         const audioContext = state.audioPlayer?.audioContext;
         // Modern browsers require user interaction before playing audio
         // If context is suspended, we need to resume it
