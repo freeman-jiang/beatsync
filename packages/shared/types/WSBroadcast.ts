@@ -11,6 +11,7 @@ const ClientSchema = z.object({
   ws: z.any(),
   rtt: z.number().nonnegative().default(0), // Round-trip time in milliseconds
   position: PositionSchema,
+  lastNtpResponse: z.number().default(0), // Last NTP response timestamp
 });
 export type ClientType = z.infer<typeof ClientSchema>;
 const ClientChangeMessageSchema = z.object({

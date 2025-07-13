@@ -83,6 +83,11 @@ export const handleMessage = async (
 
     // NTP Request
     if (parsedMessage.type === ClientActionEnum.enum.NTP_REQUEST) {
+      // Update heartbeat for client
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      room.processNTPRequestFrom(ws.data.clientId);
+
       sendUnicast({
         ws,
         message: {

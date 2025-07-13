@@ -14,13 +14,14 @@ import {
   GRID,
   PositionType,
   SpatialConfigType,
+  NTP_CONSTANTS,
 } from "@beatsync/shared";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
 import { Mutex } from "async-mutex";
 
-export const MAX_NTP_MEASUREMENTS = 40;
+export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
 

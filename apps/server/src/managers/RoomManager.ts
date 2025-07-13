@@ -4,6 +4,7 @@ import {
   AudioSourceType,
   PositionType,
   WSBroadcastType,
+  NTP_CONSTANTS,
 } from "@beatsync/shared";
 import { GRID } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
@@ -32,6 +33,7 @@ export class RoomManager {
   private listeningSource: PositionType;
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
+  private heartbeatCheckInterval?: NodeJS.Timeout;
 
   constructor(private readonly roomId: string) {
     this.listeningSource = { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y };
@@ -60,9 +62,13 @@ export class RoomManager {
       ws,
       rtt: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
+      lastNtpResponse: Date.now(), // Initialize last NTP response time
     });
 
     positionClientsInCircle(this.clients);
+
+    // Idempotently start heartbeat checking
+    this.startHeartbeatChecking();
   }
 
   /**
@@ -74,6 +80,9 @@ export class RoomManager {
     // Reposition remaining clients if any
     if (this.clients.size > 0) {
       positionClientsInCircle(this.clients);
+    } else {
+      // Stop heartbeat checking if no clients remain
+      this.stopHeartbeatChecking();
     }
   }
 
@@ -148,14 +157,13 @@ export class RoomManager {
   }
 
   /**
-   * Update client RTT (Round Trip Time)
+   * Receive an NTP request from a client
    */
-  updateClientRTT(clientId: string, rtt: number): void {
+  processNTPRequestFrom(clientId: string): void {
     const client = this.clients.get(clientId);
-    if (client) {
-      client.rtt = rtt;
-      this.clients.set(clientId, client);
-    }
+    if (!client) return;
+    client.lastNtpResponse = Date.now();
+    this.clients.set(clientId, client);
   }
 
   /**
@@ -329,6 +337,7 @@ export class RoomManager {
 
     // Stop any running intervals
     this.stopSpatialAudio();
+    this.stopHeartbeatChecking();
 
     try {
       const result = await deleteObjectsWithPrefix(`room-${this.roomId}`);
@@ -382,5 +391,66 @@ export class RoomManager {
         },
       },
     });
+  }
+
+  /**
+   * Start checking for stale client connections
+   */
+  private startHeartbeatChecking(): void {
+    // Don't start if already running
+    if (this.heartbeatCheckInterval) return;
+
+    console.log(`💓 Starting heartbeat for room ${this.roomId}`);
+
+    // Check heartbeats every second
+    this.heartbeatCheckInterval = setInterval(() => {
+      const now = Date.now();
+      const staleClients: string[] = [];
+
+      // Check each client's last heartbeat
+      this.clients.forEach((client, clientId) => {
+        const timeSinceLastResponse = now - client.lastNtpResponse;
+
+        if (timeSinceLastResponse > NTP_CONSTANTS.RESPONSE_TIMEOUT_MS) {
+          console.warn(
+            `⚠️ Client ${clientId} in room ${this.roomId} has not responded for ${timeSinceLastResponse}ms`
+          );
+          staleClients.push(clientId);
+        }
+      });
+
+      // Remove stale clients
+      staleClients.forEach((clientId) => {
+        const client = this.clients.get(clientId);
+        if (client) {
+          console.log(
+            `🔌 Disconnecting stale client ${clientId} from room ${this.roomId}`
+          );
+          // Close the WebSocket connection
+          try {
+            const ws: ServerWebSocket<WSData> = client.ws;
+            ws.close(1000, "Connection timeout - no heartbeat response");
+          } catch (error) {
+            console.error(
+              `Error closing WebSocket for client ${clientId}:`,
+              error
+            );
+          }
+          // Remove from room (the close event handler should also call removeClient)
+          this.removeClient(clientId);
+        }
+      });
+    }, NTP_CONSTANTS.STEADY_STATE_INTERVAL_MS);
+  }
+
+  /**
+   * Stop checking for stale client connections
+   */
+  private stopHeartbeatChecking(): void {
+    if (this.heartbeatCheckInterval) {
+      clearInterval(this.heartbeatCheckInterval);
+      this.heartbeatCheckInterval = undefined;
+      console.log(`💔 Stopped heartbeat checking for room ${this.roomId}`);
+    }
   }
 }

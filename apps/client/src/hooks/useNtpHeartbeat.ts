@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useGlobalStore, MAX_NTP_MEASUREMENTS } from "@/store/global";
-
-// NTP scheduling constants
-const INITIAL_NTP_INTERVAL = 30; // ms
-const STEADY_STATE_NTP_INTERVAL = 5000; // 5 seconds
-const NTP_RESPONSE_TIMEOUT = 15000; // 15 seconds
+import { NTP_CONSTANTS } from "@beatsync/shared";
 
 interface UseNtpHeartbeatProps {
   onConnectionStale?: () => void;
@@ -27,7 +23,7 @@ export const useNtpHeartbeat = ({
     // Check if we have a pending request that timed out
     if (
       lastNtpRequestTime.current &&
-      Date.now() - lastNtpRequestTime.current > NTP_RESPONSE_TIMEOUT
+      Date.now() - lastNtpRequestTime.current > NTP_CONSTANTS.RESPONSE_TIMEOUT_MS
     ) {
       console.error("NTP request timed out - connection may be stale");
       // Notify parent component that connection is stale
@@ -39,8 +35,8 @@ export const useNtpHeartbeat = ({
     const currentMeasurements = useGlobalStore.getState().ntpMeasurements;
     const interval =
       currentMeasurements.length < MAX_NTP_MEASUREMENTS
-        ? INITIAL_NTP_INTERVAL
-        : STEADY_STATE_NTP_INTERVAL;
+        ? NTP_CONSTANTS.INITIAL_INTERVAL_MS
+        : NTP_CONSTANTS.STEADY_STATE_INTERVAL_MS;
 
     ntpTimerRef.current = window.setTimeout(() => {
       lastNtpRequestTime.current = Date.now();
