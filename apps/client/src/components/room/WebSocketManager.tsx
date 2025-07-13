@@ -9,6 +9,7 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -72,28 +73,30 @@ export const WebSocketManager = ({
   );
 
   // Use the NTP heartbeat hook
-  const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } = useNtpHeartbeat({
-    onConnectionStale: () => {
-      const currentSocket = useGlobalStore.getState().socket;
-      if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
-        currentSocket.close();
-      }
-    },
-  });
+  const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
+    useNtpHeartbeat({
+      onConnectionStale: () => {
+        const currentSocket = useGlobalStore.getState().socket;
+        if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+          currentSocket.close();
+        }
+      },
+    });
 
-  // Once room has been loaded, connect to the websocket
-  useEffect(() => {
-    // Only run this effect once after room is loaded
-    if (isLoadingRoom || !roomId || !username) return;
-    console.log("Connecting to websocket");
+  const createConnection = () => {
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
+    console.log("Creating new WS connection to", SOCKET_URL);
 
-    // Don't create a new connection if we already have one
+    // Clear previous connection if it exists
     if (socket) {
-      return;
+      console.log("Clearing previous connection");
+      socket.onclose = () => {};
+      socket.onerror = () => {};
+      socket.onmessage = () => {};
+      socket.onopen = () => {};
+      socket.close();
     }
 
-    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
-    console.log("Creating new socket to", SOCKET_URL);
     const ws = new WebSocket(SOCKET_URL);
     setSocket(ws);
 
@@ -104,11 +107,18 @@ export const WebSocketManager = ({
       startHeartbeat();
     };
 
+    // This onclose event will only fire on unwanted websocket disconnects:
+    // - Network chnage
+    // - Server restart
+    // So we should try to reconnect.
     ws.onclose = () => {
-      console.log("Websocket onclose fired.");
-
       // Stop NTP heartbeat
       stopHeartbeat();
+
+      toast.error("WS onclose fired");
+
+      // Try reconnect every 5 seconds
+      createConnection();
     };
 
     ws.onmessage = async (msg) => {
@@ -162,13 +172,33 @@ export const WebSocketManager = ({
       }
     };
 
+    return ws;
+  };
+
+  // Once room has been loaded, connect to the websocket
+  useEffect(() => {
+    // Only run this effect once after room is loaded
+    if (isLoadingRoom || !roomId || !username) return;
+    console.log("Connecting to websocket");
+
+    // Don't create a new connection if we already have one
+    if (socket) {
+      return;
+    }
+
+    const ws = createConnection();
+
     return () => {
       // Runs on unmount and dependency change
       console.log("Running cleanup for WebSocket connection");
 
+      // Clear the onclose handler to prevent reconnection attempts - this is an intentional close
+      ws.onclose = () => {
+        console.log("Websocket closed by cleanup");
+      };
+
       // Stop NTP heartbeat
       stopHeartbeat();
-
       ws.close();
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
