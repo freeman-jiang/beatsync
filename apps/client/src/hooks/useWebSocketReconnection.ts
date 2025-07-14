@@ -65,7 +65,7 @@ export const useWebSocketReconnection = ({
 
     // Calculate backoff delay (exponential backoff with jitter)
     const baseDelay = Math.min(
-      initialInterval * Math.pow(2, reconnectAttempts.current - 1),
+      initialInterval * Math.pow(1.1, reconnectAttempts.current - 1),
       maxInterval
     );
     const jitter = Math.random() * 0.15 * baseDelay; // 15% jitter
