@@ -76,6 +76,11 @@ interface GlobalStateValues {
 
   // Shuffle state
   isShuffled: boolean;
+  reconnectionInfo: {
+    isReconnecting: boolean;
+    currentAttempt: number;
+    maxAttempts: number;
+  };
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -122,6 +127,11 @@ interface GlobalState extends GlobalStateValues {
   skipToPreviousTrack: () => void;
   getCurrentGainValue: () => number;
   resetStore: () => void;
+  setReconnectionInfo: (info: {
+    isReconnecting: boolean;
+    currentAttempt: number;
+    maxAttempts: number;
+  }) => void;
 }
 
 // Define initial state values
@@ -163,6 +173,11 @@ const initialState: GlobalStateValues = {
   audioPlayer: null,
   duration: 0,
   volume: 0.5,
+  reconnectionInfo: {
+    isReconnecting: false,
+    currentAttempt: 0,
+    maxAttempts: 0,
+  },
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -323,7 +338,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         const state = get();
         // Mark that user has started the system
         set({ hasUserStartedSystem: true });
-        
+
         const audioContext = state.audioPlayer?.audioContext;
         // Modern browsers require user interaction before playing audio
         // If context is suspended, we need to resume it
@@ -914,5 +929,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Reinitialize audio from scratch
       initializeAudioExclusively();
     },
+    setReconnectionInfo: (info) => set({ reconnectionInfo: info }),
   };
 });

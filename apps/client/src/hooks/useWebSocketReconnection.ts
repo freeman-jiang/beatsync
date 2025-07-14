@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { toast } from "sonner";
+import { useGlobalStore } from "@/store/global";
 
 interface UseWebSocketReconnectionProps {
   maxAttempts?: number;
@@ -28,24 +28,40 @@ export const useWebSocketReconnection = ({
   }, []);
 
   // Reset state on successful connection
-  const onConnectionOpen = useCallback(() => {
+  const onConnectionOpen = () => {
     reconnectAttempts.current = 0;
     clearReconnectionTimeout();
-  }, [clearReconnectionTimeout]);
+
+    // Clear reconnection state
+    useGlobalStore.getState().setReconnectionInfo({
+      isReconnecting: false,
+      currentAttempt: 0,
+      maxAttempts,
+    });
+  };
 
   // Schedule a reconnection attempt with exponential backoff
-  const scheduleReconnection = useCallback(() => {
+  const scheduleReconnection = () => {
     // Check if we've exceeded max reconnection attempts
     if (reconnectAttempts.current >= maxAttempts) {
-      toast.error(
-        `Failed to reconnect after ${maxAttempts} attempts. Please refresh the page.`
-      );
-      console.error("Max reconnection attempts reached");
+      // No toast - just update state
+      useGlobalStore.getState().setReconnectionInfo({
+        isReconnecting: false,
+        currentAttempt: reconnectAttempts.current,
+        maxAttempts,
+      });
       onMaxAttemptsReached?.();
       return;
     }
 
     reconnectAttempts.current++;
+
+    // Update state instead of showing toast
+    useGlobalStore.getState().setReconnectionInfo({
+      isReconnecting: true,
+      currentAttempt: reconnectAttempts.current,
+      maxAttempts,
+    });
 
     // Calculate backoff delay (exponential backoff with jitter)
     const baseDelay = Math.min(
@@ -55,11 +71,6 @@ export const useWebSocketReconnection = ({
     const jitter = Math.random() * 0.15 * baseDelay; // 15% jitter
     const delay = baseDelay + jitter;
 
-    toast.error(
-      `Connection lost. Reconnecting in ${Math.round(delay / 1000)}s... (${
-        reconnectAttempts.current
-      }/${maxAttempts})`
-    );
     console.log(
       `Scheduling reconnection attempt ${reconnectAttempts.current} in ${delay}ms`
     );
@@ -68,13 +79,7 @@ export const useWebSocketReconnection = ({
     reconnectTimeout.current = setTimeout(() => {
       createConnection();
     }, delay);
-  }, [
-    maxAttempts,
-    initialInterval,
-    maxInterval,
-    createConnection,
-    onMaxAttemptsReached,
-  ]);
+  };
 
   // Cleanup function to be called on unmount
   const cleanup = useCallback(() => {
