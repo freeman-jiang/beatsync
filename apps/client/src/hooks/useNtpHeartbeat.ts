@@ -34,7 +34,6 @@ export const useNtpHeartbeat = ({
 
     // Determine interval based on whether we have initial measurements
     const currentMeasurements = useGlobalStore.getState().ntpMeasurements;
-    console.log("currentMeasurements", currentMeasurements.length);
     const interval =
       currentMeasurements.length < MAX_NTP_MEASUREMENTS
         ? NTP_CONSTANTS.INITIAL_INTERVAL_MS

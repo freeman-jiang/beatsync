@@ -50,7 +50,7 @@ export const TopBar = ({ roomId }: TopBarProps) => {
             <span>Synced</span>
           </div>
           {/* NTP Measurements Indicator */}
-          <div className="flex items-center">
+          <div className="items-center hidden md:flex">
             <motion.svg
               width="14"
               height="14"
@@ -74,12 +74,16 @@ export const TopBar = ({ roomId }: TopBarProps) => {
                 stroke="currentColor"
                 strokeWidth="1.5"
                 className="text-green-500"
-                strokeDasharray={`${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`}
+                strokeDasharray={`${
+                  (ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4
+                } 31.4`}
                 strokeLinecap="round"
                 transform="rotate(-90 7 7)"
                 initial={{ strokeDasharray: "0 31.4" }}
                 animate={{
-                  strokeDasharray: `${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`
+                  strokeDasharray: `${
+                    (ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4
+                  } 31.4`,
                 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
               />
