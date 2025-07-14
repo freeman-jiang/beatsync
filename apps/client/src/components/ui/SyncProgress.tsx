@@ -79,6 +79,91 @@ export const SyncProgress = ({
 
   const reconnectionInfo = useGlobalStore((state) => state.reconnectionInfo);
 
+  // Check if max reconnection attempts have been reached
+  const hasReconnectionFailed =
+    reconnectionInfo.currentAttempt >= reconnectionInfo.maxAttempts;
+
+  // If reconnection failed after max attempts
+  if (hasReconnectionFailed) {
+    return (
+      <OuterModal>
+        <motion.div
+          className="flex flex-col items-center justify-center p-6 bg-neutral-900 rounded-md border border-neutral-800 shadow-lg"
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <motion.div
+            className="size-6 flex items-center justify-center mb-2"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="text-white"
+            >
+              <motion.path
+                d="M6 6L18 18M18 6L6 18"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              />
+            </svg>
+          </motion.div>
+
+          <motion.h2
+            className="text-base font-medium tracking-tight mb-1 text-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
+            Failed to reconnect
+          </motion.h2>
+
+          <motion.p
+            className="text-neutral-400 mb-5 text-center text-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.25 }}
+          >
+            Unable to establish connection after {reconnectionInfo.maxAttempts}{" "}
+            attempts
+          </motion.p>
+
+          <motion.a
+            href="/"
+            className="mt-4 px-5 py-2 bg-primary text-primary-foreground rounded-full font-medium text-xs tracking-wide cursor-pointer w-full hover:shadow-lg hover:shadow-zinc-50/50 transition-shadow duration-500 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            whileHover={{
+              scale: 1.015,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            Go to home
+          </motion.a>
+
+          <motion.p
+            className="text-neutral-500 mt-4.5 text-center text-xs"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+          >
+            Please check your connection and try again
+          </motion.p>
+        </motion.div>
+      </OuterModal>
+    );
+  }
+
   // If reconnecting, show that instead of sync progress
   if (reconnectionInfo.isReconnecting) {
     return (
