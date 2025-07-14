@@ -42,26 +42,18 @@ export const useWebSocketReconnection = ({
 
   // Schedule a reconnection attempt with exponential backoff
   const scheduleReconnection = () => {
-    // Check if we've exceeded max reconnection attempts
-    if (reconnectAttempts.current >= maxAttempts) {
-      // No toast - just update state
-      useGlobalStore.getState().setReconnectionInfo({
-        isReconnecting: false,
-        currentAttempt: reconnectAttempts.current,
-        maxAttempts,
-      });
-      onMaxAttemptsReached?.();
-      return;
-    }
-
     reconnectAttempts.current++;
-
-    // Update state instead of showing toast
     useGlobalStore.getState().setReconnectionInfo({
-      isReconnecting: true,
+      isReconnecting: true, // Keep
       currentAttempt: reconnectAttempts.current,
       maxAttempts,
     });
+
+    // Check if we've exceeded max reconnection attempts
+    if (reconnectAttempts.current >= maxAttempts) {
+      onMaxAttemptsReached?.();
+      return;
+    }
 
     // Calculate backoff delay (exponential backoff with jitter)
     const baseDelay = Math.min(

@@ -81,6 +81,7 @@ export const SyncProgress = ({
 
   // Check if max reconnection attempts have been reached
   const hasReconnectionFailed =
+    reconnectionInfo.isReconnecting &&
     reconnectionInfo.currentAttempt >= reconnectionInfo.maxAttempts;
 
   // If reconnection failed after max attempts
