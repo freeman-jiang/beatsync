@@ -89,28 +89,42 @@ export const SyncProgress = ({
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
           <motion.div
-            className="w-12 h-12 flex items-center justify-center mb-3"
+            className="size-12 flex items-center justify-center mb-2"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.1 }}
           >
             <svg
-              width="20"
-              height="20"
+              width="100%"
+              height="100%"
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
               className="text-primary"
             >
-              <motion.path
-                d="M20 6L9 17L4 12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
+              <motion.circle
+                cx="6"
+                cy="12"
+                r="2"
+                fill="currentColor"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+              />
+              <motion.circle
+                cx="12"
+                cy="12"
+                r="2"
+                fill="currentColor"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+              />
+              <motion.circle
+                cx="18"
+                cy="12"
+                r="2"
+                fill="currentColor"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
               />
             </svg>
           </motion.div>
@@ -133,19 +147,6 @@ export const SyncProgress = ({
             Attempt {reconnectionInfo.currentAttempt} of{" "}
             {reconnectionInfo.maxAttempts}
           </motion.p>
-
-          <motion.button
-            className="mt-4 px-5 py-2 bg-primary text-primary-foreground rounded-full font-medium text-xs tracking-wide cursor-pointer w-full hover:shadow-lg hover:shadow-zinc-50/50 transition-shadow duration-500"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            whileHover={{
-              scale: 1.015,
-            }}
-            transition={{ duration: 0.3 }}
-            onClick={() => setIsLoadingAudio(false)}
-          >
-            Start System
-          </motion.button>
 
           <motion.p
             className="text-neutral-500 mt-4.5 text-center text-xs"
