@@ -14,7 +14,7 @@ import { WSData } from "./utils/websocket";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
-  hostname: "0.0.0.0",
+  hostname: "192.168.1.55",
   port: 8080,
   async fetch(req, server) {
     const url = new URL(req.url);

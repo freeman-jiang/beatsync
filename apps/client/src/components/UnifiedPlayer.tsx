@@ -241,7 +241,7 @@ export const UnifiedPlayer = () => {
 
   return (
     <Card className="bg-neutral-900/80 backdrop-blur-xl border-neutral-800/50">
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {/* Video Display (YouTube Mode Only) */}
         <AnimatePresence>
           {currentMode === 'youtube' && selectedYouTubeId && isVideoExpanded && (
@@ -249,13 +249,13 @@ export const UnifiedPlayer = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ 
                 opacity: 1, 
-                height: 400 
+                height: 'auto'
               }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="mb-4 relative overflow-hidden rounded-lg bg-black group"
             >
-              <div className="w-full h-full transition-all duration-300 ease-in-out min-h-[400px]">
+              <div className="w-full h-full transition-all duration-300 ease-in-out aspect-video">
                 <YouTubePlayer 
                   videoId={selectedYouTubeId}
                   className="w-full h-full"
@@ -278,10 +278,10 @@ export const UnifiedPlayer = () => {
         </AnimatePresence>
 
         {/* Player Layout */}
-        <div className={`flex ${isVideoExpanded ? 'flex-col' : 'items-center gap-4'}`}>
+        <div className={`flex ${isVideoExpanded ? 'flex-col' : 'flex-col sm:flex-row sm:items-center gap-4'}`}>
           {/* Video Thumbnail/Player (Minimized) */}
           {currentMode === 'youtube' && selectedYouTubeId && !isVideoExpanded && (
-            <div className="relative w-32 h-20 rounded-lg overflow-hidden bg-black flex-shrink-0 group">
+            <div className="relative w-full sm:w-32 h-20 rounded-lg overflow-hidden bg-black flex-shrink-0 group">
               <YouTubePlayer 
                 videoId={selectedYouTubeId}
                 className="w-full h-full"
@@ -326,7 +326,7 @@ export const UnifiedPlayer = () => {
                       </div>
                       <div className="flex items-center gap-1 text-red-500">
                         <Youtube className="h-4 w-4" />
-                        <span className="text-xs">YouTube</span>
+                        <span className="text-xs hidden sm:inline">YouTube</span>
                       </div>
                     </>
                   ) : currentMode === 'library' && currentAudio ? (
@@ -344,7 +344,7 @@ export const UnifiedPlayer = () => {
                       </div>
                       <div className="flex items-center gap-1 text-blue-500">
                         <Music className="h-4 w-4" />
-                        <span className="text-xs">Library</span>
+                        <span className="text-xs hidden sm:inline">Library</span>
                       </div>
                     </>
                   ) : (
@@ -364,12 +364,12 @@ export const UnifiedPlayer = () => {
                         {currentMode === 'library' ? (
                           <>
                             <Music className="h-4 w-4" />
-                            <span className="text-xs">Library</span>
+                            <span className="text-xs hidden sm:inline">Library</span>
                           </>
                         ) : (
                           <>
                             <Youtube className="h-4 w-4" />
-                            <span className="text-xs">YouTube</span>
+                            <span className="text-xs hidden sm:inline">YouTube</span>
                           </>
                         )}
                       </div>
@@ -415,8 +415,8 @@ export const UnifiedPlayer = () => {
               {/* Progress Bar */}
               {((currentMode === 'library' && currentAudio) || (currentMode === 'youtube' && currentVideo)) && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-neutral-400 w-12 text-left">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-xs text-neutral-400 w-8 sm:w-12 text-left">
                       {currentMode === 'library' 
                         ? formatTime(livePosition) 
                         : formatTime(youtubePosition)
@@ -435,7 +435,7 @@ export const UnifiedPlayer = () => {
                         className="w-full cursor-pointer"
                       />
                     </div>
-                    <span className="text-xs text-neutral-400 w-12 text-right">
+                    <span className="text-xs text-neutral-400 w-8 sm:w-12 text-right">
                       {currentMode === 'library' 
                         ? formatTime(duration) 
                         : formatTime(youtubeDuration)
@@ -446,8 +446,8 @@ export const UnifiedPlayer = () => {
               )}
 
               {/* Primary Controls */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-1 sm:gap-2 order-2 sm:order-1">
                   <Button
                     onClick={handleShuffle}
                     variant={isShuffled ? "default" : "ghost"}
@@ -518,7 +518,7 @@ export const UnifiedPlayer = () => {
                 </div>
 
                 {/* Volume Control */}
-                <div className="flex items-center gap-3 w-64">
+                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-64 order-1 sm:order-2">
                   <Button
                     onClick={handleMute}
                     variant="ghost"
@@ -542,7 +542,7 @@ export const UnifiedPlayer = () => {
                     />
                   </div>
                   
-                  <span className="text-xs text-neutral-500 w-8 text-right">
+                  <span className="text-xs text-neutral-500 w-6 sm:w-8 text-right">
                     {isMuted ? 0 : localVolume}
                   </span>
                 </div>

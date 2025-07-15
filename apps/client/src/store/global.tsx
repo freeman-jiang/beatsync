@@ -970,7 +970,40 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ isDraggingListeningSource: isDragging });
     },
 
-    setConnectedClients: (clients) => set({ connectedClients: clients }),
+    setConnectedClients: (clients) => {
+      const state = get();
+      const previousClients = state.connectedClients;
+      
+      // Find new clients by comparing with previous state
+      const newClients = clients.filter(client => 
+        !previousClients.some(prevClient => prevClient.clientId === client.clientId)
+      );
+      
+      // Find clients who left by comparing with current state
+      const leftClients = previousClients.filter(prevClient => 
+        !clients.some(client => client.clientId === prevClient.clientId)
+      );
+      
+      // Show toast notification for each new client (excluding the first load)
+      if (previousClients.length > 0) {
+        newClients.forEach(client => {
+          toast.success(`${client.username || 'Someone'} joined the room! 🎵`, {
+            description: `${clients.length} ${clients.length === 1 ? 'person' : 'people'} in the room`,
+            duration: 4000,
+          });
+        });
+        
+        // Show notification for users who left
+        leftClients.forEach(client => {
+          toast.info(`${client.username || 'Someone'} left the room`, {
+            description: `${clients.length} ${clients.length === 1 ? 'person' : 'people'} remaining`,
+            duration: 3000,
+          });
+        });
+      }
+      
+      set({ connectedClients: clients });
+    },
 
     skipToNextTrack: (isAutoplay = false) => {
       // Accept optional isAutoplay flag
