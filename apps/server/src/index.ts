@@ -11,10 +11,11 @@ import {
 } from "./routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "./utils/responses";
 import { WSData } from "./utils/websocket";
+import { BackupManager } from "./managers/BackupManager";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
-  hostname: "192.168.1.55",
+  hostname: "192.168.1.62",
   port: 8080,
   async fetch(req, server) {
     const url = new URL(req.url);
@@ -71,3 +72,22 @@ const server = Bun.serve<WSData, undefined>({
 });
 
 console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
+
+// Restore state from backup on startup
+BackupManager.restoreState().catch((error) => {
+  console.error("Failed to restore state on startup:", error);
+});
+
+// Simple graceful shutdown
+const shutdown = async () => {
+  console.log("\n⚠️ Shutting down...");
+
+  server.stop(); // Stop accepting new connections
+  await BackupManager.backupState(); // Save state
+
+  process.exit(0);
+};
+
+// Handle shutdown signals
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

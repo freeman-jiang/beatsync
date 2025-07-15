@@ -31,7 +31,6 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
     );
 
     const { uploadUrl, publicUrl } = presignedURLResponse.data;
-    console.log("got presigned url and public url", uploadUrl, publicUrl);
 
     // Step 2: Upload directly to R2 using presigned URL
     const uploadResponse = await fetch(uploadUrl, {

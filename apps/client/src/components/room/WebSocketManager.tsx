@@ -1,9 +1,8 @@
 "use client";
-import { fetchAudio } from "@/lib/api";
-import { RawAudioSource, YouTubeSource } from "@/lib/localTypes";
-import { trimFileName } from "@/lib/utils";
+import { YouTubeSource } from "@/lib/localTypes";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
+import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { NTPMeasurement } from "@/utils/ntp";
 import {
   epochNow,
@@ -11,6 +10,7 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
+import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { toast } from "sonner";
 
 // Helper function for NTP response handling
@@ -57,12 +57,7 @@ export const WebSocketManager = ({
   const processSpatialConfig = useGlobalStore(
     (state) => state.processSpatialConfig
   );
-  const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
   const addNTPMeasurement = useGlobalStore((state) => state.addNTPMeasurement);
-  const addAudioSource = useGlobalStore((state) => state.addAudioSource);
-  const hasDownloadedAudio = useGlobalStore(
-    (state) => state.hasDownloadedAudio
-  );
   const setConnectedClients = useGlobalStore(
     (state) => state.setConnectedClients
   );
@@ -82,44 +77,80 @@ export const WebSocketManager = ({
   const setYouTubeSources = useGlobalStore((state) => state.setYouTubeSources);
   const youtubeSources = useGlobalStore((state) => state.youtubeSources);
 
-  // Once room has been loaded, connect to the websocket
-  useEffect(() => {
-    // Only run this effect once after room is loaded
-    if (isLoadingRoom || !roomId || !username) return;
-    console.log("Connecting to websocket");
+  // Use the NTP heartbeat hook
+  const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
+    useNtpHeartbeat({
+      onConnectionStale: () => {
+        const currentSocket = useGlobalStore.getState().socket;
+        if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+          currentSocket.close();
+        }
+      },
+    });
 
-    // Don't create a new connection if we already have one
+  // Use the WebSocket reconnection hook
+  const {
+    onConnectionOpen,
+    scheduleReconnection,
+    cleanup: cleanupReconnection,
+  } = useWebSocketReconnection({
+    createConnection: () => createConnection(),
+  });
+
+  const createConnection = () => {
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
+    console.log("Creating new WS connection to", SOCKET_URL);
+
+    // Clear previous connection if it exists
     if (socket) {
-      return;
+      console.log("Clearing previous connection");
+      socket.onclose = () => {};
+      socket.onerror = () => {};
+      socket.onmessage = () => {};
+      socket.onopen = () => {};
+      socket.close();
     }
 
-    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
-    console.log("Creating new socket to", SOCKET_URL);
     const ws = new WebSocket(SOCKET_URL);
     setSocket(ws);
 
     ws.onopen = () => {
       console.log("Websocket onopen fired.");
 
-      // Start syncing
-      sendNTPRequest();
+      // Reset reconnection state
+      onConnectionOpen();
+
+      // Start NTP heartbeat
+      startHeartbeat();
     };
 
+    // This onclose event will only fire on unwanted websocket disconnects:
+    // - Network chnage
+    // - Server restart
+    // So we should try to reconnect.
     ws.onclose = () => {
-      console.log("Websocket onclose fired.");
+      // Stop NTP heartbeat
+      stopHeartbeat();
+
+      // Clear NTP measurements on new connection to avoid stale data
+      useGlobalStore.getState().onConnectionReset();
+
+      // Schedule reconnection with exponential backoff
+      scheduleReconnection();
     };
 
     ws.onmessage = async (msg) => {
+      // Update last message received time for connection health
+      useGlobalStore.setState({ lastMessageReceivedTime: Date.now() });
+
       const response = WSResponseSchema.parse(JSON.parse(msg.data));
 
       if (response.type === "NTP_RESPONSE") {
         const ntpMeasurement = handleNTPResponse(response);
         addNTPMeasurement(ntpMeasurement);
 
-        // Check that we have not exceeded the max and then send another NTP request
-        setTimeout(() => {
-          sendNTPRequest();
-        }, 30); // 30ms delay to not overload
+        // Mark that we received the NTP response
+        markNTPResponseReceived();
       } else if (response.type === "ROOM_EVENT") {
         const { event } = response;
         console.log("Room event:", event);
@@ -127,45 +158,11 @@ export const WebSocketManager = ({
         if (event.type === "CLIENT_CHANGE") {
           setConnectedClients(event.clients);
         } else if (event.type === "NEW_AUDIO_SOURCE") {
-          console.log("Received new audio source:", response);
-          const { title, id } = event;
-
-          // Check if we already have this audio file downloaded
-          if (hasDownloadedAudio(id)) {
-            console.log(`Audio file ${id} already downloaded, skipping fetch`);
-            return;
-          }
-
-          toast.promise(
-            fetchAudio(id)
-              .then(async (blob) => {
-                console.log("Audio fetched successfully:", id);
-                try {
-                  const arrayBuffer = await blob.arrayBuffer();
-                  console.log("ArrayBuffer created successfully");
-
-                  const audioSource: RawAudioSource = {
-                    name: trimFileName(title),
-                    audioBuffer: arrayBuffer,
-                    id: id, // Include ID in the RawAudioSource
-                  };
-
-                  return addAudioSource(audioSource);
-                } catch (error) {
-                  console.error("Error processing audio data:", error);
-                  throw new Error("Failed to process audio data");
-                }
-              })
-              .catch((error) => {
-                console.error("Error fetching audio:", error);
-                throw error;
-              }),
-            {
-              loading: "Loading audio...",
-              success: `Added: ${title}`,
-              error: "Failed to load audio",
-            }
-          );
+          console.log("Received new audio source:", event);
+          // Handle new audio source event
+          const { id, title } = event;
+          // You may want to add this to audio sources or handle it differently
+          console.log(`New audio source: ${title} (${id})`);
         } else if (event.type === "NEW_YOUTUBE_SOURCE") {
           console.log("Received new YouTube source:", response);
           const { videoId, title, addedAt, addedBy } = event;
@@ -229,13 +226,41 @@ export const WebSocketManager = ({
       }
     };
 
+    return ws;
+  };
+
+  // Once room has been loaded, connect to the websocket
+  useEffect(() => {
+    // Only run this effect once after room is loaded
+    if (isLoadingRoom || !roomId || !username) return;
+    console.log("Connecting to websocket");
+
+    // Don't create a new connection if we already have one
+    if (socket) {
+      return;
+    }
+
+    const ws = createConnection();
+
     return () => {
       // Runs on unmount and dependency change
       console.log("Running cleanup for WebSocket connection");
+
+      // Clean up reconnection state
+      cleanupReconnection();
+
+      // Clear the onclose handler to prevent reconnection attempts - this is an intentional close
+      ws.onclose = () => {
+        console.log("Websocket closed by cleanup");
+      };
+
+      // Stop NTP heartbeat
+      stopHeartbeat();
       ws.close();
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
-  }, [isLoadingRoom, roomId, username, youtubeSources]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingRoom, roomId, username, youtubeSources]);
 
   return null; // This is a non-visual component
 };

@@ -44,7 +44,7 @@ export default function RootLayout({
       >
         <PostHogProvider>
           {children}
-          <Toaster />
+          <Toaster richColors/>
           <Analytics />
         </PostHogProvider>
       </body>

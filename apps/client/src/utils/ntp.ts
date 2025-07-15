@@ -1,5 +1,6 @@
 import { ClientActionEnum, epochNow } from "@beatsync/shared";
 import { sendWSRequest } from "./ws";
+import { MAX_NTP_MEASUREMENTS } from "@/store/global";
 
 export interface NTPMeasurement {
   t0: number;
@@ -51,7 +52,10 @@ export const calculateOffsetEstimate = (ntpMeasurements: NTPMeasurement[]) => {
   const averageOffset = totalOffset / bestMeasurements.length;
 
   const result = { averageOffset, averageRoundTrip };
-  console.log("New clock offset calculated:", result);
+
+  if (ntpMeasurements.length === MAX_NTP_MEASUREMENTS) {
+    console.log("New clock offset calculated:", result);
+  }
 
   return result;
 };

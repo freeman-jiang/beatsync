@@ -1,5 +1,5 @@
 import { getPublicAudioUrl, listObjectsWithPrefix } from "../lib/r2";
-import { roomManager } from "../roomManager";
+import { globalManager } from "../managers";
 
 // Helper function to format bytes to human readable
 export function formatBytes(bytes: number): string {
@@ -68,7 +68,7 @@ export async function getBlobStats(): Promise<BlobStats> {
     }
 
     // Get active rooms from server
-    const activeRoomSet = new Set(roomManager.rooms.keys());
+    const activeRoomSet = new Set(globalManager.getRoomIds());
 
     // Separate active rooms from orphaned rooms
     const activeRoomDetails: Record<string, RoomDetail> = {};

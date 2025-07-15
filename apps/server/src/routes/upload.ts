@@ -11,7 +11,7 @@ import {
   getPublicAudioUrl,
   validateR2Config,
 } from "../lib/r2";
-import { roomManager } from "../roomManager";
+import { globalManager } from "../managers";
 import { errorResponse, jsonResponse, sendBroadcast } from "../utils/responses";
 
 // New endpoint to get presigned upload URL
@@ -41,7 +41,7 @@ export const handleGetPresignedURL = async (req: Request) => {
     const { roomId, fileName, contentType } = parseResult.data;
 
     // Check if room exists
-    const room = roomManager.getRoomState(roomId);
+    const room = globalManager.getRoom(roomId);
     if (!room) {
       return errorResponse(
         "Room not found. Please join the room before uploading files.",
@@ -95,7 +95,7 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
     const { roomId, originalName, publicUrl } = parseResult.data;
 
     // Check if room exists
-    const room = roomManager.getRoomState(roomId);
+    const room = globalManager.getRoom(roomId);
     if (!room) {
       return errorResponse(
         "Room not found. The room may have been closed during upload.",
@@ -103,8 +103,10 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
       );
     }
 
+    const sources = room.addAudioSource({ url: publicUrl });
+
     console.log(
-      `✅ Audio upload completed - broadcasting to room ${roomId}: (${publicUrl})`
+      `✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${sources}`
     );
 
     // Broadcast to room that new audio is available
@@ -114,12 +116,8 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
       message: {
         type: "ROOM_EVENT",
         event: {
-          type: "NEW_AUDIO_SOURCE",
-          id: publicUrl,
-          title: originalName,
-          duration: 1, // TODO: calculate this properly later
-          addedAt: Date.now(),
-          addedBy: roomId,
+          type: "SET_AUDIO_SOURCES",
+          sources,
         },
       },
     });

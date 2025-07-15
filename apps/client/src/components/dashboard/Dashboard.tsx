@@ -3,6 +3,7 @@ import { useGlobalStore } from "@/store/global";
 import { Library, ListMusic, Rotate3D } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { TopBar } from "../room/TopBar";
+import { SyncProgress } from "../ui/SyncProgress";
 import { Bottom } from "./Bottom";
 import { Left } from "./Left";
 import { Main } from "./Main";
@@ -15,6 +16,7 @@ interface DashboardProps {
 export const Dashboard = ({ roomId }: DashboardProps) => {
   const isSynced = useGlobalStore((state) => state.isSynced);
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
+  const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
 
   const isReady = isSynced && !isLoadingAudio;
 
@@ -33,6 +35,11 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
     <div className="w-full h-screen flex flex-col text-white bg-neutral-950">
       {/* Top bar: Fixed height */}
       <TopBar roomId={roomId} />
+
+      {/* Show SyncProgress during reconnection (when user has already started but lost sync) */}
+      {!isSynced && hasUserStartedSystem && !isLoadingAudio && (
+        <SyncProgress />
+      )}
 
       {isReady && (
         <motion.div

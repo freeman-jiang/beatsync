@@ -336,7 +336,7 @@ export const UnifiedPlayer = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-white font-medium text-sm line-clamp-1">
-                          {currentAudio.name}
+                          {currentAudio?.name || 'Unknown Track'}
                         </h3>
                         <p className="text-neutral-400 text-xs">
                           {isInitingSystem ? 'System initializing...' : isPlaying ? 'Playing' : 'Ready to play'}

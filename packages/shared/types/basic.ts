@@ -12,3 +12,8 @@ export const PositionSchema = z.object({
   y: z.number().min(0).max(GRID.SIZE),
 });
 export type PositionType = z.infer<typeof PositionSchema>;
+
+export const AudioSourceSchema = z.object({
+  url: z.string(),
+});
+export type AudioSourceType = z.infer<typeof AudioSourceSchema>;

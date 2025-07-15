@@ -1,14 +1,3 @@
-export interface LocalAudioSource {
-  name: string;
-  audioBuffer: AudioBuffer;
-  id: string; // Add ID field for tracking
-}
-
-export interface RawAudioSource {
-  name: string;
-  audioBuffer: ArrayBuffer;
-  id: string; // Optional ID for tracking downloaded audio files
-}
 
 export interface YouTubeSource {
   videoId: string;
@@ -18,4 +7,18 @@ export interface YouTubeSource {
   duration?: string;
   addedAt: number;
   addedBy: string;
+}
+
+export interface LocalAudioSource {
+  id: string;
+  url: string;
+  name?: string;
+  audioBuffer?: AudioBuffer;
+  duration?: number;
+}
+
+export interface RawAudioSource {
+  id: string;
+  name: string;
+  audioBuffer: ArrayBuffer;
 }

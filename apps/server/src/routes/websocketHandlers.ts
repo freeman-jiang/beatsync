@@ -6,16 +6,17 @@ import {
 } from "@beatsync/shared";
 import { Server, ServerWebSocket } from "bun";
 import { SCHEDULE_TIME_MS } from "../config";
-import { roomManager } from "../roomManager";
+import { globalManager } from "../managers";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { WSData } from "../utils/websocket";
 
 const createClientUpdate = (roomId: string) => {
+  const room = globalManager.getRoom(roomId);
   const message: WSBroadcastType = {
     type: "ROOM_EVENT",
     event: {
       type: ClientActionEnum.Enum.CLIENT_CHANGE,
-      clients: roomManager.getClients(roomId),
+      clients: room ? room.getClients() : [],
     },
   };
   return message;
@@ -36,7 +37,25 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   const { roomId } = ws.data;
   ws.subscribe(roomId);
 
-  roomManager.addClient(ws);
+  const room = globalManager.getOrCreateRoom(roomId);
+  room.addClient(ws);
+
+  // Send audio sources to the newly joined client if any exist
+  const { audioSources } = room.getState();
+  if (audioSources.length > 0) {
+    console.log(
+      `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
+    );
+    const audioSourcesMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_AUDIO_SOURCES",
+        sources: audioSources,
+      },
+    };
+    // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
+    ws.send(JSON.stringify(audioSourcesMessage));
+  }
 
   const message = createClientUpdate(roomId);
   sendBroadcast({ server, roomId, message });
@@ -56,7 +75,7 @@ export const handleMessage = async (
 
     if (parsedMessage.type !== ClientActionEnum.enum.NTP_REQUEST) {
       console.log(
-        `Room: ${roomId} | User: ${username} | Message: ${JSON.stringify(
+        `[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(
           parsedMessage
         )}`
       );
@@ -64,6 +83,11 @@ export const handleMessage = async (
 
     // NTP Request
     if (parsedMessage.type === ClientActionEnum.enum.NTP_REQUEST) {
+      // Update heartbeat for client
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      room.processNTPRequestFrom(ws.data.clientId);
+
       sendUnicast({
         ws,
         message: {
@@ -112,10 +136,10 @@ export const handleMessage = async (
       parsedMessage.type === ClientActionEnum.enum.START_SPATIAL_AUDIO
     ) {
       // Start loop only if not already started
-      const room = roomManager.getRoomState(roomId);
-      if (!room || room.intervalId) return; // do nothing if no room or interval already exists
+      const room = globalManager.getRoom(roomId);
+      if (!room) return; // do nothing if no room exists
 
-      roomManager.startInterval({ server, roomId });
+      room.startSpatialAudio(server);
     } else if (
       parsedMessage.type === ClientActionEnum.enum.STOP_SPATIAL_AUDIO
     ) {
@@ -132,35 +156,19 @@ export const handleMessage = async (
       sendBroadcast({ server, roomId, message });
 
       // Stop the spatial audio interval if it exists
-      const room = roomManager.getRoomState(roomId);
-      if (!room || !room.intervalId) return; // do nothing if no room or no interval exists
+      const room = globalManager.getRoom(roomId);
+      if (!room) return; // do nothing if no room exists
 
-      roomManager.stopInterval(roomId);
-    } else if (parsedMessage.type === ClientActionEnum.enum.REUPLOAD_AUDIO) {
-      // Handle reupload request by broadcasting the audio source again
-      // This will trigger clients that don't have this audio to download it
-      sendBroadcast({
-        server,
-        roomId,
-        message: {
-          type: "ROOM_EVENT",
-          event: {
-            type: "NEW_AUDIO_SOURCE",
-            id: parsedMessage.audioId, // Use the existing file ID
-            title: parsedMessage.audioName, // Use the original name
-            duration: 1, // TODO: Calculate properly
-            addedAt: Date.now(),
-            addedBy: roomId,
-          },
-        },
-      });
+      room.stopSpatialAudio();
     } else if (parsedMessage.type === ClientActionEnum.enum.REORDER_CLIENT) {
       // Handle client reordering
-      const reorderedClients = roomManager.reorderClients({
-        roomId,
-        clientId: parsedMessage.clientId,
-        server,
-      });
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+
+      const reorderedClients = room.reorderClients(
+        parsedMessage.clientId,
+        server
+      );
 
       // Broadcast the updated client order to all clients
       sendBroadcast({
@@ -178,14 +186,16 @@ export const handleMessage = async (
       parsedMessage.type === ClientActionEnum.enum.SET_LISTENING_SOURCE
     ) {
       // Handle listening source update
-      roomManager.updateListeningSource({
-        roomId,
-        position: parsedMessage,
-        server,
-      });
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+
+      room.updateListeningSource(parsedMessage, server);
     } else if (parsedMessage.type === ClientActionEnum.enum.MOVE_CLIENT) {
       // Handle client move
-      roomManager.moveClient({ parsedMessage, roomId, server });
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+
+      room.moveClient(parsedMessage.clientId, parsedMessage.position, server);
     } else {
       console.log(`UNRECOGNIZED MESSAGE: ${JSON.stringify(parsedMessage)}`);
     }
@@ -206,11 +216,22 @@ export const handleClose = async (
       `WebSocket connection closed for user ${ws.data.username} in room ${ws.data.roomId}`
     );
 
-    await roomManager.removeClient(ws.data.roomId, ws.data.clientId);
+    const { roomId, clientId } = ws.data;
+    const room = globalManager.getRoom(roomId);
 
-    const message = createClientUpdate(ws.data.roomId);
-    ws.unsubscribe(ws.data.roomId);
-    server.publish(ws.data.roomId, JSON.stringify(message));
+    if (room) {
+      room.removeClient(clientId);
+
+      // Schedule cleanup for rooms with no active connections
+      if (!room.hasActiveConnections()) {
+        room.stopSpatialAudio();
+        globalManager.scheduleRoomCleanup(roomId);
+      }
+    }
+
+    const message = createClientUpdate(roomId);
+    ws.unsubscribe(roomId);
+    server.publish(roomId, JSON.stringify(message));
   } catch (error) {
     console.error(
       `Error handling WebSocket close for ${ws.data?.username}:`,

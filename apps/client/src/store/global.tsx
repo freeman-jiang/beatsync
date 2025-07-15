@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { LocalAudioSource, RawAudioSource, YouTubeSource } from "@/lib/localTypes";
 import {
   NTPMeasurement,
@@ -8,20 +7,21 @@ import {
 } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
 import {
+  AudioSourceType,
   ClientActionEnum,
   ClientType,
   GRID,
   PositionType,
   SpatialConfigType,
+  NTP_CONSTANTS,
 } from "@beatsync/shared";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
-import { extractDefaultFileName } from "@/lib/utils";
 import { fetchDefaultAudioSources } from "@/lib/api";
 import type { YouTubeEvent } from "react-youtube";
 
-export const MAX_NTP_MEASUREMENTS = 40;
+export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
 
@@ -38,10 +38,12 @@ enum AudioPlayerError {
 // Interface for just the state values (without methods)
 interface GlobalStateValues {
   // Audio Sources
-  audioSources: LocalAudioSource[];
+  audioSources: LocalAudioSource[]; // Playlist order, server-synced, based on URL
+  audioCache: Map<string, AudioBuffer>; // URL -> AudioBuffer
   isInitingSystem: boolean;
+  hasUserStartedSystem: boolean; // Track if user has clicked "Start System" at least once
+  selectedAudioUrl: string;
   selectedAudioId: string;
-  uploadHistory: { name: string; timestamp: number; id: string }[];
   downloadedAudioIds: Set<string>;
 
   // YouTube Sources
@@ -55,6 +57,7 @@ interface GlobalStateValues {
 
   // Websocket
   socket: WebSocket | null;
+  lastMessageReceivedTime: number | null;
 
   // Spatial audio
   spatialConfig?: SpatialConfigType;
@@ -87,20 +90,28 @@ interface GlobalStateValues {
   
   // Repeat mode
   repeatMode: 'none' | 'all' | 'one';
+  reconnectionInfo: {
+    isReconnecting: boolean;
+    currentAttempt: number;
+    maxAttempts: number;
+  };
 }
 
 interface GlobalState extends GlobalStateValues {
   // Methods
+  getAudioDuration: ({ url }: { url: string }) => number;
+  handleSetAudioSources: ({ sources }: { sources: AudioSourceType[] }) => void;
+
   setIsInitingSystem: (isIniting: boolean) => void;
-  addToUploadHistory: (name: string, id: string) => void;
-  reuploadAudio: (audioId: string, audioName: string) => void;
   reorderClient: (clientId: string) => void;
+  setSelectedAudioUrl: (url: string) => boolean;
+  setSelectedAudioId: (id: string) => void;
+  findAudioIndexByUrl: (url: string) => number | null;
   hasDownloadedAudio: (id: string) => boolean;
   markAudioAsDownloaded: (id: string) => void;
   setAudioSources: (sources: LocalAudioSource[]) => void;
   addAudioSource: (source: RawAudioSource) => Promise<void>;
-  setSelectedAudioId: (audioId: string) => boolean;
-  findAudioIndexById: (audioId: string) => number | null;
+  addToUploadHistory?: (name: string, id: string) => void;
   schedulePlay: (data: {
     trackTimeSeconds: number;
     targetServerTime: number;
@@ -122,6 +133,7 @@ interface GlobalState extends GlobalStateValues {
   sendNTPRequest: () => void;
   resetNTPConfig: () => void;
   addNTPMeasurement: (measurement: NTPMeasurement) => void;
+  onConnectionReset: () => void;
   playAudio: (data: {
     offset: number;
     when: number;
@@ -170,16 +182,27 @@ interface GlobalState extends GlobalStateValues {
   skipToPreviousYouTubeVideo: () => void;
   // UI Mode methods
   setCurrentMode: (mode: 'library' | 'youtube') => void;
+  setReconnectionInfo: (info: {
+    isReconnecting: boolean;
+    currentAttempt: number;
+    maxAttempts: number;
+  }) => void;
 }
 
 // Define initial state values
 const initialState: GlobalStateValues = {
+  // Audio Sources
+  audioSources: [],
+  audioCache: new Map(),
+
   // Audio playback state
   isPlaying: false,
   currentTime: 0,
   playbackStartTime: 0,
   playbackOffset: 0,
+  selectedAudioUrl: "",
   selectedAudioId: "",
+  downloadedAudioIds: new Set(),
 
   // Spatial audio
   isShuffled: false,
@@ -191,9 +214,8 @@ const initialState: GlobalStateValues = {
 
   // Network state
   socket: null,
+  lastMessageReceivedTime: null,
   connectedClients: [],
-  uploadHistory: [],
-  downloadedAudioIds: new Set<string>(),
 
   // NTP state
   ntpMeasurements: [],
@@ -203,9 +225,9 @@ const initialState: GlobalStateValues = {
 
   // Loading state
   isInitingSystem: true,
+  hasUserStartedSystem: false,
 
   // These need to be initialized to prevent type errors
-  audioSources: [],
   audioPlayer: null,
   duration: 0,
   volume: 0.5,
@@ -218,6 +240,11 @@ const initialState: GlobalStateValues = {
   
   // UI Mode
   currentMode: 'library',
+  reconnectionInfo: {
+    isReconnecting: false,
+    currentAttempt: 0,
+    maxAttempts: 0,
+  },
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -254,14 +281,31 @@ const loadAudioSourceUrl = async ({
   audioContext: AudioContext;
 }) => {
   console.log("loadAudioSourceUrl called with URL:", url);
-  const response = await fetch(url);
-  const arrayBuffer = await response.arrayBuffer();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-  return {
-    name: extractDefaultFileName(url),
-    audioBuffer,
-    id: url,
-  };
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    console.log(`Fetched audio buffer for ${url}, size: ${arrayBuffer.byteLength} bytes`);
+    
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error(`Empty audio buffer for URL: ${url}`);
+    }
+    
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log(`Successfully decoded audio buffer for ${url}, duration: ${audioBuffer.duration}s`);
+    
+    return {
+      audioBuffer,
+    };
+  } catch (error) {
+    console.error(`Error loading audio from ${url}:`, error);
+    throw new Error(`Audio buffer not decoded for url: ${url}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
 // Web audio API
@@ -298,6 +342,69 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     console.log("Audio system initialized without default sources");
   };
 
+  // Function to ensure audio system is initialized and load audio buffer for a specific source
+  const ensureAudioLoaded = async (audioSource: LocalAudioSource): Promise<AudioBuffer> => {
+    const state = get();
+    
+    // Check if we already have the audio buffer
+    if (audioSource.audioBuffer) {
+      return audioSource.audioBuffer;
+    }
+    
+    const cachedBuffer = state.audioCache.get(audioSource.url);
+    if (cachedBuffer) {
+      return cachedBuffer;
+    }
+    
+    // Ensure audio context exists
+    if (!state.audioPlayer?.audioContext) {
+      const audioContext = new AudioContext();
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 1;
+      gainNode.connect(audioContext.destination);
+      
+      set({
+        audioPlayer: {
+          audioContext,
+          sourceNode: audioContext.createBufferSource(),
+          gainNode,
+        },
+      });
+    }
+    
+    // Load the audio buffer
+    try {
+      console.log("Loading audio buffer for:", audioSource.url);
+      const { audioBuffer } = await loadAudioSourceUrl({
+        url: audioSource.url,
+        audioContext: state.audioPlayer!.audioContext,
+      });
+      
+      // Update the audio source with the buffer and cache it
+      set((currentState) => {
+        const updatedSources = currentState.audioSources.map(source =>
+          source.id === audioSource.id 
+            ? { ...source, audioBuffer, duration: audioBuffer.duration }
+            : source
+        );
+        
+        const newCache = new Map(currentState.audioCache);
+        newCache.set(audioSource.url, audioBuffer);
+        
+        return {
+          audioSources: updatedSources,
+          audioCache: newCache,
+        };
+      });
+      
+      console.log("✓ Successfully loaded audio buffer for:", audioSource.name);
+      return audioBuffer;
+    } catch (error) {
+      console.error("✗ Failed to load audio buffer for:", audioSource.url, error);
+      throw error;
+    }
+  };
+
   // Function to load default audio files from the server
   const loadDefaultAudio = async () => {
     try {
@@ -305,59 +412,24 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const defaultAudioList = await fetchDefaultAudioSources();
       console.log("Default audio list received:", defaultAudioList);
       
-      const state = get();
-      let audioContext = state.audioPlayer?.audioContext;
-      
-      // Create audio context if it doesn't exist
-      if (!audioContext) {
-        audioContext = new AudioContext();
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = 1;
-        gainNode.connect(audioContext.destination); // Connect to speakers
-        const sourceNode = audioContext.createBufferSource();
-        
-        set({
-          audioPlayer: {
-            audioContext,
-            sourceNode,
-            gainNode,
-          },
-        });
-      }
+      // Don't create AudioContext yet - just prepare the audio sources list
+      // AudioContext will be created on first user interaction
+      const audioSources: LocalAudioSource[] = defaultAudioList.map((audioFile) => ({
+        id: audioFile.url,
+        url: audioFile.url,
+        name: audioFile.url.split('/').pop() || audioFile.url,
+        // audioBuffer will be loaded lazily when needed
+      }));
 
-      // Load each default audio file
-      for (const audioFile of defaultAudioList) {
-        try {
-          console.log("Attempting to load audio file:", audioFile.url);
-          const audioSource = await loadAudioSourceUrl({
-            url: audioFile.url,
-            audioContext,
-          });
-          
-          // Mark as downloaded and add to audio sources
-          state.markAudioAsDownloaded(audioSource.id);
-          
-          set((state) => {
-            const isFirstAudio = state.audioSources.length === 0;
-            return {
-              audioSources: [...state.audioSources, audioSource],
-              // Auto-select the first audio file loaded
-              ...(isFirstAudio ? { 
-                selectedAudioId: audioSource.id,
-                duration: audioSource.audioBuffer?.duration || 0 
-              } : {}),
-            };
-          });
-          
-          console.log(`Loaded default audio: ${audioSource.name}`);
-        } catch (error) {
-          console.error(`Failed to load default audio file ${audioFile.url}:`, error);
-        }
-      }
+      set(({
+        audioSources,
+        selectedAudioId: audioSources.length > 0 ? audioSources[0].id : undefined,
+      }));
       
-      console.log("Default audio files loaded");
+      console.log(`✓ Prepared ${audioSources.length} default audio sources for lazy loading`);
     } catch (error) {
       console.error("Failed to load default audio files:", error);
+      toast.error("Failed to load default audio files");
     }
   };
 
@@ -380,28 +452,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     ...initialState,
 
     // Add all required methods
-    addToUploadHistory: (name, id) =>
-      set((state) => ({
-        uploadHistory: [
-          ...state.uploadHistory,
-          { name, timestamp: Date.now(), id },
-        ],
-      })),
-
-    reuploadAudio: (audioId, audioName) => {
-      const state = get();
-      const { socket } = getSocket(state);
-
-      sendWSRequest({
-        ws: socket,
-        request: {
-          type: ClientActionEnum.enum.REUPLOAD_AUDIO,
-          audioId,
-          audioName,
-        },
-      });
-    },
-
     reorderClient: (clientId) => {
       const state = get();
       const { socket } = getSocket(state);
@@ -429,6 +479,32 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     setAudioSources: (sources) => set({ audioSources: sources }),
+
+    setSelectedAudioId: (id: string) => set({ selectedAudioId: id }),
+
+    getAudioDuration: ({ url }: { url: string }) => {
+      const state = get();
+      const audioBuffer = state.audioCache.get(url);
+      return audioBuffer?.duration || 0;
+    },
+
+    handleSetAudioSources: ({ sources }: { sources: AudioSourceType[] }) => {
+      set({ audioSources: sources.map(source => ({ 
+        id: source.url, 
+        url: source.url 
+      })) });
+    },
+
+    addToUploadHistory: (name: string, id: string) => {
+      // Optional method - can be implemented later if needed
+      console.log(`Added to upload history: ${name} (${id})`);
+    },
+
+    setReconnectionInfo: (info: {
+      isReconnecting: boolean;
+      currentAttempt: number;
+      maxAttempts: number;
+    }) => set({ reconnectionInfo: info }),
 
     addAudioSource: async (source: RawAudioSource) => {
       const state = get();
@@ -468,12 +544,16 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         // Add to upload history when adding an audio source
         // If this has an ID, mark it as downloaded
         state.markAudioAsDownloaded(source.id);
-        state.addToUploadHistory(source.name, source.id);
+        if (state.addToUploadHistory) {
+          state.addToUploadHistory(source.name, source.id);
+        }
 
-        const newAudioSource = {
-          name: source.name,
-          audioBuffer,
+        const newAudioSource: LocalAudioSource = {
           id: source.id,
+          name: source.name,
+          url: `blob:audio-${source.id}`, // Create a unique URL for the audio source
+          audioBuffer,
+          duration: audioBuffer.duration,
         };
 
         set((state) => {
@@ -517,6 +597,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // When initialization is complete (isIniting = false), check if we need to resume audio
       if (!isIniting) {
         const state = get();
+        // Mark that user has started the system
+        set({ hasUserStartedSystem: true });
+
         const audioContext = state.audioPlayer?.audioContext;
         // Modern browsers require user interaction before playing audio
         // If context is suspended, we need to resume it
@@ -534,48 +617,43 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ isInitingSystem: isIniting });
     },
 
-    setSelectedAudioId: (audioId) => {
+    setSelectedAudioUrl: (url) => {
       const state = get();
-      const wasPlaying = state.isPlaying; // Store if it was playing *before* stopping
 
       // Stop any current playback immediately when switching tracks
       if (state.isPlaying && state.audioPlayer) {
         try {
           state.audioPlayer.sourceNode.stop();
-        } catch (e) {
+        } catch {
           // Ignore errors if already stopped or not initialized
         }
       }
 
-      // Find the new audio source for duration
-      const audioIndex = state.findAudioIndexById(audioId);
-      let newDuration = 0;
-      if (audioIndex !== null) {
-        const audioSource = state.audioSources[audioIndex];
-        if (audioSource?.audioBuffer) {
-          newDuration = audioSource.audioBuffer.duration;
-        }
+      // Find the audio source by URL and get its ID
+      const audioSource = state.audioSources.find(source => source.url === url);
+      if (!audioSource) {
+        console.error(`Audio source not found for URL: ${url}`);
+        return false;
       }
 
-      // Reset timing state and update selected ID
       set({
-        selectedAudioId: audioId,
-        isPlaying: false, // Always stop playback on track change before potentially restarting
+        selectedAudioUrl: url,
+        selectedAudioId: audioSource.id,
+        isPlaying: false,
         currentTime: 0,
         playbackStartTime: 0,
         playbackOffset: 0,
-        duration: newDuration,
+        duration: audioSource.duration || 0,
       });
 
-      // Return the previous playing state for the skip functions to use
-      return wasPlaying;
+      return true;
     },
 
-    findAudioIndexById: (audioId: string) => {
+    findAudioIndexByUrl: (url: string) => {
       const state = get();
       // Look through the audioSources for a matching ID
       const index = state.audioSources.findIndex(
-        (source) => source.id === audioId
+        (source) => source.url === url
       );
       return index >= 0 ? index : null; // Return null if not found
     },
@@ -619,12 +697,12 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       );
 
       // Update the selected audio ID
-      if (data.audioId !== state.selectedAudioId) {
-        set({ selectedAudioId: data.audioId });
+      if (data.audioId !== state.selectedAudioUrl) {
+        set({ selectedAudioUrl: data.audioId });
       }
 
       // Find the index of the audio to play
-      const audioIndex = state.findAudioIndexById(data.audioId);
+      const audioIndex = state.findAudioIndexByUrl(data.audioId);
       if (audioIndex === null) {
         console.error(
           `Cannot play audio: No index found: ${data.audioId} ${data.trackTimeSeconds}`
@@ -656,9 +734,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const { socket } = getSocket(state);
 
-      // Make sure we have a selected audio ID
-      if (!state.selectedAudioId) {
-        console.error("Cannot broadcast play: No audio selected");
+      // Use selected audio or fall back to first audio source
+      let audioId = state.selectedAudioId;
+      if (!audioId && state.audioSources.length > 0) {
+        audioId = state.audioSources[0].id;
+      }
+
+      if (!audioId) {
+        console.error("Cannot broadcast play: No audio available");
         return;
       }
 
@@ -667,7 +750,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         request: {
           type: ClientActionEnum.enum.PLAY,
           trackTimeSeconds: trackTimeSeconds ?? state.getCurrentTrackPosition(),
-          audioId: state.selectedAudioId,
+          audioId,
         },
       });
     },
@@ -721,28 +804,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     sendNTPRequest: () => {
       const state = get();
-      if (state.ntpMeasurements.length >= MAX_NTP_MEASUREMENTS) {
-        const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(
-          state.ntpMeasurements
-        );
-        set({
-          offsetEstimate: averageOffset,
-          roundTripEstimate: averageRoundTrip,
-          isSynced: true,
-        });
-
-        if (averageRoundTrip > 750) {
-          toast.error("Latency is very high (>750ms). Sync may be unstable.");
-        }
-
-        return;
-      }
-
-      // Otherwise not done, keep sending
       const { socket } = getSocket(state);
 
-      // Send the first one
+      // Always send NTP request for continuous heartbeat
       _sendNTPRequest(socket);
+
+      // Show warning if latency is high
+      if (state.isSynced && state.roundTripEstimate > 750) {
+        console.warn("Latency is very high (>750ms). Sync may be unstable.");
+      }
     },
 
     resetNTPConfig() {
@@ -755,9 +825,44 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     addNTPMeasurement: (measurement) =>
-      set((state) => ({
-        ntpMeasurements: [...state.ntpMeasurements, measurement],
-      })),
+      set((state) => {
+        let measurements = [...state.ntpMeasurements];
+
+        // Rolling queue: keep only last MAX_NTP_MEASUREMENTS
+        if (measurements.length >= MAX_NTP_MEASUREMENTS) {
+          measurements = [...measurements.slice(1), measurement];
+          if (!state.isSynced) {
+            set({ isSynced: true });
+          }
+        } else {
+          measurements.push(measurement);
+        }
+
+        // Always recalculate offset with current measurements
+        const { averageOffset, averageRoundTrip } =
+          calculateOffsetEstimate(measurements);
+
+        return {
+          ntpMeasurements: measurements,
+          offsetEstimate: averageOffset,
+          roundTripEstimate: averageRoundTrip,
+        };
+      }),
+    onConnectionReset: () => {
+      const state = get();
+
+      // Stop spatial audio if enabled
+      if (state.isSpatialAudioEnabled) {
+        state.processStopSpatialAudio();
+      }
+
+      set({
+        ntpMeasurements: [],
+        offsetEstimate: 0,
+        roundTripEstimate: 0,
+        isSynced: false,
+      });
+    },
 
     getCurrentTrackPosition: () => {
       const state = get();
@@ -811,7 +916,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Stop any existing source node before creating a new one
       try {
         sourceNode.stop();
-      } catch (_) {}
+      } catch {
+        
+      }
 
       const startTime = audioContext.currentTime + data.when;
       const audioIndex = data.audioIndex ?? 0;
@@ -829,10 +936,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         return;
       }
       
-      const audioBuffer = state.audioSources[audioIndex].audioBuffer;
-      if (!audioBuffer) {
-        console.error("Audio buffer not available");
-        toast.error("Audio file not properly loaded");
+      const audioSource = state.audioSources[audioIndex];
+      
+      // Ensure the audio buffer is loaded
+      let audioBuffer;
+      try {
+        audioBuffer = await ensureAudioLoaded(audioSource);
+      } catch (error) {
+        console.error("Failed to load audio buffer:", error);
+        toast.error(`Failed to load audio: ${audioSource.name}`);
         return;
       }
 
@@ -904,7 +1016,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         isPlaying: true,
         playbackStartTime: startTime,
         playbackOffset: data.offset,
-        duration: audioBuffer.duration || 0, // Set the duration
+        duration: audioBuffer.duration, // Set the duration
       }));
     },
 
@@ -1008,10 +1120,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     skipToNextTrack: (isAutoplay = false) => {
       // Accept optional isAutoplay flag
       const state = get();
-      const { audioSources, selectedAudioId, isShuffled } = state;
+      const {
+        audioSources: audioSources,
+        selectedAudioUrl: selectedAudioId,
+        isShuffled,
+      } = state;
       if (audioSources.length <= 1) return; // Can't skip if only one track
 
-      const currentIndex = state.findAudioIndexById(selectedAudioId);
+      const currentIndex = state.findAudioIndexByUrl(selectedAudioId);
       if (currentIndex === null) return;
 
       let nextIndex: number;
@@ -1025,10 +1141,10 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         nextIndex = (currentIndex + 1) % audioSources.length;
       }
 
-      const nextAudioId = audioSources[nextIndex].id;
+      const nextAudioId = audioSources[nextIndex].url;
       // setSelectedAudioId stops any current playback and sets isPlaying to false.
       // It returns true if playback was active *before* this function was called.
-      const wasPlayingBeforeSkip = state.setSelectedAudioId(nextAudioId);
+      const wasPlayingBeforeSkip = state.setSelectedAudioUrl(nextAudioId);
 
       // If the track was playing before a manual skip OR if this is an autoplay event,
       // start playing the next track from the beginning.
@@ -1046,21 +1162,24 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     skipToPreviousTrack: () => {
       const state = get();
-      const { audioSources, selectedAudioId /* isShuffled */ } = state; // Note: isShuffled is NOT used here currently
+      const {
+        audioSources,
+        selectedAudioUrl: selectedAudioId /* isShuffled */,
+      } = state; // Note: isShuffled is NOT used here currently
       if (audioSources.length === 0) return;
 
-      const currentIndex = state.findAudioIndexById(selectedAudioId);
+      const currentIndex = state.findAudioIndexByUrl(selectedAudioId);
       if (currentIndex === null) return;
 
       // Previous track always goes to the actual previous in the list, even if shuffled
       // This is a common behavior, but could be changed if needed.
       const prevIndex =
         (currentIndex - 1 + audioSources.length) % audioSources.length;
-      const prevAudioId = audioSources[prevIndex].id;
+      const prevAudioId = audioSources[prevIndex].url;
 
       // setSelectedAudioId stops any current playback and sets isPlaying to false.
       // It returns true if playback was active *before* this function was called.
-      const wasPlayingBeforeSkip = state.setSelectedAudioId(prevAudioId);
+      const wasPlayingBeforeSkip = state.setSelectedAudioUrl(prevAudioId);
 
       // If the track was playing before the manual skip, start playing the previous track.
       if (wasPlayingBeforeSkip) {
@@ -1405,11 +1524,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     resetStore: () => {
       const state = get();
 
+      // Preserve the audio cache before reset
+      const preservedAudioCache = state.audioCache;
+
       // Stop any playing audio
       if (state.isPlaying && state.audioPlayer) {
         try {
           state.audioPlayer.sourceNode.stop();
-        } catch (e) {
+        } catch {
           // Ignore errors if already stopped
         }
       }
@@ -1424,8 +1546,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         state.audioPlayer.audioContext.close().catch(() => {});
       }
 
-      // Reset state to initial values
-      set(initialState);
+      // Reset state to initial values but preserve cache
+      set({
+        ...initialState,
+        audioCache: preservedAudioCache,
+      });
 
       // Reinitialize audio from scratch
       initializeAudio();

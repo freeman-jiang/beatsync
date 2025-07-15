@@ -8,7 +8,10 @@
     "test:cleanup": "bun run src/lib/test-cleanup.ts",
     "upload:defaults": "bun run src/lib/upload-defaults.ts",
     "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
-    "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live"
+    "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
@@ -17,10 +20,13 @@
     "dotenv": "^17.1.0",
     "hono": "^4.8.4",
     "nanoid": "^5.1.5",
+    "p-limit": "^6.2.0",
     "sanitize-filename": "^1.6.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/sinon": "^17.0.4",
+    "sinon": "^21.0.0"
   }
 }
