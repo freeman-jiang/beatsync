@@ -127,14 +127,10 @@ export const UnifiedPlayer = () => {
     
     if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
       if (isPlaying) {
-        // Pause the YouTube player directly
-        youtubePlayer.pauseVideo();
-        // Also broadcast the pause to other clients
+        // Pause and broadcast to sync with other clients
         broadcastPauseYouTube();
       } else {
-        // Play the YouTube player directly
-        youtubePlayer.playVideo();
-        // Also broadcast the play to other clients
+        // Play and broadcast to sync with other clients
         const currentTime = youtubePlayer.getCurrentTime();
         broadcastPlayYouTube(currentTime);
       }

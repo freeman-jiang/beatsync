@@ -75,7 +75,7 @@ export const WebSocketManager = ({
   const schedulePauseYouTube = useGlobalStore((state) => state.schedulePauseYouTube);
   const scheduleSeekYouTube = useGlobalStore((state) => state.scheduleSeekYouTube);
   const setYouTubeSources = useGlobalStore((state) => state.setYouTubeSources);
-  const youtubeSources = useGlobalStore((state) => state.youtubeSources);
+  const setSelectedYouTubeId = useGlobalStore((state) => state.setSelectedYouTubeId);
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
@@ -157,6 +157,11 @@ export const WebSocketManager = ({
 
         if (event.type === "CLIENT_CHANGE") {
           setConnectedClients(event.clients);
+        } else if (event.type === "SET_AUDIO_SOURCES") {
+          console.log("Received SET_AUDIO_SOURCES:", event);
+          // Handle setting audio sources
+          // Note: This should be updated to properly map AudioSourceType to LocalAudioSource
+          console.log("Audio sources sync from server");
         } else if (event.type === "NEW_AUDIO_SOURCE") {
           console.log("Received new audio source:", event);
           // Handle new audio source event
@@ -164,20 +169,59 @@ export const WebSocketManager = ({
           // You may want to add this to audio sources or handle it differently
           console.log(`New audio source: ${title} (${id})`);
         } else if (event.type === "NEW_YOUTUBE_SOURCE") {
-          console.log("Received new YouTube source:", response);
-          const { videoId, title, addedAt, addedBy } = event;
+          console.log("Received new YouTube source:", event);
+          const { videoId, title, addedAt, addedBy, thumbnail } = event;
+
+          // Get current state to avoid stale closure
+          const currentState = useGlobalStore.getState();
+          const currentYouTubeSources = currentState.youtubeSources;
+          const currentSelectedYouTubeId = currentState.selectedYouTubeId;
 
           // Add the YouTube source to the store
           const youtubeSource: YouTubeSource = {
             videoId,
             title,
+            thumbnail,
             addedAt,
             addedBy,
           };
 
-          setYouTubeSources([...youtubeSources, youtubeSource]);
+          const newSources = [...currentYouTubeSources, youtubeSource];
+          setYouTubeSources(newSources);
+
+          // Auto-select this video if no video is currently selected
+          if (!currentSelectedYouTubeId) {
+            setSelectedYouTubeId(videoId);
+          }
 
           toast.success(`YouTube video added: ${title}`);
+        } else if (event.type === "SET_YOUTUBE_SOURCES") {
+          console.log("Received SET_YOUTUBE_SOURCES:", event);
+          // Convert duration from number to string to match local type
+          const convertedSources = event.sources.map(source => ({
+            ...source,
+            duration: source.duration ? source.duration.toString() : undefined,
+          }));
+          setYouTubeSources(convertedSources);
+        } else if (event.type === "MODE_CHANGE") {
+          console.log("Received MODE_CHANGE:", event);
+          // Update mode without triggering broadcast (to avoid loops)
+          useGlobalStore.setState({ currentMode: event.mode });
+        } else if (event.type === "SELECTED_AUDIO_CHANGE") {
+          console.log("Received SELECTED_AUDIO_CHANGE:", event);
+          // Update selected audio ID and find corresponding URL
+          const currentState = useGlobalStore.getState();
+          const audioSource = currentState.audioSources.find(source => source.id === event.audioId);
+          
+          if (audioSource) {
+            // Update both selectedAudioId and selectedAudioUrl without triggering broadcast
+            useGlobalStore.setState({ 
+              selectedAudioId: event.audioId,
+              selectedAudioUrl: audioSource.url
+            });
+          } else {
+            console.warn("Audio source not found for ID:", event.audioId);
+          }
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
@@ -260,7 +304,7 @@ export const WebSocketManager = ({
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingRoom, roomId, username, youtubeSources]);
+  }, [isLoadingRoom, roomId, username]);
 
   return null; // This is a non-visual component
 };

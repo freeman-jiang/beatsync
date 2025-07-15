@@ -18,6 +18,10 @@ export const ClientActionEnum = z.enum([
   "PLAY_YOUTUBE",
   "PAUSE_YOUTUBE",
   "SEEK_YOUTUBE",
+  "SET_MODE",
+  "ADD_YOUTUBE_SOURCE",
+  "SET_SELECTED_AUDIO",
+  "SET_SELECTED_YOUTUBE",
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -78,7 +82,31 @@ const SeekYouTubeActionSchema = z.object({
   timeSeconds: z.number(),
 });
 
-export { PlayYouTubeActionSchema, PauseYouTubeActionSchema, SeekYouTubeActionSchema };
+const SetModeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_MODE),
+  mode: z.enum(["library", "youtube"]),
+});
+
+const AddYouTubeSourceActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.ADD_YOUTUBE_SOURCE),
+  videoId: z.string(),
+  title: z.string(),
+  thumbnail: z.string().optional(),
+  duration: z.union([z.number(), z.null()]).optional(),
+  channel: z.string().optional(),
+});
+
+const SetSelectedAudioActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SELECTED_AUDIO),
+  audioId: z.string(),
+});
+
+const SetSelectedYouTubeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SELECTED_YOUTUBE),
+  videoId: z.string(),
+});
+
+export { PlayYouTubeActionSchema, PauseYouTubeActionSchema, SeekYouTubeActionSchema, SetModeActionSchema, AddYouTubeSourceActionSchema, SetSelectedAudioActionSchema, SetSelectedYouTubeActionSchema };
 
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
@@ -92,6 +120,10 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayYouTubeActionSchema,
   PauseYouTubeActionSchema,
   SeekYouTubeActionSchema,
+  SetModeActionSchema,
+  AddYouTubeSourceActionSchema,
+  SetSelectedAudioActionSchema,
+  SetSelectedYouTubeActionSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
@@ -101,3 +133,7 @@ export type SetListeningSourceType = z.infer<typeof SetListeningSourceSchema>;
 export type PlayYouTubeActionType = z.infer<typeof PlayYouTubeActionSchema>;
 export type PauseYouTubeActionType = z.infer<typeof PauseYouTubeActionSchema>;
 export type SeekYouTubeActionType = z.infer<typeof SeekYouTubeActionSchema>;
+export type SetModeActionType = z.infer<typeof SetModeActionSchema>;
+export type AddYouTubeSourceActionType = z.infer<typeof AddYouTubeSourceActionSchema>;
+export type SetSelectedAudioActionType = z.infer<typeof SetSelectedAudioActionSchema>;
+export type SetSelectedYouTubeActionType = z.infer<typeof SetSelectedYouTubeActionSchema>;

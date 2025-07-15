@@ -21,7 +21,7 @@ export const YouTubeQueue = ({ className, ...rest }: YouTubeQueueProps) => {
   const isPlaying = useGlobalStore((state) => state.isPlaying);
   const setSelectedYouTubeId = useGlobalStore((state) => state.setSelectedYouTubeId);
   const broadcastPlayYouTube = useGlobalStore((state) => state.broadcastPlayYouTube);
-  const setYouTubeSources = useGlobalStore((state) => state.setYouTubeSources);
+  const removeYouTubeSource = useGlobalStore((state) => state.removeYouTubeSource);
 
   // Remove the unused playNextVideo function since we moved it to the global store
 
@@ -52,13 +52,7 @@ export const YouTubeQueue = ({ className, ...rest }: YouTubeQueueProps) => {
   const handleRemove = (videoId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the item click
     
-    const newSources = youtubeSources.filter(source => source.videoId !== videoId);
-    setYouTubeSources(newSources);
-    
-    // If we removed the currently selected video, clear selection
-    if (videoId === selectedYouTubeId) {
-      setSelectedYouTubeId("");
-    }
+    removeYouTubeSource(videoId);
     
     posthog.capture("remove_youtube_video", {
       video_id: videoId,

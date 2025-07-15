@@ -68,22 +68,30 @@ export const YouTubePlayer = ({
     // 5 (video cued)
     
     if (isYouTubePlayerReady && playerRef.current) {
-      // Update global playing state based on YouTube player state
-      const newIsPlaying = state === 1; // 1 = playing
-      
-      // Use Zustand's setState directly to update isPlaying
-      useGlobalStore.setState({ isPlaying: newIsPlaying });
+      // Only update isPlaying if this is a user-initiated state change
+      // Don't update for programmatic changes (from sync)
       
       // Handle specific state transitions
       switch (state) {
         case 1: // Playing
           console.log("YouTube player is playing");
+          // Only update isPlaying if it's not already playing (to avoid sync conflicts)
+          const currentIsPlaying = useGlobalStore.getState().isPlaying;
+          if (!currentIsPlaying) {
+            useGlobalStore.setState({ isPlaying: true });
+          }
           break;
         case 2: // Paused
           console.log("YouTube player is paused");
+          // Only update isPlaying if it's currently playing (to avoid sync conflicts)
+          const currentIsPlayingPause = useGlobalStore.getState().isPlaying;
+          if (currentIsPlayingPause) {
+            useGlobalStore.setState({ isPlaying: false });
+          }
           break;
         case 0: // Ended
           console.log("YouTube video ended, playing next video");
+          useGlobalStore.setState({ isPlaying: false });
           playNextYouTubeVideo();
           break;
       }

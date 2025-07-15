@@ -15,8 +15,8 @@ import { BackupManager } from "./managers/BackupManager";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
-  hostname: "192.168.1.62",
-  port: 8080,
+  hostname: process.env.HOST || "0.0.0.0",
+  port: parseInt(process.env.PORT || "8080"),
   async fetch(req, server) {
     const url = new URL(req.url);
 

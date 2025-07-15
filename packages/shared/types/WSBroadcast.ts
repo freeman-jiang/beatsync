@@ -43,6 +43,8 @@ const YouTubeSourceSchema = z.object({
   videoId: z.string(),
   title: z.string(),
   thumbnail: z.string().url().optional(),
+  duration: z.union([z.number(), z.null()]).optional(),
+  channel: z.string().optional(),
   addedAt: z.number(),
   addedBy: z.string(),
 });
@@ -78,12 +80,49 @@ const ScheduledActionSchema = z.object({
   ]),
 });
 
+const ModeChangeSchema = z.object({
+  type: z.literal("MODE_CHANGE"),
+  mode: z.enum(["library", "youtube"]),
+});
+export type ModeChangeType = z.infer<typeof ModeChangeSchema>;
+
+const SetYouTubeSourcesSchema = z.object({
+  type: z.literal("SET_YOUTUBE_SOURCES"),
+  sources: z.array(z.object({
+    videoId: z.string(),
+    title: z.string(),
+    thumbnail: z.string().optional(),
+    duration: z.number().optional(),
+    channel: z.string().optional(),
+    addedAt: z.number(),
+    addedBy: z.string(),
+  })),
+});
+export type SetYouTubeSourcesType = z.infer<typeof SetYouTubeSourcesSchema>;
+
+const SelectedAudioChangeSchema = z.object({
+  type: z.literal("SELECTED_AUDIO_CHANGE"),
+  audioId: z.string(),
+});
+export type SelectedAudioChangeType = z.infer<typeof SelectedAudioChangeSchema>;
+
+const SelectedYouTubeChangeSchema = z.object({
+  type: z.literal("SELECTED_YOUTUBE_CHANGE"),
+  videoId: z.string(),
+});
+export type SelectedYouTubeChangeType = z.infer<typeof SelectedYouTubeChangeSchema>;
+
 const RoomEventSchema = z.object({
   type: z.literal("ROOM_EVENT"),
   event: z.discriminatedUnion("type", [
     ClientChangeMessageSchema,
+    SetAudioSourcesSchema,
     NewAudioSourceSchema,
     YouTubeSourceSchema,
+    ModeChangeSchema,
+    SetYouTubeSourcesSchema,
+    SelectedAudioChangeSchema,
+    SelectedYouTubeChangeSchema,
   ]),
 });
 

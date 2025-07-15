@@ -105,7 +105,8 @@ interface GlobalState extends GlobalStateValues {
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
   setSelectedAudioUrl: (url: string) => boolean;
-  setSelectedAudioId: (id: string) => void;
+  setSelectedAudioId: (id: string, skipBroadcast?: boolean) => void;
+  broadcastSelectedAudioChange: (audioId: string) => void;
   findAudioIndexByUrl: (url: string) => number | null;
   hasDownloadedAudio: (id: string) => boolean;
   markAudioAsDownloaded: (id: string) => void;
@@ -182,6 +183,9 @@ interface GlobalState extends GlobalStateValues {
   skipToPreviousYouTubeVideo: () => void;
   // UI Mode methods
   setCurrentMode: (mode: 'library' | 'youtube') => void;
+  broadcastModeChange: (mode: 'library' | 'youtube') => void;
+  broadcastAddYouTubeSource: (source: Omit<YouTubeSource, 'addedAt' | 'addedBy'>) => void;
+  removeYouTubeSource: (videoId: string) => void;
   setReconnectionInfo: (info: {
     isReconnecting: boolean;
     currentAttempt: number;
@@ -480,7 +484,27 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     setAudioSources: (sources) => set({ audioSources: sources }),
 
-    setSelectedAudioId: (id: string) => set({ selectedAudioId: id }),
+    setSelectedAudioId: (id: string, skipBroadcast?: boolean) => {
+      set({ selectedAudioId: id });
+      // Only broadcast if not explicitly skipped (to avoid infinite loops from WebSocket events)
+      if (!skipBroadcast) {
+        const state = get();
+        state.broadcastSelectedAudioChange(id);
+      }
+    },
+
+    broadcastSelectedAudioChange: (audioId: string) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_SELECTED_AUDIO,
+          audioId,
+        },
+      });
+    },
 
     getAudioDuration: ({ url }: { url: string }) => {
       const state = get();
@@ -645,6 +669,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         playbackOffset: 0,
         duration: audioSource.duration || 0,
       });
+
+      // Broadcast the audio selection change to other clients
+      state.broadcastSelectedAudioChange(audioSource.id);
 
       return true;
     },
@@ -1207,23 +1234,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     // YouTube methods
     addYouTubeSource: async (source: Omit<YouTubeSource, 'addedAt' | 'addedBy'>) => {
-      // Create a YouTube source object
-      const youtubeSource: YouTubeSource = {
-        ...source,
-        addedAt: Date.now(),
-        addedBy: useRoomStore.getState().userId || "anonymous",
-      };
-
-      // Add to local state
-      set((state) => ({
-        youtubeSources: [...state.youtubeSources, youtubeSource],
-      }));
-
-      // If no video is currently selected, select this one
+      // Broadcast to server for synchronization across clients
       const state = get();
-      if (!state.selectedYouTubeId) {
-        set({ selectedYouTubeId: source.videoId });
-      }
+      state.broadcastAddYouTubeSource(source);
     },
 
     setYouTubeSources: (sources: YouTubeSource[]) => 
@@ -1384,8 +1397,59 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     // UI Mode methods
-    setCurrentMode: (mode: 'library' | 'youtube') => 
-      set({ currentMode: mode }),
+    setCurrentMode: (mode: 'library' | 'youtube') => {
+      set({ currentMode: mode });
+      // Broadcast mode change to sync across clients
+      const state = get();
+      state.broadcastModeChange(mode);
+    },
+
+    broadcastModeChange: (mode: 'library' | 'youtube') => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_MODE,
+          mode,
+        },
+      });
+    },
+
+    broadcastAddYouTubeSource: (source: Omit<YouTubeSource, 'addedAt' | 'addedBy'>) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.ADD_YOUTUBE_SOURCE,
+          videoId: source.videoId,
+          title: source.title,
+          thumbnail: source.thumbnail,
+          duration: source.duration ? parseFloat(source.duration) : null,
+          channel: source.channel,
+        },
+      });
+    },
+
+    removeYouTubeSource: (videoId: string) => {
+      set((state) => {
+        const newSources = state.youtubeSources.filter(source => source.videoId !== videoId);
+        
+        // If we removed the currently selected video, clear selection
+        const updates: Partial<GlobalState> = {
+          youtubeSources: newSources,
+        };
+        
+        if (videoId === state.selectedYouTubeId) {
+          updates.selectedYouTubeId = "";
+        }
+        
+        return updates;
+      });
+    },
 
     // Reset function to clean up state
     // Player controls
@@ -1473,7 +1537,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     skipToNextYouTubeVideo: () => {
       const state = get();
-      const { youtubeSources, selectedYouTubeId, isShuffled } = state;
+      const { youtubeSources, selectedYouTubeId, isShuffled, isPlaying } = state;
       
       if (youtubeSources.length === 0) return;
       
@@ -1493,12 +1557,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const nextVideo = youtubeSources[nextIndex];
       if (nextVideo) {
         set({ selectedYouTubeId: nextVideo.videoId });
+        
+        // If we were playing, start playing the new video
+        if (isPlaying) {
+          state.broadcastPlayYouTube(0);
+        }
       }
     },
 
     skipToPreviousYouTubeVideo: () => {
       const state = get();
-      const { youtubeSources, selectedYouTubeId, isShuffled } = state;
+      const { youtubeSources, selectedYouTubeId, isShuffled, isPlaying } = state;
       
       if (youtubeSources.length === 0) return;
       
@@ -1518,6 +1587,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const prevVideo = youtubeSources[prevIndex];
       if (prevVideo) {
         set({ selectedYouTubeId: prevVideo.videoId });
+        
+        // If we were playing, start playing the new video
+        if (isPlaying) {
+          state.broadcastPlayYouTube(0);
+        }
       }
     },
 

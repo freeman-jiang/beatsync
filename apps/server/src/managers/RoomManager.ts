@@ -15,8 +15,20 @@ import { sendBroadcast } from "../utils/responses";
 import { positionClientsInCircle } from "../utils/spatial";
 import { WSData } from "../utils/websocket";
 
+interface YouTubeSourceType {
+  videoId: string;
+  title: string;
+  thumbnail?: string;
+  duration?: number;
+  channel?: string;
+  addedAt: number;
+  addedBy: string;
+}
+
 interface RoomData {
   audioSources: AudioSourceType[];
+  youtubeSources: YouTubeSourceType[];
+  currentMode: "library" | "youtube";
   clients: Map<string, ClientType>;
   roomId: string;
   intervalId?: NodeJS.Timeout;
@@ -30,6 +42,8 @@ interface RoomData {
 export class RoomManager {
   private clients = new Map<string, ClientType>();
   private audioSources: AudioSourceType[] = [];
+  private youtubeSources: YouTubeSourceType[] = [];
+  private currentMode: "library" | "youtube" = "library";
   private listeningSource: PositionType;
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
@@ -87,6 +101,36 @@ export class RoomManager {
   }
 
   /**
+   * Add a YouTube source to the room
+   */
+  addYouTubeSource(source: YouTubeSourceType): YouTubeSourceType[] {
+    this.youtubeSources.push(source);
+    return this.youtubeSources;
+  }
+
+  /**
+   * Set all YouTube sources
+   */
+  setYouTubeSources(sources: YouTubeSourceType[]): YouTubeSourceType[] {
+    this.youtubeSources = sources;
+    return this.youtubeSources;
+  }
+
+  /**
+   * Set the current mode
+   */
+  setCurrentMode(mode: "library" | "youtube"): void {
+    this.currentMode = mode;
+  }
+
+  /**
+   * Get the current mode
+   */
+  getCurrentMode(): "library" | "youtube" {
+    return this.currentMode;
+  }
+
+  /**
    * Add an audio source to the room
    */
   addAudioSource(source: AudioSourceType): AudioSourceType[] {
@@ -137,6 +181,8 @@ export class RoomManager {
   getState(): RoomData {
     return {
       audioSources: this.audioSources,
+      youtubeSources: this.youtubeSources,
+      currentMode: this.currentMode,
       clients: this.clients,
       roomId: this.roomId,
       intervalId: this.intervalId,
@@ -152,6 +198,8 @@ export class RoomManager {
       roomId: this.roomId,
       clientCount: this.clients.size,
       audioSourceCount: this.audioSources.length,
+      youtubeSourceCount: this.youtubeSources.length,
+      currentMode: this.currentMode,
       hasSpatialAudio: !!this.intervalId,
     };
   }
@@ -303,6 +351,8 @@ export class RoomManager {
         username: client.username,
       })),
       audioSources: this.audioSources,
+      youtubeSources: this.youtubeSources,
+      currentMode: this.currentMode,
     };
   }
 
