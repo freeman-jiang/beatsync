@@ -26,6 +26,9 @@ export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
   trackTimeSeconds: z.number(),
   audioId: z.string(),
+  sourceType: z.enum(["file", "appleMusic"]).default("file"),
+  appleMusicTrackId: z.string().optional(),
+  appleMusicPosition: z.number().optional(),
 });
 
 export const PauseActionSchema = z.object({

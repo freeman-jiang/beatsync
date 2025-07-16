@@ -161,11 +161,27 @@ export const WebSocketManager = ({
         const { scheduledAction, serverTimeToExecute } = response;
 
         if (scheduledAction.type === "PLAY") {
-          schedulePlay({
-            trackTimeSeconds: scheduledAction.trackTimeSeconds,
-            targetServerTime: serverTimeToExecute,
-            audioId: scheduledAction.audioId,
-          });
+          if (scheduledAction.sourceType === "appleMusic" && scheduledAction.appleMusicTrackId) {
+            // Apple Music sync logic
+            const musicKit = (window as any).MusicKit?.getInstance?.();
+            if (musicKit) {
+              musicKit.setQueue({ song: scheduledAction.appleMusicTrackId })
+                .then(() => {
+                  if (typeof scheduledAction.appleMusicPosition === "number") {
+                    musicKit.seekToTime(scheduledAction.appleMusicPosition);
+                  }
+                  musicKit.play();
+                })
+                .catch((err: any) => console.error("Apple MusicKit sync error:", err));
+            }
+          } else {
+            // Existing file-based logic
+            schedulePlay({
+              trackTimeSeconds: scheduledAction.trackTimeSeconds,
+              targetServerTime: serverTimeToExecute,
+              audioId: scheduledAction.audioId,
+            });
+          }
         } else if (scheduledAction.type === "PAUSE") {
           schedulePause({
             targetServerTime: serverTimeToExecute,

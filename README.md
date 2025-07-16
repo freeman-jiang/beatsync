@@ -25,6 +25,7 @@ Fill in the `.env` file in `apps/client` with the following:
 ```sh
 NEXT_PUBLIC_API_URL=http://localhost:8080
 NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+NEXT_PUBLIC_APPLE_MUSIC_DEVELOPER_TOKEN=your_apple_music_developer_token_here
 ```
 
 Run the following commands to start the server and client:

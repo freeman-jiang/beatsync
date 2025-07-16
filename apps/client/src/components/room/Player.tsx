@@ -12,8 +12,9 @@ import {
 import { usePostHog } from "posthog-js/react";
 import { useCallback, useEffect, useState } from "react";
 import { Slider } from "../ui/slider";
+import { sendWSRequest } from "@/utils/ws";
 
-export const Player = () => {
+export const Player = ({ selectedAppleMusicTrack }: { selectedAppleMusicTrack?: any }) => {
   const posthog = usePostHog();
   const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
@@ -30,6 +31,7 @@ export const Player = () => {
   );
   const isShuffled = useGlobalStore((state) => state.isShuffled);
   const toggleShuffle = useGlobalStore((state) => state.toggleShuffle);
+  const socket = useGlobalStore((state) => state.socket);
 
   // Local state for slider
   const [sliderPosition, setSliderPosition] = useState(0);
@@ -154,6 +156,36 @@ export const Player = () => {
     });
   }, [toggleShuffle, posthog, isShuffled, audioSources.length]);
 
+  // Helper to send Apple Music sync message
+  const sendAppleMusicSync = useCallback((action: "play" | "pause") => {
+    if (!socket || !selectedAppleMusicTrack) return;
+    const musicKit = (window as any).MusicKit?.getInstance?.();
+    if (!musicKit) return;
+    const position = musicKit.player.currentPlaybackTime || 0;
+    const trackId = selectedAppleMusicTrack.attributes?.playParams?.id;
+    if (!trackId) return;
+    if (action === "play") {
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: "PLAY",
+          sourceType: "appleMusic",
+          appleMusicTrackId: trackId,
+          appleMusicPosition: position,
+          audioId: trackId,
+          trackTimeSeconds: position,
+        },
+      });
+    } else if (action === "pause") {
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: "PAUSE",
+        },
+      });
+    }
+  }, [socket, selectedAppleMusicTrack]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -176,6 +208,54 @@ export const Player = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [handlePlay]);
+
+  // Apple Music playback logic
+  useEffect(() => {
+    if (!selectedAppleMusicTrack) return;
+    // Play the selected Apple Music track using MusicKit JS
+    const musicKit = (window as any).MusicKit?.getInstance?.();
+    if (musicKit && selectedAppleMusicTrack.attributes?.playParams?.id) {
+      musicKit.setQueue({ song: selectedAppleMusicTrack.attributes.playParams.id })
+        .then(() => musicKit.play())
+        .catch((err: any) => console.error("Apple MusicKit play error:", err));
+    }
+  }, [selectedAppleMusicTrack]);
+
+  if (selectedAppleMusicTrack) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center">
+        <div className="flex items-center gap-4 mb-2">
+          <img
+            src={selectedAppleMusicTrack.attributes.artwork.url.replace('{w}x{h}bb', '100x100bb')}
+            alt={selectedAppleMusicTrack.attributes.name}
+            className="w-16 h-16 rounded object-cover"
+          />
+          <div>
+            <div className="font-semibold text-lg">{selectedAppleMusicTrack.attributes.name}</div>
+            <div className="text-sm text-neutral-300">{selectedAppleMusicTrack.attributes.artistName}</div>
+            <div className="text-xs text-neutral-400">Album: {selectedAppleMusicTrack.attributes.albumName}</div>
+          </div>
+        </div>
+        <button
+          className="px-4 py-2 rounded bg-[#FA2A55] text-white font-medium hover:bg-[#fa2a55cc] transition-colors"
+          onClick={() => {
+            const musicKit = (window as any).MusicKit?.getInstance?.();
+            if (musicKit) {
+              if (musicKit.player.isPlaying) {
+                musicKit.pause();
+                sendAppleMusicSync("pause");
+              } else {
+                musicKit.play();
+                sendAppleMusicSync("play");
+              }
+            }
+          }}
+        >
+          Play/Pause
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex justify-center">
