@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGlobalStore } from "@/store/global";
 import { Library, ListMusic, Rotate3D } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress } from "../ui/SyncProgress";
 import { Bottom } from "./Bottom";
@@ -17,6 +18,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
   const isSynced = useGlobalStore((state) => state.isSynced);
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
   const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
+  const [selectedAppleMusicTrack, setSelectedAppleMusicTrack] = useState<any | null>(null);
 
   const isReady = isSynced && !isLoadingAudio;
 
@@ -51,7 +53,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
           {/* --- DESKTOP LAYOUT (lg+) --- */}
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden min-h-0">
             <Left className="flex" />
-            <Main />
+            <Main setSelectedAppleMusicTrack={setSelectedAppleMusicTrack} selectedAppleMusicTrack={selectedAppleMusicTrack} />
             <Right className="flex lg:w-80 lg:flex-shrink-0" />
           </div>
 
@@ -112,7 +114,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                     transition={{ duration: 0.3 }}
                     className="h-full"
                   >
-                    <Main />
+                    <Main setSelectedAppleMusicTrack={setSelectedAppleMusicTrack} selectedAppleMusicTrack={selectedAppleMusicTrack} />
                   </motion.div>
                 </TabsContent>
                 <TabsContent
@@ -135,7 +137,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
           </div>
 
           {/* Bottom Player: Fixed height, outside the scrollable/tab area */}
-          <Bottom />
+          <Bottom selectedAppleMusicTrack={selectedAppleMusicTrack} />
         </motion.div>
       )}
     </div>

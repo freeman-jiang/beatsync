@@ -10,8 +10,9 @@ import { AudioSourceType } from "@beatsync/shared";
 import { MoreHorizontal, Pause, Play, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
+import { AudioUploaderMinimal } from "./AudioUploaderMinimal";
 
-export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
+export const Queue = ({ className, setSelectedAppleMusicTrack, selectedAppleMusicTrack, ...rest }: React.ComponentProps<"div"> & { setSelectedAppleMusicTrack: (track: any) => void, selectedAppleMusicTrack: any }) => {
   const posthog = usePostHog();
   const audioSources = useGlobalStore((state) => state.audioSources);
   const selectedAudioId = useGlobalStore((state) => state.selectedAudioUrl);
@@ -49,6 +50,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   return (
     <div className={cn("", className)} {...rest}>
       {/* <h2 className="text-xl font-bold mb-2 select-none">Beatsync</h2> */}
+      <AudioUploaderMinimal setSelectedAppleMusicTrack={setSelectedAppleMusicTrack} selectedAppleMusicTrack={selectedAppleMusicTrack} />
       <div className="space-y-1">
         {audioSources.length > 0 ? (
           <AnimatePresence initial={true}>
