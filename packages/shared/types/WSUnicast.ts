@@ -14,8 +14,14 @@ const SetClientID = z.object({
   clientId: z.string(),
 });
 
+const ErrorMessage = z.object({
+  type: z.literal("ERROR"),
+  message: z.string(),
+});
+
 export const WSUnicastSchema = z.discriminatedUnion("type", [
   NTPResponseMessageSchema,
   SetClientID,
+  ErrorMessage,
 ]);
 export type WSUnicastType = z.infer<typeof WSUnicastSchema>;

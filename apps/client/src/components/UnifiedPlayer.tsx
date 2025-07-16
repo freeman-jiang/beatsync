@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Play, 
   Pause, 
@@ -13,10 +13,12 @@ import {
   Maximize2, 
   Minimize2,
   Youtube,
-  Music
+  Music,
+  Info
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { useGlobalStore } from "@/store/global";
 import { Card } from "./ui/card";
 import { motion, AnimatePresence } from "motion/react";
@@ -70,6 +72,7 @@ export const UnifiedPlayer = () => {
   const currentVideo = youtubeSources.find(source => source.videoId === selectedYouTubeId);
   const currentAudio = audioSources.find(source => source.id === selectedAudioId);
 
+
   // Helper function to format time
   const formatTime = (seconds: number) => {
     if (!seconds || !isFinite(seconds)) return "0:00";
@@ -110,7 +113,7 @@ export const UnifiedPlayer = () => {
   }, [currentMode, isPlaying, getCurrentTrackPosition, currentTime, youtubePlayer]);
 
   // Player controls
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     console.log("UnifiedPlayer: Play/Pause clicked", { 
       currentMode, 
       isPlaying, 
@@ -143,25 +146,25 @@ export const UnifiedPlayer = () => {
         broadcastPlay();
       }
     }
-  };
+  }, [currentMode, isPlaying, selectedAudioId, currentAudio, isInitingSystem, audioSources.length, youtubePlayer, isYouTubePlayerReady, broadcastPauseYouTube, broadcastPlayYouTube, broadcastPause, broadcastPlay]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (currentMode === 'youtube') {
       skipToPreviousYouTubeVideo();
     } else if (currentMode === 'library') {
       skipToPreviousTrack();
     }
-  };
+  }, [currentMode, skipToPreviousYouTubeVideo, skipToPreviousTrack]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentMode === 'youtube') {
       skipToNextYouTubeVideo();
     } else if (currentMode === 'library') {
       skipToNextTrack();
     }
-  };
+  }, [currentMode, skipToNextYouTubeVideo, skipToNextTrack]);
 
-  const handleVolumeChange = (newVolume: number[]) => {
+  const handleVolumeChange = useCallback((newVolume: number[]) => {
     const vol = newVolume[0];
     setLocalVolume(vol);
     setIsMuted(vol === 0);
@@ -172,9 +175,9 @@ export const UnifiedPlayer = () => {
       // Set the actual audio volume using the global store
       setVolume(vol);
     }
-  };
+  }, [currentMode, youtubePlayer, isYouTubePlayerReady, setVolume]);
 
-  const handleMute = () => {
+  const handleMute = useCallback(() => {
     if (isMuted) {
       setIsMuted(false);
       if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
@@ -190,18 +193,18 @@ export const UnifiedPlayer = () => {
         setVolume(0);
       }
     }
-  };
+  }, [isMuted, currentMode, youtubePlayer, isYouTubePlayerReady, localVolume, setVolume]);
 
-  const handleShuffle = () => {
+  const handleShuffle = useCallback(() => {
     setIsShuffled(!isShuffled);
-  };
+  }, [isShuffled, setIsShuffled]);
 
-  const handleRepeat = () => {
+  const handleRepeat = useCallback(() => {
     const modes = ['none', 'all', 'one'] as const;
     const currentIndex = modes.indexOf(repeatMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setRepeatMode(modes[nextIndex]);
-  };
+  }, [repeatMode, setRepeatMode]);
 
   const handleProgressChange = (newValue: number[]) => {
     const percentage = newValue[0];
@@ -234,6 +237,94 @@ export const UnifiedPlayer = () => {
     const currentVolume = getVolume();
     setLocalVolume(currentVolume);
   }, [getVolume]);
+
+  // Add keyboard event listeners for media controls
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Prevent handling if user is typing in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      switch (event.code) {
+        case 'Space':
+          event.preventDefault();
+          handlePlayPause();
+          break;
+        case 'MediaPlayPause':
+          event.preventDefault();
+          handlePlayPause();
+          break;
+        case 'MediaPlay':
+          event.preventDefault();
+          if (!isPlaying) {
+            handlePlayPause();
+          }
+          break;
+        case 'MediaPause':
+          event.preventDefault();
+          if (isPlaying) {
+            handlePlayPause();
+          }
+          break;
+        case 'MediaTrackNext':
+        case 'ArrowRight':
+          if (event.ctrlKey || event.code === 'MediaTrackNext') {
+            event.preventDefault();
+            handleNext();
+          }
+          break;
+        case 'MediaTrackPrevious':
+        case 'ArrowLeft':
+          if (event.ctrlKey || event.code === 'MediaTrackPrevious') {
+            event.preventDefault();
+            handlePrevious();
+          }
+          break;
+        case 'KeyM':
+          if (event.ctrlKey) {
+            event.preventDefault();
+            handleMute();
+          }
+          break;
+        case 'KeyS':
+          if (event.ctrlKey) {
+            event.preventDefault();
+            handleShuffle();
+          }
+          break;
+        case 'KeyR':
+          if (event.ctrlKey) {
+            event.preventDefault();
+            handleRepeat();
+          }
+          break;
+        case 'ArrowUp':
+          if (event.ctrlKey) {
+            event.preventDefault();
+            const newVolume = Math.min(100, localVolume + 5);
+            handleVolumeChange([newVolume]);
+          }
+          break;
+        case 'ArrowDown':
+          if (event.ctrlKey) {
+            event.preventDefault();
+            const newVolume = Math.max(0, localVolume - 5);
+            handleVolumeChange([newVolume]);
+          }
+          break;
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('keydown', handleKeyPress);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [handlePlayPause, handleNext, handlePrevious, handleMute, handleShuffle, handleRepeat, handleVolumeChange, isPlaying, localVolume]);
 
   return (
     <Card className="bg-neutral-900/80 backdrop-blur-xl border-neutral-800/50">
@@ -511,6 +602,34 @@ export const UnifiedPlayer = () => {
                       </span>
                     )}
                   </Button>
+
+                  {/* Keyboard Shortcuts Info */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-neutral-400 hover:text-white"
+                        >
+                          <Info className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <div className="text-sm space-y-1">
+                          <div className="font-semibold mb-2">Keyboard Shortcuts</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Space</kbd> Play/Pause</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+←</kbd> Previous</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+→</kbd> Next</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+↑</kbd> Volume Up</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+↓</kbd> Volume Down</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+M</kbd> Mute</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+S</kbd> Shuffle</div>
+                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+R</kbd> Repeat</div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
 
                 {/* Volume Control */}

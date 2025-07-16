@@ -15,7 +15,7 @@ const createClientUpdate = (roomId: string) => {
   const message: WSBroadcastType = {
     type: "ROOM_EVENT",
     event: {
-      type: ClientActionEnum.Enum.CLIENT_CHANGE,
+      type: ClientActionEnum.enum.CLIENT_CHANGE,
       clients: room ? room.getClients() : [],
     },
   };
@@ -42,7 +42,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
 
   // Send audio sources to the newly joined client if any exist
   const roomState = room.getState();
-  const { audioSources, youtubeSources, currentMode } = roomState;
+  const { audioSources, youtubeSources, currentMode, selectedAudioId, selectedYouTubeId, playbackState } = roomState;
   
   if (audioSources.length > 0) {
     console.log(
@@ -86,6 +86,55 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
       },
     };
     ws.send(JSON.stringify(modeMessage));
+  }
+
+  // Send current selected audio if any
+  if (selectedAudioId) {
+    console.log(
+      `Sending selected audio (${selectedAudioId}) to newly joined client ${ws.data.username}`
+    );
+    const selectedAudioMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SELECTED_AUDIO_CHANGE",
+        audioId: selectedAudioId,
+      },
+    };
+    ws.send(JSON.stringify(selectedAudioMessage));
+  }
+
+  // Send current selected YouTube video if any
+  if (selectedYouTubeId) {
+    console.log(
+      `Sending selected YouTube video (${selectedYouTubeId}) to newly joined client ${ws.data.username}`
+    );
+    const selectedYouTubeMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SELECTED_YOUTUBE_CHANGE",
+        videoId: selectedYouTubeId,
+      },
+    };
+    ws.send(JSON.stringify(selectedYouTubeMessage));
+  }
+
+  // Send current playback state if any
+  if (playbackState) {
+    console.log(
+      `Sending playback state (playing: ${playbackState.isPlaying}, time: ${playbackState.currentTime}) to newly joined client ${ws.data.username}`
+    );
+    const playbackStateMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "PLAYBACK_STATE",
+        isPlaying: playbackState.isPlaying,
+        currentTime: playbackState.currentTime,
+        lastUpdated: playbackState.lastUpdated,
+        selectedAudioId,
+        selectedYouTubeId,
+      },
+    };
+    ws.send(JSON.stringify(playbackStateMessage));
   }
 
   const message = createClientUpdate(roomId);
@@ -134,6 +183,19 @@ export const handleMessage = async (
       parsedMessage.type === ClientActionEnum.enum.PLAY ||
       parsedMessage.type === ClientActionEnum.enum.PAUSE
     ) {
+      // Update room playback state
+      const room = globalManager.getRoom(roomId);
+      if (room) {
+        if (parsedMessage.type === ClientActionEnum.enum.PLAY) {
+          room.updatePlaybackState(true, parsedMessage.trackTimeSeconds);
+        } else {
+          // For pause, we need to get current time - this might need adjustment based on your current implementation
+          const currentState = room.getPlaybackState();
+          const currentTime = currentState ? currentState.currentTime : 0;
+          room.updatePlaybackState(false, currentTime);
+        }
+      }
+
       sendBroadcast({
         server,
         roomId,
@@ -223,6 +285,29 @@ export const handleMessage = async (
       });
 
       return;
+    } else if (parsedMessage.type === ClientActionEnum.enum.REMOVE_YOUTUBE_SOURCE) {
+      // Handle removing YouTube sources and sync across all clients
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+
+      // Remove from room state
+      room.removeYouTubeSource(parsedMessage.videoId);
+
+      // Broadcast YouTube source removal to all clients
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "REMOVE_YOUTUBE_SOURCE",
+            videoId: parsedMessage.videoId,
+            removedBy: ws.data.clientId,
+          },
+        },
+      });
+
+      return;
     } else if (
       parsedMessage.type === ClientActionEnum.enum.START_SPATIAL_AUDIO
     ) {
@@ -268,13 +353,18 @@ export const handleMessage = async (
         message: {
           type: "ROOM_EVENT",
           event: {
-            type: ClientActionEnum.Enum.CLIENT_CHANGE,
+            type: ClientActionEnum.enum.CLIENT_CHANGE,
             clients: reorderedClients,
           },
         },
       });
     } else if (parsedMessage.type === ClientActionEnum.enum.SET_SELECTED_AUDIO) {
       // Handle audio selection change
+      const room = globalManager.getRoom(roomId);
+      if (room) {
+        room.setSelectedAudioId(parsedMessage.audioId);
+      }
+
       sendBroadcast({
         server,
         roomId,
@@ -288,6 +378,11 @@ export const handleMessage = async (
       });
     } else if (parsedMessage.type === ClientActionEnum.enum.SET_SELECTED_YOUTUBE) {
       // Handle YouTube selection change
+      const room = globalManager.getRoom(roomId);
+      if (room) {
+        room.setSelectedYouTubeId(parsedMessage.videoId);
+      }
+
       sendBroadcast({
         server,
         roomId,

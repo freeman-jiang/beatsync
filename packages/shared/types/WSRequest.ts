@@ -20,6 +20,7 @@ export const ClientActionEnum = z.enum([
   "SEEK_YOUTUBE",
   "SET_MODE",
   "ADD_YOUTUBE_SOURCE",
+  "REMOVE_YOUTUBE_SOURCE",
   "SET_SELECTED_AUDIO",
   "SET_SELECTED_YOUTUBE",
 ]);
@@ -96,6 +97,11 @@ const AddYouTubeSourceActionSchema = z.object({
   channel: z.string().optional(),
 });
 
+const RemoveYouTubeSourceActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REMOVE_YOUTUBE_SOURCE),
+  videoId: z.string(),
+});
+
 const SetSelectedAudioActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_SELECTED_AUDIO),
   audioId: z.string(),
@@ -106,7 +112,7 @@ const SetSelectedYouTubeActionSchema = z.object({
   videoId: z.string(),
 });
 
-export { PlayYouTubeActionSchema, PauseYouTubeActionSchema, SeekYouTubeActionSchema, SetModeActionSchema, AddYouTubeSourceActionSchema, SetSelectedAudioActionSchema, SetSelectedYouTubeActionSchema };
+export { PlayYouTubeActionSchema, PauseYouTubeActionSchema, SeekYouTubeActionSchema, SetModeActionSchema, AddYouTubeSourceActionSchema, RemoveYouTubeSourceActionSchema, SetSelectedAudioActionSchema, SetSelectedYouTubeActionSchema };
 
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
@@ -122,6 +128,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SeekYouTubeActionSchema,
   SetModeActionSchema,
   AddYouTubeSourceActionSchema,
+  RemoveYouTubeSourceActionSchema,
   SetSelectedAudioActionSchema,
   SetSelectedYouTubeActionSchema,
 ]);

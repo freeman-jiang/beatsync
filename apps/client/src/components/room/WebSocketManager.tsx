@@ -195,6 +195,29 @@ export const WebSocketManager = ({
           }
 
           toast.success(`YouTube video added: ${title}`);
+        } else if (event.type === "REMOVE_YOUTUBE_SOURCE") {
+          console.log("Received REMOVE_YOUTUBE_SOURCE:", event);
+          const { videoId } = event;
+
+          // Get current state to avoid stale closure
+          const currentState = useGlobalStore.getState();
+          const currentYouTubeSources = currentState.youtubeSources;
+          const currentSelectedYouTubeId = currentState.selectedYouTubeId;
+
+          // Remove the YouTube source from the store
+          const newSources = currentYouTubeSources.filter(source => source.videoId !== videoId);
+          setYouTubeSources(newSources);
+
+          // If we removed the currently selected video, clear selection
+          if (videoId === currentSelectedYouTubeId) {
+            setSelectedYouTubeId("");
+          }
+
+          // Find the video title for the toast (if it still exists in the current sources)
+          const removedVideo = currentYouTubeSources.find(source => source.videoId === videoId);
+          const videoTitle = removedVideo ? removedVideo.title : videoId;
+
+          toast.success(`YouTube video removed: ${videoTitle}`);
         } else if (event.type === "SET_YOUTUBE_SOURCES") {
           console.log("Received SET_YOUTUBE_SOURCES:", event);
           // Convert duration from number to string to match local type
@@ -206,21 +229,195 @@ export const WebSocketManager = ({
         } else if (event.type === "MODE_CHANGE") {
           console.log("Received MODE_CHANGE:", event);
           // Update mode without triggering broadcast (to avoid loops)
-          useGlobalStore.setState({ currentMode: event.mode });
+          const currentState = useGlobalStore.getState();
+          
+          if (currentState.audioSources.length === 0) {
+            console.log("Audio sources not loaded yet, storing mode change for later");
+            const existingPending = currentState.pendingRoomState || {};
+            currentState.setPendingRoomState({
+              ...existingPending,
+              mode: event.mode
+            });
+          } else {
+            useGlobalStore.setState({ currentMode: event.mode });
+          }
         } else if (event.type === "SELECTED_AUDIO_CHANGE") {
           console.log("Received SELECTED_AUDIO_CHANGE:", event);
           // Update selected audio ID and find corresponding URL
           const currentState = useGlobalStore.getState();
-          const audioSource = currentState.audioSources.find(source => source.id === event.audioId);
+          
+          // If no audio sources are loaded yet, store this for later
+          if (currentState.audioSources.length === 0) {
+            console.log("Audio sources not loaded yet, storing selection for later");
+            const existingPending = currentState.pendingRoomState || {};
+            currentState.setPendingRoomState({
+              ...existingPending,
+              selectedAudioId: event.audioId
+            });
+            return;
+          }
+          
+          // Try to find audio source by exact ID match first
+          let audioSource = currentState.audioSources.find(source => source.id === event.audioId);
+          
+          // If not found by ID, try to find by URL match
+          if (!audioSource) {
+            audioSource = currentState.audioSources.find(source => source.url === event.audioId);
+          }
+          
+          // If still not found, try to match by filename (last part of URL)
+          if (!audioSource) {
+            const incomingFilename = event.audioId.split('/').pop();
+            audioSource = currentState.audioSources.find(source => {
+              const sourceFilename = source.url.split('/').pop();
+              return sourceFilename === incomingFilename;
+            });
+          }
           
           if (audioSource) {
             // Update both selectedAudioId and selectedAudioUrl without triggering broadcast
             useGlobalStore.setState({ 
-              selectedAudioId: event.audioId,
-              selectedAudioUrl: audioSource.url
+              selectedAudioId: event.audioId, // Use the server's ID format
+              selectedAudioUrl: audioSource.url // Use the client's URL
             });
+            console.log(`Successfully matched audio: ${event.audioId} -> ${audioSource.url}`);
           } else {
             console.warn("Audio source not found for ID:", event.audioId);
+            console.log("Available audio sources:", currentState.audioSources.map(s => ({ id: s.id, url: s.url })));
+          }
+        } else if (event.type === "SELECTED_YOUTUBE_CHANGE") {
+          console.log("Received SELECTED_YOUTUBE_CHANGE:", event);
+          // Update selected YouTube ID without triggering broadcast
+          setSelectedYouTubeId(event.videoId);
+        } else if (event.type === "PLAYBACK_STATE") {
+          console.log("Received PLAYBACK_STATE:", event);
+          // Update the current playback state for new clients
+          const currentState = useGlobalStore.getState();
+          
+          // If no audio sources are loaded yet, store this for later
+          if (currentState.audioSources.length === 0) {
+            console.log("Audio sources not loaded yet, storing playback state for later");
+            const existingPending = currentState.pendingRoomState || {};
+            currentState.setPendingRoomState({
+              ...existingPending,
+              selectedAudioId: event.selectedAudioId,
+              playbackSync: {
+                isPlaying: event.isPlaying,
+                currentTime: event.currentTime,
+                lastUpdated: event.lastUpdated
+              }
+            });
+            return;
+          }
+          
+          // Update selected tracks
+          if (event.selectedAudioId) {
+            // Try to find audio source with improved matching logic
+            let audioSource = currentState.audioSources.find(source => source.id === event.selectedAudioId);
+            
+            // If not found by ID, try to find by URL match
+            if (!audioSource) {
+              audioSource = currentState.audioSources.find(source => source.url === event.selectedAudioId);
+            }
+            
+            // If still not found, try to match by filename (last part of URL)
+            if (!audioSource) {
+              const incomingFilename = event.selectedAudioId.split('/').pop();
+              audioSource = currentState.audioSources.find(source => {
+                const sourceFilename = source.url.split('/').pop();
+                return sourceFilename === incomingFilename;
+              });
+            }
+            
+            if (audioSource) {
+              useGlobalStore.setState({ 
+                selectedAudioId: event.selectedAudioId, // Use the server's ID format
+                selectedAudioUrl: audioSource.url // Use the client's URL
+              });
+              console.log(`PLAYBACK_STATE: Successfully matched audio: ${event.selectedAudioId} -> ${audioSource.url}`);
+            } else {
+              console.warn("PLAYBACK_STATE: Audio source not found for ID:", event.selectedAudioId);
+              console.log("Available audio sources:", currentState.audioSources.map(s => ({ id: s.id, url: s.url })));
+            }
+          }
+          
+          if (event.selectedYouTubeId) {
+            setSelectedYouTubeId(event.selectedYouTubeId);
+          }
+          
+          // Always sync playback state regardless of playing/paused status
+          if (event.selectedAudioId || event.selectedYouTubeId) {
+            const now = Date.now();
+            const timeElapsedSinceUpdate = (now - event.lastUpdated) / 1000; // Convert to seconds
+            
+            // For playing tracks, calculate current position; for paused tracks, use exact time
+            const currentPosition = event.isPlaying 
+              ? event.currentTime + timeElapsedSinceUpdate 
+              : event.currentTime;
+            
+            console.log(`Syncing playback state: ${event.isPlaying ? 'playing' : 'paused'} at ${currentPosition}s (elapsed: ${timeElapsedSinceUpdate}s)`);
+            
+            // Update playback state in store
+            useGlobalStore.setState({ 
+              isPlaying: event.isPlaying,
+              currentTime: currentPosition 
+            });
+            
+            // Ensure audio is loaded for the selected track
+            if (event.selectedAudioId) {
+              // Use the same improved matching logic to find the audio source
+              let audioSource = currentState.audioSources.find(source => source.id === event.selectedAudioId);
+              
+              if (!audioSource) {
+                audioSource = currentState.audioSources.find(source => source.url === event.selectedAudioId);
+              }
+              
+              if (!audioSource) {
+                const incomingFilename = event.selectedAudioId.split('/').pop();
+                audioSource = currentState.audioSources.find(source => {
+                  const sourceFilename = source.url.split('/').pop();
+                  return sourceFilename === incomingFilename;
+                });
+              }
+              
+              if (audioSource) {
+                const { getAudioDuration } = useGlobalStore.getState();
+                getAudioDuration({ url: audioSource.url });
+              }
+            }
+            
+            // Only try to sync if audio system is initialized
+            if (currentState.audioPlayer && currentState.isAudioSystemReady) {
+              try {
+                if (event.isPlaying && event.selectedAudioId) {
+                  // Schedule play at the calculated position
+                  schedulePlay({
+                    trackTimeSeconds: currentPosition,
+                    targetServerTime: now, // Play immediately
+                    audioId: event.selectedAudioId,
+                  });
+                } else {
+                  // For paused state, just update the current time in the global state
+                  useGlobalStore.setState({ currentTime: currentPosition });
+                }
+              } catch (error) {
+                console.warn("Could not sync playback - audio system may not be ready:", error);
+                // Store the playback state for later sync when audio system is ready
+                const { setPendingPlaybackSync } = useGlobalStore.getState();
+                setPendingPlaybackSync({
+                  isPlaying: event.isPlaying,
+                  currentTime: currentPosition,
+                });
+              }
+            } else {
+              console.log("Audio system not ready, storing playback state for later sync");
+              // Store the playback state for later sync when audio system is ready
+              const { setPendingPlaybackSync } = useGlobalStore.getState();
+              setPendingPlaybackSync({
+                isPlaying: event.isPlaying,
+                currentTime: currentPosition,
+              });
+            }
           }
         }
       } else if (response.type === "SCHEDULED_ACTION") {

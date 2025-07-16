@@ -50,6 +50,13 @@ const YouTubeSourceSchema = z.object({
 });
 export type YouTubeSourceType = z.infer<typeof YouTubeSourceSchema>;
 
+const RemoveYouTubeSourceSchema = z.object({
+  type: z.literal("REMOVE_YOUTUBE_SOURCE"),
+  videoId: z.string(),
+  removedBy: z.string(),
+});
+export type RemoveYouTubeSourceType = z.infer<typeof RemoveYouTubeSourceSchema>;
+
 const SpatialConfigSchema = z.object({
   type: z.literal("SPATIAL_CONFIG"),
   gains: z.record(
@@ -112,6 +119,16 @@ const SelectedYouTubeChangeSchema = z.object({
 });
 export type SelectedYouTubeChangeType = z.infer<typeof SelectedYouTubeChangeSchema>;
 
+const PlaybackStateSchema = z.object({
+  type: z.literal("PLAYBACK_STATE"),
+  isPlaying: z.boolean(),
+  currentTime: z.number(),
+  lastUpdated: z.number(),
+  selectedAudioId: z.string().optional(),
+  selectedYouTubeId: z.string().optional(),
+});
+export type PlaybackStateType = z.infer<typeof PlaybackStateSchema>;
+
 const RoomEventSchema = z.object({
   type: z.literal("ROOM_EVENT"),
   event: z.discriminatedUnion("type", [
@@ -119,10 +136,12 @@ const RoomEventSchema = z.object({
     SetAudioSourcesSchema,
     NewAudioSourceSchema,
     YouTubeSourceSchema,
+    RemoveYouTubeSourceSchema,
     ModeChangeSchema,
     SetYouTubeSourcesSchema,
     SelectedAudioChangeSchema,
     SelectedYouTubeChangeSchema,
+    PlaybackStateSchema,
   ]),
 });
 

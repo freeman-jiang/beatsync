@@ -33,6 +33,13 @@ interface RoomData {
   roomId: string;
   intervalId?: NodeJS.Timeout;
   listeningSource: PositionType;
+  selectedAudioId?: string;
+  selectedYouTubeId?: string;
+  playbackState?: {
+    isPlaying: boolean;
+    currentTime: number;
+    lastUpdated: number;
+  };
 }
 
 /**
@@ -48,6 +55,13 @@ export class RoomManager {
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
   private heartbeatCheckInterval?: NodeJS.Timeout;
+  private selectedAudioId?: string;
+  private selectedYouTubeId?: string;
+  private playbackState?: {
+    isPlaying: boolean;
+    currentTime: number;
+    lastUpdated: number;
+  };
 
   constructor(private readonly roomId: string) {
     this.listeningSource = { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y };
@@ -109,6 +123,20 @@ export class RoomManager {
   }
 
   /**
+   * Remove a YouTube source from the room
+   */
+  removeYouTubeSource(videoId: string): YouTubeSourceType[] {
+    this.youtubeSources = this.youtubeSources.filter(source => source.videoId !== videoId);
+    
+    // If we removed the currently selected video, clear selection
+    if (videoId === this.selectedYouTubeId) {
+      this.selectedYouTubeId = undefined;
+    }
+    
+    return this.youtubeSources;
+  }
+
+  /**
    * Set all YouTube sources
    */
   setYouTubeSources(sources: YouTubeSourceType[]): YouTubeSourceType[] {
@@ -128,6 +156,52 @@ export class RoomManager {
    */
   getCurrentMode(): "library" | "youtube" {
     return this.currentMode;
+  }
+
+  /**
+   * Set the selected audio ID
+   */
+  setSelectedAudioId(audioId: string): void {
+    this.selectedAudioId = audioId;
+  }
+
+  /**
+   * Get the selected audio ID
+   */
+  getSelectedAudioId(): string | undefined {
+    return this.selectedAudioId;
+  }
+
+  /**
+   * Set the selected YouTube ID
+   */
+  setSelectedYouTubeId(videoId: string): void {
+    this.selectedYouTubeId = videoId;
+  }
+
+  /**
+   * Get the selected YouTube ID
+   */
+  getSelectedYouTubeId(): string | undefined {
+    return this.selectedYouTubeId;
+  }
+
+  /**
+   * Update playback state
+   */
+  updatePlaybackState(isPlaying: boolean, currentTime: number): void {
+    this.playbackState = {
+      isPlaying,
+      currentTime,
+      lastUpdated: epochNow(),
+    };
+  }
+
+  /**
+   * Get current playback state
+   */
+  getPlaybackState(): { isPlaying: boolean; currentTime: number; lastUpdated: number } | undefined {
+    return this.playbackState;
   }
 
   /**
@@ -187,6 +261,9 @@ export class RoomManager {
       roomId: this.roomId,
       intervalId: this.intervalId,
       listeningSource: this.listeningSource,
+      selectedAudioId: this.selectedAudioId,
+      selectedYouTubeId: this.selectedYouTubeId,
+      playbackState: this.playbackState,
     };
   }
 

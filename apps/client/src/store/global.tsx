@@ -95,6 +95,23 @@ interface GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   };
+
+  // Audio system status
+  isAudioSystemReady: boolean;
+  pendingPlaybackSync: {
+    isPlaying: boolean;
+    currentTime: number;
+  } | null;
+  pendingRoomState: {
+    selectedAudioId?: string;
+    selectedYouTubeId?: string;
+    mode?: string;
+    playbackSync?: {
+      isPlaying: boolean;
+      currentTime: number;
+      lastUpdated: number;
+    };
+  } | null;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -191,6 +208,21 @@ interface GlobalState extends GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   }) => void;
+
+  // Audio system state management
+  setIsAudioSystemReady: (ready: boolean) => void;
+  setPendingPlaybackSync: (syncData: { isPlaying: boolean; currentTime: number } | null) => void;
+  setPendingRoomState: (roomState: {
+    selectedAudioId?: string;
+    selectedYouTubeId?: string;
+    mode?: string;
+    playbackSync?: {
+      isPlaying: boolean;
+      currentTime: number;
+      lastUpdated: number;
+    };
+  } | null) => void;
+  applyPendingRoomState: () => void;
 }
 
 // Define initial state values
@@ -249,6 +281,11 @@ const initialState: GlobalStateValues = {
     currentAttempt: 0,
     maxAttempts: 0,
   },
+
+  // Audio system status
+  isAudioSystemReady: false,
+  pendingPlaybackSync: null,
+  pendingRoomState: null,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -319,6 +356,9 @@ const initializeAudioContext = () => {
 };
 
 export const useGlobalStore = create<GlobalState>((set, get) => {
+  // Track loading states to prevent duplicate loading attempts
+  const loadingStates = new Map<string, Promise<AudioBuffer>>();
+
   // Function to initialize audio system without default sources
   const initializeAudio = async () => {
     console.log("initializeAudio() - skipping default sources");
@@ -341,6 +381,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       downloadedAudioIds: new Set<string>(),
       duration: 0, // No initial duration
       selectedAudioId: undefined, // No initial selection
+      isAudioSystemReady: true, // Mark audio system as ready
     });
 
     console.log("Audio system initialized without default sources");
@@ -348,7 +389,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
   // Function to ensure audio system is initialized and load audio buffer for a specific source
   const ensureAudioLoaded = async (audioSource: LocalAudioSource): Promise<AudioBuffer> => {
-    const state = get();
+    let state = get();
     
     // Check if we already have the audio buffer
     if (audioSource.audioBuffer) {
@@ -358,6 +399,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     const cachedBuffer = state.audioCache.get(audioSource.url);
     if (cachedBuffer) {
       return cachedBuffer;
+    }
+    
+    // Check if this audio is already being loaded to prevent duplicate requests
+    const existingLoad = loadingStates.get(audioSource.url);
+    if (existingLoad) {
+      console.log("Audio already loading, waiting for existing load:", audioSource.url);
+      return existingLoad;
     }
     
     // Ensure audio context exists
@@ -373,40 +421,51 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           sourceNode: audioContext.createBufferSource(),
           gainNode,
         },
+        isAudioSystemReady: true, // Mark as ready since we just created it
       });
+      
+      // Get fresh state after setting the audio player
+      state = get();
     }
     
-    // Load the audio buffer
-    try {
-      console.log("Loading audio buffer for:", audioSource.url);
-      const { audioBuffer } = await loadAudioSourceUrl({
-        url: audioSource.url,
-        audioContext: state.audioPlayer!.audioContext,
-      });
-      
-      // Update the audio source with the buffer and cache it
-      set((currentState) => {
-        const updatedSources = currentState.audioSources.map(source =>
-          source.id === audioSource.id 
-            ? { ...source, audioBuffer, duration: audioBuffer.duration }
-            : source
-        );
+    // Create and store the loading promise
+    const loadingPromise = (async () => {
+      try {
+        console.log("Loading audio buffer for:", audioSource.url);
+        const { audioBuffer } = await loadAudioSourceUrl({
+          url: audioSource.url,
+          audioContext: state.audioPlayer!.audioContext,
+        });
         
-        const newCache = new Map(currentState.audioCache);
-        newCache.set(audioSource.url, audioBuffer);
+        // Update the audio source with the buffer and cache it
+        set((currentState) => {
+          const updatedSources = currentState.audioSources.map(source =>
+            source.id === audioSource.id 
+              ? { ...source, audioBuffer, duration: audioBuffer.duration }
+              : source
+          );
+          
+          const newCache = new Map(currentState.audioCache);
+          newCache.set(audioSource.url, audioBuffer);
+          
+          return {
+            audioSources: updatedSources,
+            audioCache: newCache,
+          };
+        });
         
-        return {
-          audioSources: updatedSources,
-          audioCache: newCache,
-        };
-      });
-      
-      console.log("✓ Successfully loaded audio buffer for:", audioSource.name);
-      return audioBuffer;
-    } catch (error) {
-      console.error("✗ Failed to load audio buffer for:", audioSource.url, error);
-      throw error;
-    }
+        console.log("✓ Successfully loaded audio buffer for:", audioSource.name);
+        return audioBuffer;
+      } finally {
+        // Remove from loading states when done (success or failure)
+        loadingStates.delete(audioSource.url);
+      }
+    })();
+    
+    // Store the loading promise
+    loadingStates.set(audioSource.url, loadingPromise);
+    
+    return loadingPromise;
   };
 
   // Function to load default audio files from the server
@@ -423,6 +482,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         url: audioFile.url,
         name: audioFile.url.split('/').pop() || audioFile.url,
         // audioBuffer will be loaded lazily when needed
+        // duration will be populated when audio is first accessed
       }));
 
       set(({
@@ -482,7 +542,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
     },
 
-    setAudioSources: (sources) => set({ audioSources: sources }),
+    setAudioSources: (sources) => {
+      set({ audioSources: sources });
+      // Apply any pending room state now that audio sources are available
+      const state = get();
+      if (state.pendingRoomState && sources.length > 0) {
+        state.applyPendingRoomState();
+      }
+    },
 
     setSelectedAudioId: (id: string, skipBroadcast?: boolean) => {
       set({ selectedAudioId: id });
@@ -507,9 +574,45 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     getAudioDuration: ({ url }: { url: string }) => {
+      console.log("getAudioDuration called with URL:", url);
       const state = get();
-      const audioBuffer = state.audioCache.get(url);
-      return audioBuffer?.duration || 0;
+      
+      // First check the audio cache
+      const cachedBuffer = state.audioCache.get(url);
+      if (cachedBuffer) {
+        console.log("Audio buffer found in cache:", cachedBuffer.duration);
+        return cachedBuffer.duration;
+      }
+      
+      // If not in cache, check if any audio source has this URL and has a loaded buffer
+      const audioSource = state.audioSources.find(source => source.url === url);
+      if (audioSource?.audioBuffer) {
+        console.log("Audio buffer found in source:", audioSource.audioBuffer.duration);
+        return audioSource.audioBuffer.duration;
+      }
+      
+      // If still not found, check if any audio source has a duration (from metadata)
+      if (audioSource?.duration) {
+        console.log("Duration found in source metadata:", audioSource.duration);
+        return audioSource.duration;
+      }
+      
+      // If audio source exists but buffer isn't loaded, trigger background loading
+      // But only if it's not already being loaded
+      if (audioSource && !audioSource.audioBuffer && !loadingStates.has(audioSource.url)) {
+        console.log("Audio buffer not loaded yet, triggering background load for:", url);
+        // Defer async loading to avoid React render cycle warnings
+        setTimeout(() => {
+          ensureAudioLoaded(audioSource).catch(error => {
+            console.warn("Background audio loading failed:", error);
+          });
+        }, 0);
+      } else if (loadingStates.has(audioSource?.url || url)) {
+        console.log("Audio is already being loaded:", url);
+      }
+      
+      console.log("Audio buffer not found for URL:", url);
+      return 0;
     },
 
     handleSetAudioSources: ({ sources }: { sources: AudioSourceType[] }) => {
@@ -631,9 +734,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           try {
             await audioContext.resume();
             console.log("AudioContext resumed via user gesture");
+            // Mark audio system as ready now that context is active
+            set({ isAudioSystemReady: true });
           } catch (err) {
             console.warn("Failed to resume AudioContext", err);
           }
+        } else if (audioContext && audioContext.state === "running") {
+          // Context is already running, mark as ready
+          set({ isAudioSystemReady: true });
         }
       }
 
@@ -748,7 +856,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     schedulePause: ({ targetServerTime }: { targetServerTime: number }) => {
       const state = get();
       const waitTimeSeconds = getWaitTimeSeconds(state, targetServerTime);
-      console.log(`Pausing track in ${waitTimeSeconds}`);
+      console.log(`Scheduling pause in ${waitTimeSeconds}s (isPlaying: ${state.isPlaying})`);
 
       state.pauseAudio({
         when: waitTimeSeconds,
@@ -1078,27 +1186,46 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     pauseAudio: (data: { when: number }) => {
       const state = get();
-      const { sourceNode, audioContext } = getAudioPlayer(state);
+      
+      // Check if we're actually playing before trying to pause
+      if (!state.isPlaying) {
+        console.log("pauseAudio called but not currently playing, ignoring");
+        return;
+      }
+      
+      try {
+        const { sourceNode, audioContext } = getAudioPlayer(state);
+        const stopTime = audioContext.currentTime + data.when;
+        
+        // Only stop if the source node exists and hasn't been stopped already
+        if (sourceNode && sourceNode.buffer) {
+          sourceNode.stop(stopTime);
+        }
 
-      const stopTime = audioContext.currentTime + data.when;
-      sourceNode.stop(stopTime);
+        // Calculate current position in the track at the time of pausing
+        const elapsedSinceStart = stopTime - state.playbackStartTime;
+        const currentTrackPosition = state.playbackOffset + elapsedSinceStart;
 
-      // Calculate current position in the track at the time of pausing
-      const elapsedSinceStart = stopTime - state.playbackStartTime;
-      const currentTrackPosition = state.playbackOffset + elapsedSinceStart;
+        console.log(
+          "Stopping at:",
+          data.when,
+          "Current track position:",
+          currentTrackPosition
+        );
 
-      console.log(
-        "Stopping at:",
-        data.when,
-        "Current track position:",
-        currentTrackPosition
-      );
-
-      set((state) => ({
-        ...state,
-        isPlaying: false,
-        currentTime: currentTrackPosition,
-      }));
+        set((state) => ({
+          ...state,
+          isPlaying: false,
+          currentTime: currentTrackPosition,
+        }));
+      } catch (error) {
+        console.warn("Error in pauseAudio:", error);
+        // Still update the playing state even if stopping the audio failed
+        set((state) => ({
+          ...state,
+          isPlaying: false,
+        }));
+      }
     },
 
     setListeningSourcePosition: (position: PositionType) => {
@@ -1435,19 +1562,16 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     removeYouTubeSource: (videoId: string) => {
-      set((state) => {
-        const newSources = state.youtubeSources.filter(source => source.videoId !== videoId);
-        
-        // If we removed the currently selected video, clear selection
-        const updates: Partial<GlobalState> = {
-          youtubeSources: newSources,
-        };
-        
-        if (videoId === state.selectedYouTubeId) {
-          updates.selectedYouTubeId = "";
-        }
-        
-        return updates;
+      const state = get();
+      const { socket } = getSocket(state);
+
+      // Send removal request to server
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.REMOVE_YOUTUBE_SOURCE,
+          videoId,
+        },
       });
     },
 
@@ -1620,10 +1744,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         state.audioPlayer.audioContext.close().catch(() => {});
       }
 
+      // Clear loading states to prevent memory leaks
+      loadingStates.clear();
+
       // Reset state to initial values but preserve cache
       set({
         ...initialState,
         audioCache: preservedAudioCache,
+        isAudioSystemReady: false, // Mark audio system as not ready during reset
       });
 
       // Reinitialize audio from scratch
@@ -1646,6 +1774,123 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       // Return volume as 0-100 range
       return state.volume * 100;
+    },
+
+    // Audio system state management
+    setIsAudioSystemReady: (ready: boolean) => {
+      set({ isAudioSystemReady: ready });
+      
+      // If audio system is ready and we have pending sync data, apply it
+      if (ready) {
+        const state = get();
+        if (state.pendingPlaybackSync) {
+          try {
+            if (state.pendingPlaybackSync.isPlaying) {
+              // Use the existing playAudio method to sync playback
+              state.playAudio({
+                offset: state.pendingPlaybackSync.currentTime,
+                when: 0, // Start immediately
+              });
+            } else {
+              // For paused state, just set the position in the global state
+              set({ currentTime: state.pendingPlaybackSync.currentTime });
+            }
+            // Clear pending sync after applying
+            set({ pendingPlaybackSync: null, isPlaying: state.pendingPlaybackSync.isPlaying });
+          } catch (error) {
+            console.warn("Failed to apply pending playback sync:", error);
+          }
+        }
+      }
+    },
+
+    setPendingPlaybackSync: (syncData: { isPlaying: boolean; currentTime: number } | null) => {
+      set({ pendingPlaybackSync: syncData });
+    },
+
+    setPendingRoomState: (roomState: {
+      selectedAudioId?: string;
+      selectedYouTubeId?: string;
+      mode?: string;
+      playbackSync?: {
+        isPlaying: boolean;
+        currentTime: number;
+        lastUpdated: number;
+      };
+    } | null) => {
+      set({ pendingRoomState: roomState });
+    },
+
+    applyPendingRoomState: () => {
+      const state = get();
+      if (!state.pendingRoomState) return;
+
+      console.log("Applying pending room state:", state.pendingRoomState);
+
+      // Apply mode change
+      if (state.pendingRoomState.mode) {
+        set({ currentMode: state.pendingRoomState.mode as 'library' | 'youtube' });
+      }
+
+      // Apply audio selection with improved matching
+      if (state.pendingRoomState.selectedAudioId) {
+        const audioId = state.pendingRoomState.selectedAudioId;
+        let audioSource = state.audioSources.find(source => source.id === audioId);
+        
+        if (!audioSource) {
+          audioSource = state.audioSources.find(source => source.url === audioId);
+        }
+        
+        if (!audioSource) {
+          const incomingFilename = audioId.split('/').pop();
+          audioSource = state.audioSources.find(source => {
+            const sourceFilename = source.url.split('/').pop();
+            return sourceFilename === incomingFilename;
+          });
+        }
+
+        if (audioSource) {
+          set({ 
+            selectedAudioId: audioId,
+            selectedAudioUrl: audioSource.url
+          });
+          console.log(`Applied pending audio selection: ${audioId} -> ${audioSource.url}`);
+        }
+      }
+
+      // Apply YouTube selection
+      if (state.pendingRoomState.selectedYouTubeId) {
+        // This would need to be handled by the room store or passed to YouTube handling
+        console.log("Pending YouTube selection:", state.pendingRoomState.selectedYouTubeId);
+      }
+
+      // Apply playback sync
+      if (state.pendingRoomState.playbackSync) {
+        const { isPlaying, currentTime, lastUpdated } = state.pendingRoomState.playbackSync;
+        const now = Date.now();
+        const timeElapsed = (now - lastUpdated) / 1000;
+        const calculatedPosition = isPlaying ? currentTime + timeElapsed : currentTime;
+
+        set({ 
+          isPlaying,
+          currentTime: calculatedPosition 
+        });
+
+        if (isPlaying && state.isAudioSystemReady && state.audioPlayer) {
+          // Try to start playback at the calculated position
+          try {
+            state.playAudio({
+              offset: calculatedPosition,
+              when: 0,
+            });
+          } catch (error) {
+            console.warn("Failed to start playback from pending state:", error);
+          }
+        }
+      }
+
+      // Clear pending state
+      set({ pendingRoomState: null });
     },
   };
 });
