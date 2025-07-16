@@ -40,8 +40,8 @@ services:
   # BeatSync Server
   server:
     build:
-      context: ./apps/server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/server/Dockerfile
     container_name: beatsync-server
     ports:
       - "3001:3001"
@@ -65,14 +65,20 @@ services:
   # BeatSync Client (optional, if you want to run the client in Docker too)
   client:
     build:
-      context: ./apps/client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/client/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:3001"
+        NEXT_PUBLIC_WS_URL: "ws://localhost:3001"
+        NEXT_PUBLIC_NEXT_URL: "http://localhost:3000"
     container_name: beatsync-client
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_SERVER_URL=http://localhost:3001
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_WS_URL=ws://localhost:3001
+      - NEXT_PUBLIC_NEXT_URL=http://localhost:3000
     depends_on:
       - server
     volumes:
