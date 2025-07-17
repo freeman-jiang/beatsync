@@ -37,54 +37,51 @@ services:
     networks:
       - beatsync
 
-  # BeatSync Server
   server:
     build:
       context: .
-      dockerfile: ./apps/server/Dockerfile
+      dockerfile: ./DockerfileServer
     container_name: beatsync-server
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3001
+      - HOST=0.0.0.0
       - S3_BUCKET_NAME=beatsync-audio
-      - S3_PUBLIC_URL=http://localhost:9000/beatsync-audio
+      - S3_PUBLIC_URL=http://minio:9000/beatsync-audio
       - S3_ENDPOINT=http://minio:9000
       - S3_ACCESS_KEY_ID=minioadmin
       - S3_SECRET_ACCESS_KEY=minioadmin123
     depends_on:
       - minio
       - minio-create-bucket
-    volumes:
-      - ./apps/server:/app
-      - /app/node_modules
     networks:
       - beatsync
 
-  # BeatSync Client (optional, if you want to run the client in Docker too)
   client:
     build:
       context: .
-      dockerfile: ./apps/client/Dockerfile
+      dockerfile: ./DockerfileClient
       args:
-        NEXT_PUBLIC_API_URL: "http://localhost:3001"
-        NEXT_PUBLIC_WS_URL: "ws://localhost:3001"
-        NEXT_PUBLIC_NEXT_URL: "http://localhost:3000"
+        - NEXT_PUBLIC_API_URL=http://localhost:3001
+        - NEXT_PUBLIC_WS_URL=ws://localhost:3001
+        - NEXT_PUBLIC_NEXT_URL=http://localhost:3000
+        - NEXT_PUBLIC_YOUTUBE_API_KEY=${NEXT_PUBLIC_YOUTUBE_API_KEY:-}
+        - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
     container_name: beatsync-client
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://localhost:3001
       - NEXT_PUBLIC_WS_URL=ws://localhost:3001
       - NEXT_PUBLIC_NEXT_URL=http://localhost:3000
+      - NEXT_PUBLIC_YOUTUBE_API_KEY=${NEXT_PUBLIC_YOUTUBE_API_KEY:-}
+      - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
     depends_on:
-      - server
-    volumes:
-      - ./apps/client:/app
-      - /app/node_modules
-      - /app/.next
+      - minio
+      - minio-create-bucket
     networks:
       - beatsync
 

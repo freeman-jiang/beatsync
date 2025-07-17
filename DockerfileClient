@@ -1,0 +1,35 @@
+# apps/client/Dockerfile
+FROM oven/bun:1.1.38
+
+WORKDIR /app
+
+# Copy full monorepo to Docker
+COPY . .
+
+WORKDIR /app/apps/client
+
+# Install deps using workspaces
+RUN bun install
+
+# Set build-time environment variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_NEXT_URL
+ARG NEXT_PUBLIC_YOUTUBE_API_KEY
+ARG NEXT_PUBLIC_POSTHOG_KEY
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_NEXT_URL=$NEXT_PUBLIC_NEXT_URL
+ENV NEXT_PUBLIC_YOUTUBE_API_KEY=$NEXT_PUBLIC_YOUTUBE_API_KEY
+ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
+
+# Set NODE_ENV for production build
+ENV NODE_ENV=production
+
+# Build the Next.js application
+RUN bun run build
+
+EXPOSE 3000
+
+CMD ["bun", "run", "start"]
