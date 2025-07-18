@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@aws-sdk/s3-request-presigner": "^3.828.0",
+    "@types/youtube": "^0.1.2",
+    "react-youtube": "^10.1.0",
     "turbo": "^2.4.4"
   }
 }

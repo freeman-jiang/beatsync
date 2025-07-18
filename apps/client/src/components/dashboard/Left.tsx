@@ -1,29 +1,22 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Library, Search } from "lucide-react";
+import { Library, Music, Search, Youtube } from "lucide-react";
 import { motion } from "motion/react";
 import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { AudioControls } from "./AudioControls";
+import { useGlobalStore } from "@/store/global";
+import Link from "next/link";
 
 interface LeftProps {
   className?: string;
 }
 
 export const Left = ({ className }: LeftProps) => {
-  // const shareRoom = () => {
-  //   try {
-  //     navigator.share({
-  //       title: "Join my BeatSync room",
-  //       text: `Join my BeatSync room with code: ${roomId}`,
-  //       url: window.location.href,
-  //     });
-  //   } catch {
-  //     copyRoomId();
-  //   }
-  // };
+  const currentMode = useGlobalStore((state) => state.currentMode);
+  const setCurrentMode = useGlobalStore((state) => state.setCurrentMode);
 
   return (
     <motion.div
@@ -35,7 +28,7 @@ export const Left = ({ className }: LeftProps) => {
       )}
     >
       {/* Header section */}
-      {/* <div className="px-3 py-2 flex items-center gap-2">
+      <div className="px-3 py-2 flex items-center gap-2">
         <div className="bg-neutral-800 rounded-md p-1.5">
           <Music className="h-4 w-4 text-white" />
         </div>
@@ -43,7 +36,7 @@ export const Left = ({ className }: LeftProps) => {
       </div>
 
 
-      <Separator className="bg-neutral-800/50" /> */}
+      <Separator className="bg-neutral-800/50" />
 
       <h2 className="text-base font-bold select-none px-4 py-3 -mb-2">
         Your Library
@@ -52,14 +45,34 @@ export const Left = ({ className }: LeftProps) => {
       {/* Navigation menu */}
       <motion.div className="px-3.5 space-y-1.5 py-2">
         <Button
-          className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-md text-xs transition-colors duration-200"
+          className={cn(
+            "w-full flex justify-start gap-3 py-2 text-white font-medium rounded-md text-xs transition-colors duration-200",
+            currentMode === 'library' 
+              ? "bg-white/20 hover:bg-white/25" 
+              : "bg-white/10 hover:bg-white/15"
+          )}
           variant="ghost"
+          onClick={() => setCurrentMode('library')}
         >
           <Library className="h-4 w-4" />
-          <span>Default Library</span>
+          <span>Music Library</span>
         </Button>
 
-        <a href="https://cobalt.tools/" target="_blank">
+        <Button
+          className={cn(
+            "w-full flex justify-start gap-3 py-2 text-white font-medium rounded-md text-xs transition-colors duration-200",
+            currentMode === 'youtube' 
+              ? "bg-red-600/30 hover:bg-red-600/40" 
+              : "bg-white/10 hover:bg-red-600/20"
+          )}
+          variant="ghost"
+          onClick={() => setCurrentMode('youtube')}
+        >
+          <Youtube className="h-4 w-4" />
+          <span>YouTube</span>
+        </Button>
+  
+        <Link href="https://cobalt.tools/" target="_blank">
           <Button
             className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-md text-xs transition-colors duration-200 cursor-pointer"
             variant="ghost"
@@ -67,7 +80,7 @@ export const Left = ({ className }: LeftProps) => {
             <Search className="h-4 w-4" />
             <span>Search Music</span>
           </Button>
-        </a>
+        </Link>
       </motion.div>
 
       <Separator className="bg-neutral-800/50" />
