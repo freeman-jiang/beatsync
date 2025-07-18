@@ -72,6 +72,17 @@ export const WebSocketManager = ({
     (state) => state.handleSetAudioSources
   );
 
+  // YouTube-related state and actions
+  const handleSetYouTubeSources = useGlobalStore(
+    (state) => state.handleSetYouTubeSources
+  );
+  const setCurrentModeLocal = useGlobalStore((state) => state.setCurrentModeLocal);
+  const setSelectedAudioUrl = useGlobalStore((state) => state.setSelectedAudioUrl);
+  const setSelectedYouTubeId = useGlobalStore((state) => state.setSelectedYouTubeId);
+  const schedulePlayYouTube = useGlobalStore((state) => state.schedulePlayYouTube);
+  const schedulePauseYouTube = useGlobalStore((state) => state.schedulePauseYouTube);
+  const scheduleSeekYouTube = useGlobalStore((state) => state.scheduleSeekYouTube);
+
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
     useNtpHeartbeat({
@@ -154,6 +165,14 @@ export const WebSocketManager = ({
           setConnectedClients(event.clients);
         } else if (event.type === "SET_AUDIO_SOURCES") {
           handleSetAudioSources({ sources: event.sources });
+        } else if (event.type === "SET_YOUTUBE_SOURCES") {
+          handleSetYouTubeSources({ sources: event.sources });
+        } else if (event.type === "SET_CURRENT_MODE") {
+          setCurrentModeLocal(event.mode);
+        } else if (event.type === "SET_SELECTED_AUDIO") {
+          setSelectedAudioUrl(event.audioUrl);
+        } else if (event.type === "SET_SELECTED_YOUTUBE") {
+          setSelectedYouTubeId(event.videoId);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
@@ -169,6 +188,22 @@ export const WebSocketManager = ({
         } else if (scheduledAction.type === "PAUSE") {
           schedulePause({
             targetServerTime: serverTimeToExecute,
+          });
+        } else if (scheduledAction.type === "PLAY_YOUTUBE") {
+          schedulePlayYouTube({
+            trackTimeSeconds: scheduledAction.trackTimeSeconds,
+            targetServerTime: serverTimeToExecute,
+            videoId: scheduledAction.videoId,
+          });
+        } else if (scheduledAction.type === "PAUSE_YOUTUBE") {
+          schedulePauseYouTube({
+            targetServerTime: serverTimeToExecute,
+          });
+        } else if (scheduledAction.type === "SEEK_YOUTUBE") {
+          scheduleSeekYouTube({
+            trackTimeSeconds: scheduledAction.trackTimeSeconds,
+            targetServerTime: serverTimeToExecute,
+            videoId: scheduledAction.videoId,
           });
         } else if (scheduledAction.type === "SPATIAL_CONFIG") {
           processSpatialConfig(scheduledAction);
