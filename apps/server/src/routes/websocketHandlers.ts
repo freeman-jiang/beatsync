@@ -41,20 +41,68 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   room.addClient(ws);
 
   // Send audio sources to the newly joined client if any exist
-  const { audioSources } = room.getState();
-  if (audioSources.length > 0) {
+  const roomState = room.getState();
+  if (roomState.audioSources.length > 0) {
     console.log(
-      `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
+      `Sending ${roomState.audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
     );
     const audioSourcesMessage: WSBroadcastType = {
       type: "ROOM_EVENT",
       event: {
         type: "SET_AUDIO_SOURCES",
-        sources: audioSources,
+        sources: roomState.audioSources,
       },
     };
     // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
     ws.send(JSON.stringify(audioSourcesMessage));
+  }
+
+  // Send YouTube sources to the newly joined client if any exist
+  if (roomState.youtubeSources.length > 0) {
+    console.log(
+      `Sending ${roomState.youtubeSources.length} YouTube source(s) to newly joined client ${ws.data.username}`
+    );
+    const youtubeSourcesMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_YOUTUBE_SOURCES",
+        sources: roomState.youtubeSources,
+      },
+    };
+    ws.send(JSON.stringify(youtubeSourcesMessage));
+  }
+
+  // Send current mode to newly joined client
+  const currentModeMessage: WSBroadcastType = {
+    type: "ROOM_EVENT",
+    event: {
+      type: "SET_CURRENT_MODE",
+      mode: roomState.currentMode,
+    },
+  };
+  ws.send(JSON.stringify(currentModeMessage));
+
+  // Send current selections to newly joined client
+  if (roomState.selectedAudioUrl) {
+    const selectedAudioMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_SELECTED_AUDIO",
+        audioUrl: roomState.selectedAudioUrl,
+      },
+    };
+    ws.send(JSON.stringify(selectedAudioMessage));
+  }
+
+  if (roomState.selectedYouTubeId) {
+    const selectedYouTubeMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_SELECTED_YOUTUBE",
+        videoId: roomState.selectedYouTubeId,
+      },
+    };
+    ws.send(JSON.stringify(selectedYouTubeMessage));
   }
 
   const message = createClientUpdate(roomId);
@@ -101,18 +149,27 @@ export const handleMessage = async (
       return;
     } else if (
       parsedMessage.type === ClientActionEnum.enum.PLAY ||
-      parsedMessage.type === ClientActionEnum.enum.PAUSE
+      parsedMessage.type === ClientActionEnum.enum.PAUSE ||
+      parsedMessage.type === ClientActionEnum.enum.PLAY_YOUTUBE ||
+      parsedMessage.type === ClientActionEnum.enum.PAUSE_YOUTUBE ||
+      parsedMessage.type === ClientActionEnum.enum.SEEK_YOUTUBE
     ) {
       const room = globalManager.getRoom(roomId);
       if (!room) return;
 
       const serverTimeToExecute = epochNow() + SCHEDULE_TIME_MS;
 
-      // Update playback state
+      // Update playback state based on action type
       if (parsedMessage.type === ClientActionEnum.enum.PLAY) {
         room.updatePlaybackSchedulePlay(parsedMessage, serverTimeToExecute);
       } else if (parsedMessage.type === ClientActionEnum.enum.PAUSE) {
         room.updatePlaybackSchedulePause(parsedMessage, serverTimeToExecute);
+      } else if (parsedMessage.type === ClientActionEnum.enum.PLAY_YOUTUBE) {
+        room.updatePlaybackSchedulePlayYouTube(parsedMessage, serverTimeToExecute);
+      } else if (parsedMessage.type === ClientActionEnum.enum.PAUSE_YOUTUBE) {
+        room.updatePlaybackSchedulePauseYouTube(parsedMessage, serverTimeToExecute);
+      } else if (parsedMessage.type === ClientActionEnum.enum.SEEK_YOUTUBE) {
+        room.updatePlaybackScheduleSeekYouTube(parsedMessage, serverTimeToExecute);
       }
 
       sendBroadcast({
@@ -127,6 +184,106 @@ export const handleMessage = async (
       });
 
       return;
+    } else if (
+      parsedMessage.type === ClientActionEnum.enum.ADD_YOUTUBE_SOURCE
+    ) {
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      
+      room.addYouTubeSource(parsedMessage.source);
+      
+      // Broadcast updated YouTube sources to all clients
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "SET_YOUTUBE_SOURCES",
+            sources: room.getState().youtubeSources,
+          },
+        },
+      });
+    } else if (
+      parsedMessage.type === ClientActionEnum.enum.REMOVE_YOUTUBE_SOURCE
+    ) {
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      
+      room.removeYouTubeSource(parsedMessage.videoId);
+      
+      // Broadcast updated YouTube sources to all clients
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "SET_YOUTUBE_SOURCES",
+            sources: room.getState().youtubeSources,
+          },
+        },
+      });
+    } else if (
+      parsedMessage.type === ClientActionEnum.enum.SET_MODE
+    ) {
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      
+      room.setCurrentMode(parsedMessage.mode);
+      
+      // Broadcast mode change to all clients
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "SET_CURRENT_MODE",
+            mode: parsedMessage.mode,
+          },
+        },
+      });
+    } else if (
+      parsedMessage.type === ClientActionEnum.enum.SET_SELECTED_AUDIO
+    ) {
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      
+      room.setSelectedAudio(parsedMessage.audioUrl);
+      
+      // Broadcast selection change to all clients
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "SET_SELECTED_AUDIO",
+            audioUrl: parsedMessage.audioUrl,
+          },
+        },
+      });
+    } else if (
+      parsedMessage.type === ClientActionEnum.enum.SET_SELECTED_YOUTUBE
+    ) {
+      const room = globalManager.getRoom(roomId);
+      if (!room) return;
+      
+      room.setSelectedYouTube(parsedMessage.videoId);
+      
+      // Broadcast selection change to all clients
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "SET_SELECTED_YOUTUBE",
+            videoId: parsedMessage.videoId,
+          },
+        },
+      });
     } else if (
       parsedMessage.type === ClientActionEnum.enum.START_SPATIAL_AUDIO
     ) {

@@ -1,8 +1,17 @@
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { Queue } from "../Queue";
+import { useGlobalStore } from "@/store/global";
+import { YouTubeQueue } from "../youtube/YouTubeQueue";
+import { YouTubeSearch } from "../youtube/YouTubeSearch";
+import { Button } from "../ui/button";
+import { Search, List } from "lucide-react";
+import { useState } from "react";
 
 export const Main = () => {
+  const currentMode = useGlobalStore((state) => state.currentMode);
+  const [youtubeTab, setYoutubeTab] = useState<'search' | 'queue'>('search');
+
   return (
     <motion.div
       className={cn(
@@ -11,8 +20,72 @@ export const Main = () => {
       )}
     >
       <motion.div className="p-6 pt-4">
-        {/* <h1 className="text-xl font-semibold mb-8">BeatSync</h1> */}
-        <Queue className="mb-8" />
+        {currentMode === 'library' ? (
+          <>
+            <div className="mb-4">
+              <h1 className="text-2xl font-bold text-white mb-2">Music Library</h1>
+              <p className="text-neutral-400 text-sm">Upload and manage your audio files</p>
+            </div>
+            <Queue className="mb-8" />
+          </>
+        ) : (
+          <>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-white mb-2">YouTube Player</h1>
+              <p className="text-neutral-400 text-sm">Search and play YouTube videos synchronized across all devices</p>
+            </div>
+
+            {/* YouTube Tabs */}
+            <div className="mb-6">
+              <div className="flex gap-2 mb-4">
+                <Button
+                  onClick={() => setYoutubeTab('search')}
+                  variant={youtubeTab === 'search' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Search className="h-4 w-4" />
+                  Search
+                </Button>
+                <Button
+                  onClick={() => setYoutubeTab('queue')}
+                  variant={youtubeTab === 'queue' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  Queue
+                </Button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="bg-neutral-900/30 rounded-lg p-4 min-h-[400px]">
+                {youtubeTab === 'search' && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Search YouTube</h3>
+                    <YouTubeSearch />
+                  </div>
+                )}
+                
+                
+                {youtubeTab === 'queue' && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Video Queue</h3>
+                    <YouTubeQueue />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* YouTube Player */}
+            {/* <div className="mb-6">
+              <h2 className="text-lg font-semibold text-white mb-3">Current Video</h2>
+              <div className="bg-neutral-900/30 rounded-lg p-4">
+                <YouTubePlayer />
+              </div>
+            </div> */}
+          </>
+        )}
       </motion.div>
     </motion.div>
   );

@@ -1,0 +1,19 @@
+# apps/server/Dockerfile
+FROM oven/bun:1.2.18
+
+WORKDIR /app
+
+# Copy full monorepo to Docker
+COPY . .
+
+WORKDIR /app/apps/server
+
+# Install deps using workspaces
+RUN bun install
+
+# Optional: if you use tsc, vite, etc.
+# RUN bun run build
+
+EXPOSE 3001
+
+CMD ["bun", "run", "start"]

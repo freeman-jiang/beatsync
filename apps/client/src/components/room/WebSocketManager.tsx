@@ -7,9 +7,11 @@ import {
   epochNow,
   NTPResponseMessageType,
   WSResponseSchema,
+  ClientType,
 } from "@beatsync/shared";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
+import { toast } from "sonner";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -43,9 +45,13 @@ export const WebSocketManager = ({
   roomId,
   username,
 }: WebSocketManagerProps) => {
+  // Track previous clients to detect new connections
+  const previousClientsRef = useRef<ClientType[]>([]);
+  
   // Room state
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
   const setUserId = useRoomStore((state) => state.setUserId);
+  const userId = useRoomStore((state) => state.userId);
 
   // WebSocket and audio state
   const setSocket = useGlobalStore((state) => state.setSocket);
@@ -72,6 +78,17 @@ export const WebSocketManager = ({
     (state) => state.handleSetAudioSources
   );
 
+  // YouTube-related state and actions
+  const handleSetYouTubeSources = useGlobalStore(
+    (state) => state.handleSetYouTubeSources
+  );
+  const setCurrentModeLocal = useGlobalStore((state) => state.setCurrentModeLocal);
+  const setSelectedAudioUrl = useGlobalStore((state) => state.setSelectedAudioUrl);
+  const setSelectedYouTubeId = useGlobalStore((state) => state.setSelectedYouTubeId);
+  const schedulePlayYouTube = useGlobalStore((state) => state.schedulePlayYouTube);
+  const schedulePauseYouTube = useGlobalStore((state) => state.schedulePauseYouTube);
+  const scheduleSeekYouTube = useGlobalStore((state) => state.scheduleSeekYouTube);
+
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
     useNtpHeartbeat({
@@ -91,6 +108,34 @@ export const WebSocketManager = ({
   } = useWebSocketReconnection({
     createConnection: () => createConnection(),
   });
+
+  // Function to handle client changes and show toast for new users
+  const handleClientChange = (newClients: ClientType[]) => {
+    const previousClients = previousClientsRef.current;
+    
+    // Only show notifications if we have previous clients (not on initial load)
+    if (previousClients.length > 0) {
+      // Find new clients by comparing client IDs
+      const previousClientIds = new Set(previousClients.map(client => client.clientId));
+      const newUsers = newClients.filter(client => 
+        !previousClientIds.has(client.clientId) && client.clientId !== userId
+      );
+      
+      // Show toast for each new user
+      newUsers.forEach(newUser => {
+        toast.success(`${newUser.username} joined the room! 🎵`, {
+          duration: 3000,
+          position: "top-right",
+        });
+      });
+    }
+    
+    // Update the previous clients reference
+    previousClientsRef.current = newClients;
+    
+    // Update the global state
+    setConnectedClients(newClients);
+  };
 
   const createConnection = () => {
     const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
@@ -151,9 +196,17 @@ export const WebSocketManager = ({
         console.log("Room event:", event);
 
         if (event.type === "CLIENT_CHANGE") {
-          setConnectedClients(event.clients);
+          handleClientChange(event.clients);
         } else if (event.type === "SET_AUDIO_SOURCES") {
           handleSetAudioSources({ sources: event.sources });
+        } else if (event.type === "SET_YOUTUBE_SOURCES") {
+          handleSetYouTubeSources({ sources: event.sources });
+        } else if (event.type === "SET_CURRENT_MODE") {
+          setCurrentModeLocal(event.mode);
+        } else if (event.type === "SET_SELECTED_AUDIO") {
+          setSelectedAudioUrl(event.audioUrl);
+        } else if (event.type === "SET_SELECTED_YOUTUBE") {
+          setSelectedYouTubeId(event.videoId);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
@@ -169,6 +222,22 @@ export const WebSocketManager = ({
         } else if (scheduledAction.type === "PAUSE") {
           schedulePause({
             targetServerTime: serverTimeToExecute,
+          });
+        } else if (scheduledAction.type === "PLAY_YOUTUBE") {
+          schedulePlayYouTube({
+            trackTimeSeconds: scheduledAction.trackTimeSeconds,
+            targetServerTime: serverTimeToExecute,
+            videoId: scheduledAction.videoId,
+          });
+        } else if (scheduledAction.type === "PAUSE_YOUTUBE") {
+          schedulePauseYouTube({
+            targetServerTime: serverTimeToExecute,
+          });
+        } else if (scheduledAction.type === "SEEK_YOUTUBE") {
+          scheduleSeekYouTube({
+            trackTimeSeconds: scheduledAction.trackTimeSeconds,
+            targetServerTime: serverTimeToExecute,
+            videoId: scheduledAction.videoId,
           });
         } else if (scheduledAction.type === "SPATIAL_CONFIG") {
           processSpatialConfig(scheduledAction);

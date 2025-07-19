@@ -2,12 +2,16 @@ import {
   ClientType,
   epochNow,
   AudioSourceType,
+  YouTubeSourceType,
   PositionType,
   WSBroadcastType,
   NTP_CONSTANTS,
   RoomType,
   PlayActionType,
   PauseActionType,
+  PlayYouTubeActionType,
+  PauseYouTubeActionType,
+  SeekYouTubeActionType,
 } from "@beatsync/shared";
 import { GRID } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
@@ -21,6 +25,10 @@ import { z } from "zod";
 
 interface RoomData {
   audioSources: AudioSourceType[];
+  youtubeSources: YouTubeSourceType[];
+  currentMode: "library" | "youtube";
+  selectedAudioUrl: string;
+  selectedYouTubeId: string;
   clients: Map<string, ClientType>;
   roomId: string;
   intervalId?: NodeJS.Timeout;
@@ -42,6 +50,10 @@ type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
 export class RoomManager {
   private clients = new Map<string, ClientType>();
   private audioSources: AudioSourceType[] = [];
+  private youtubeSources: YouTubeSourceType[] = [];
+  private currentMode: "library" | "youtube" = "library";
+  private selectedAudioUrl: string = "";
+  private selectedYouTubeId: string = "";
   private listeningSource: PositionType;
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
@@ -166,6 +178,10 @@ export class RoomManager {
   getState(): RoomData {
     return {
       audioSources: this.audioSources,
+      youtubeSources: this.youtubeSources,
+      currentMode: this.currentMode,
+      selectedAudioUrl: this.selectedAudioUrl,
+      selectedYouTubeId: this.selectedYouTubeId,
       clients: this.clients,
       roomId: this.roomId,
       intervalId: this.intervalId,
@@ -559,5 +575,67 @@ export class RoomManager {
       this.heartbeatCheckInterval = undefined;
       console.log(`💔 Stopped heartbeat checking for room ${this.roomId}`);
     }
+  }
+
+  // YouTube methods
+  addYouTubeSource(source: YouTubeSourceType): void {
+    this.youtubeSources.push(source);
+  }
+
+  removeYouTubeSource(videoId: string): void {
+    this.youtubeSources = this.youtubeSources.filter(s => s.videoId !== videoId);
+    // If we're removing the currently selected video, clear selection
+    if (this.selectedYouTubeId === videoId) {
+      this.selectedYouTubeId = "";
+    }
+  }
+
+  setCurrentMode(mode: "library" | "youtube"): void {
+    this.currentMode = mode;
+  }
+
+  setSelectedAudio(audioUrl: string): void {
+    this.selectedAudioUrl = audioUrl;
+  }
+
+  setSelectedYouTube(videoId: string): void {
+    this.selectedYouTubeId = videoId;
+  }
+
+  updatePlaybackSchedulePlayYouTube(
+    playSchema: PlayYouTubeActionType,
+    serverTimeToExecute: number
+  ): void {
+    this.playbackState = {
+      type: "playing",
+      audioSource: playSchema.videoId, // Use videoId as the "audio source" for YouTube
+      trackPositionSeconds: playSchema.trackTimeSeconds,
+      serverTimeToExecute: serverTimeToExecute,
+    };
+  }
+
+  updatePlaybackSchedulePauseYouTube(
+    pauseSchema: PauseYouTubeActionType,
+    serverTimeToExecute: number
+  ): void {
+    this.playbackState = {
+      type: "paused",
+      audioSource: pauseSchema.videoId,
+      trackPositionSeconds: pauseSchema.trackTimeSeconds,
+      serverTimeToExecute: serverTimeToExecute,
+    };
+  }
+
+  updatePlaybackScheduleSeekYouTube(
+    seekSchema: SeekYouTubeActionType,
+    serverTimeToExecute: number
+  ): void {
+    // For seek, we update the track position but keep the current play/pause state
+    this.playbackState = {
+      ...this.playbackState,
+      audioSource: seekSchema.videoId,
+      trackPositionSeconds: seekSchema.trackTimeSeconds,
+      serverTimeToExecute: serverTimeToExecute,
+    };
   }
 }

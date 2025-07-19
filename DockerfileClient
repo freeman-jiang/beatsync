@@ -1,0 +1,22 @@
+# apps/client/Dockerfile
+FROM oven/bun:1.1.38
+
+WORKDIR /app
+
+# Copy full monorepo to Docker
+COPY . .
+
+WORKDIR /app/apps/client
+
+# Install deps using workspaces
+RUN bun install
+
+# Set NODE_ENV for production build
+ENV NODE_ENV=production
+
+# Build the Next.js application
+RUN bun run build
+
+EXPOSE 3000
+
+CMD ["bun", "run", "start"]

@@ -1,0 +1,42 @@
+services:
+  # MinIO - S3 compatible object storage for development
+  minio:
+    image: minio/minio:latest
+    container_name: beatsync-minio-dev
+    ports:
+      - "9000:9000"    # API port
+      - "9001:9001"    # Console port
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_DOMAIN: localhost
+    volumes:
+      - minio_dev_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # MinIO Client to create bucket automatically
+  minio-setup:
+    image: minio/mc:latest
+    container_name: beatsync-minio-setup-dev
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/bin/mc alias set beatsync http://minio:9000 minioadmin minioadmin123;
+      /usr/bin/mc mb beatsync/beatsync-audio --ignore-existing;
+      /usr/bin/mc anonymous set download beatsync/beatsync-audio;
+      echo 'MinIO setup complete! Bucket: beatsync-audio';
+      echo 'Console: http://localhost:9001 (minioadmin/minioadmin123)';
+      echo 'API: http://localhost:9000';
+      exit 0;
+      "
+
+volumes:
+  minio_dev_data:
+    driver: local
