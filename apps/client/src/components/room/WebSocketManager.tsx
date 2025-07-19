@@ -7,9 +7,11 @@ import {
   epochNow,
   NTPResponseMessageType,
   WSResponseSchema,
+  ClientType,
 } from "@beatsync/shared";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
+import { toast } from "sonner";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -43,9 +45,13 @@ export const WebSocketManager = ({
   roomId,
   username,
 }: WebSocketManagerProps) => {
+  // Track previous clients to detect new connections
+  const previousClientsRef = useRef<ClientType[]>([]);
+  
   // Room state
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
   const setUserId = useRoomStore((state) => state.setUserId);
+  const userId = useRoomStore((state) => state.userId);
 
   // WebSocket and audio state
   const setSocket = useGlobalStore((state) => state.setSocket);
@@ -102,6 +108,34 @@ export const WebSocketManager = ({
   } = useWebSocketReconnection({
     createConnection: () => createConnection(),
   });
+
+  // Function to handle client changes and show toast for new users
+  const handleClientChange = (newClients: ClientType[]) => {
+    const previousClients = previousClientsRef.current;
+    
+    // Only show notifications if we have previous clients (not on initial load)
+    if (previousClients.length > 0) {
+      // Find new clients by comparing client IDs
+      const previousClientIds = new Set(previousClients.map(client => client.clientId));
+      const newUsers = newClients.filter(client => 
+        !previousClientIds.has(client.clientId) && client.clientId !== userId
+      );
+      
+      // Show toast for each new user
+      newUsers.forEach(newUser => {
+        toast.success(`${newUser.username} joined the room! 🎵`, {
+          duration: 3000,
+          position: "top-right",
+        });
+      });
+    }
+    
+    // Update the previous clients reference
+    previousClientsRef.current = newClients;
+    
+    // Update the global state
+    setConnectedClients(newClients);
+  };
 
   const createConnection = () => {
     const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
@@ -162,7 +196,7 @@ export const WebSocketManager = ({
         console.log("Room event:", event);
 
         if (event.type === "CLIENT_CHANGE") {
-          setConnectedClients(event.clients);
+          handleClientChange(event.clients);
         } else if (event.type === "SET_AUDIO_SOURCES") {
           handleSetAudioSources({ sources: event.sources });
         } else if (event.type === "SET_YOUTUBE_SOURCES") {

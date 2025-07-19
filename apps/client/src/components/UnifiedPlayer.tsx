@@ -6,8 +6,6 @@ import {
   Pause, 
   SkipBack, 
   SkipForward, 
-  Volume2, 
-  VolumeX, 
   Repeat, 
   Shuffle, 
   Maximize2, 
@@ -28,8 +26,6 @@ import { extractFileNameFromUrl } from "@/lib/utils";
 
 export const UnifiedPlayer = () => {
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
-  const [localVolume, setLocalVolume] = useState(75);
-  const [isMuted, setIsMuted] = useState(false);
   const [livePosition, setLivePosition] = useState(0);
   const [youtubeDuration, setYoutubeDuration] = useState(0);
   const [youtubePosition, setYoutubePosition] = useState(0);
@@ -66,8 +62,6 @@ export const UnifiedPlayer = () => {
   const broadcastSeekYouTube = useGlobalStore((state) => state.broadcastSeekYouTube);
   const setIsShuffled = useGlobalStore((state) => state.setIsShuffled);
   const setRepeatMode = useGlobalStore((state) => state.setRepeatMode);
-  const setVolume = useGlobalStore((state) => state.setVolume);
-  const getVolume = useGlobalStore((state) => state.getVolume);
 
   // Get current content info
   const currentVideo = youtubeSources.find(source => source.videoId === selectedYouTubeId);
@@ -165,37 +159,6 @@ export const UnifiedPlayer = () => {
     }
   }, [currentMode, skipToNextYouTubeVideo, skipToNextTrack]);
 
-  const handleVolumeChange = useCallback((newVolume: number[]) => {
-    const vol = newVolume[0];
-    setLocalVolume(vol);
-    setIsMuted(vol === 0);
-    
-    if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
-      youtubePlayer.setVolume(vol);
-    } else if (currentMode === 'library') {
-      // Set the actual audio volume using the global store
-      setVolume(vol);
-    }
-  }, [currentMode, youtubePlayer, isYouTubePlayerReady, setVolume]);
-
-  const handleMute = useCallback(() => {
-    if (isMuted) {
-      setIsMuted(false);
-      if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
-        youtubePlayer.setVolume(localVolume);
-      } else if (currentMode === 'library') {
-        setVolume(localVolume);
-      }
-    } else {
-      setIsMuted(true);
-      if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
-        youtubePlayer.setVolume(0);
-      } else if (currentMode === 'library') {
-        setVolume(0);
-      }
-    }
-  }, [isMuted, currentMode, youtubePlayer, isYouTubePlayerReady, localVolume, setVolume]);
-
   const handleShuffle = useCallback(() => {
     setIsShuffled(!isShuffled);
   }, [isShuffled, setIsShuffled]);
@@ -225,19 +188,6 @@ export const UnifiedPlayer = () => {
       broadcastPlay(newTime);
     }
   };
-
-  // Set initial volume when YouTube player is ready
-  useEffect(() => {
-    if (currentMode === 'youtube' && youtubePlayer && isYouTubePlayerReady) {
-      youtubePlayer.setVolume(isMuted ? 0 : localVolume);
-    }
-  }, [youtubePlayer, isYouTubePlayerReady, localVolume, isMuted, currentMode]);
-
-  // Initialize local volume from global store
-  useEffect(() => {
-    const currentVolume = getVolume();
-    setLocalVolume(currentVolume);
-  }, [getVolume]);
 
   // Add keyboard event listeners for media controls
   useEffect(() => {
@@ -286,7 +236,7 @@ export const UnifiedPlayer = () => {
         case 'KeyM':
           if (event.ctrlKey) {
             event.preventDefault();
-            handleMute();
+            // Volume control removed
           }
           break;
         case 'KeyS':
@@ -304,15 +254,13 @@ export const UnifiedPlayer = () => {
         case 'ArrowUp':
           if (event.ctrlKey) {
             event.preventDefault();
-            const newVolume = Math.min(100, localVolume + 5);
-            handleVolumeChange([newVolume]);
+            // Volume control removed
           }
           break;
         case 'ArrowDown':
           if (event.ctrlKey) {
             event.preventDefault();
-            const newVolume = Math.max(0, localVolume - 5);
-            handleVolumeChange([newVolume]);
+            // Volume control removed
           }
           break;
       }
@@ -325,7 +273,7 @@ export const UnifiedPlayer = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [handlePlayPause, handleNext, handlePrevious, handleMute, handleShuffle, handleRepeat, handleVolumeChange, isPlaying, localVolume]);
+  }, [handlePlayPause, handleNext, handlePrevious, handleShuffle, handleRepeat, isPlaying]);
 
   return (
     <Card className="bg-neutral-900/80 backdrop-blur-xl border-neutral-800/50">
@@ -622,45 +570,12 @@ export const UnifiedPlayer = () => {
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Space</kbd> Play/Pause</div>
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+←</kbd> Previous</div>
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+→</kbd> Next</div>
-                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+↑</kbd> Volume Up</div>
-                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+↓</kbd> Volume Down</div>
-                          <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+M</kbd> Mute</div>
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+S</kbd> Shuffle</div>
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+R</kbd> Repeat</div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                </div>
-
-                {/* Volume Control */}
-                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-64 order-1 sm:order-2">
-                  <Button
-                    onClick={handleMute}
-                    variant="ghost"
-                    size="sm"
-                    className="text-neutral-400 hover:text-white flex-shrink-0"
-                  >
-                    {isMuted || localVolume === 0 ? (
-                      <VolumeX className="h-4 w-4" />
-                    ) : (
-                      <Volume2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                  
-                  <div className="flex-1">
-                    <Slider
-                      value={[isMuted ? 0 : localVolume]}
-                      onValueChange={handleVolumeChange}
-                      max={100}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <span className="text-xs text-neutral-500 w-6 sm:w-8 text-right">
-                    {isMuted ? 0 : localVolume}
-                  </span>
                 </div>
               </div>
             </div>

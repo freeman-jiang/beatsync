@@ -32,8 +32,6 @@ interface YouTubePlayerInstance {
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
   getCurrentTime: () => number;
   getDuration: () => number;
-  setVolume: (volume: number) => void;
-  getVolume: () => number;
 }
 
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
@@ -90,7 +88,6 @@ interface GlobalStateValues {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
-  volume: number;
 
   // Tracking properties
   playbackStartTime: number;
@@ -153,8 +150,6 @@ interface GlobalState extends GlobalStateValues {
   }) => void;
   setRepeatMode: (mode: "none" | "all" | "one") => void;
   setIsShuffled: (shuffled: boolean) => void;
-  setVolume: (volume: number) => void;
-  getVolume: () => number;
   
   startSpatialAudio: () => void;
   sendStopSpatialAudio: () => void;
@@ -235,7 +230,6 @@ const initialState: GlobalStateValues = {
   // These need to be initialized to prevent type errors
   audioPlayer: null,
   duration: 0,
-  volume: 0.5,
   reconnectionInfo: {
     isReconnecting: false,
     currentAttempt: 0,
@@ -1331,9 +1325,5 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setRepeatMode: (mode) => set({ repeatMode: mode }),
 
     setIsShuffled: (shuffled) => set({ isShuffled: shuffled }),
-
-    setVolume: (volume) => set({ volume }),
-
-    getVolume: () => get().volume,
   };
 });
