@@ -14,6 +14,7 @@ export const handlePlay: HandlerFunction<
   // Update playback state
   room.updatePlaybackSchedulePlay(message, serverTimeToExecute);
 
+  // Send scheduled action for precise timing
   sendBroadcast({
     server,
     roomId: ws.data.roomId,
@@ -21,7 +22,8 @@ export const handlePlay: HandlerFunction<
       type: "SCHEDULED_ACTION",
       scheduledAction: message,
       serverTimeToExecute: serverTimeToExecute,
-      // TODO: Make the longest RTT + some amount instead of hardcoded this breaks for long RTTs
     },
   });
+
+  // No state changes here.
 };

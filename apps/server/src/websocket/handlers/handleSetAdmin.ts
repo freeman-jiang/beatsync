@@ -1,5 +1,4 @@
 import { ExtractWSRequestFrom } from "@beatsync/shared";
-import { sendBroadcast } from "../../utils/responses";
 import { requireRoomAdmin } from "../middlewares";
 import { HandlerFunction } from "../types";
 
@@ -11,16 +10,5 @@ export const handleSetAdmin: HandlerFunction<
     targetClientId: message.clientId,
     isAdmin: message.isAdmin,
   });
-
-  sendBroadcast({
-    server,
-    roomId: ws.data.roomId,
-    message: {
-      type: "ROOM_EVENT",
-      event: {
-        type: "CLIENT_CHANGE",
-        clients: room.getClients(),
-      },
-    },
-  });
+  room.broadcastStateUpdate({ server });
 };

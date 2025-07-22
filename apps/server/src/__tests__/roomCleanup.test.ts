@@ -16,6 +16,7 @@ mock.module("../lib/r2", () => ({
     totalRooms: 0,
     totalFiles: 0,
   })),
+  getDefaultAudioSources: mock(async () => []),
 }));
 
 describe("Room Cleanup Timer", () => {
@@ -27,8 +28,8 @@ describe("Room Cleanup Timer", () => {
     }
   });
 
-  it("should schedule cleanup when room becomes empty", () => {
-    const room = globalManager.getOrCreateRoom("cleanup-test");
+  it("should schedule cleanup when room becomes empty", async () => {
+    const room = await globalManager.getOrCreateRoom("cleanup-test");
     let cleanupCalled = false;
 
     room.scheduleCleanup(async () => {
@@ -39,8 +40,8 @@ describe("Room Cleanup Timer", () => {
     expect(cleanupCalled).toBe(false);
   });
 
-  it("should cancel cleanup when new client joins", () => {
-    const room = globalManager.getOrCreateRoom("cancel-test");
+  it("should cancel cleanup when new client joins", async () => {
+    const room = await globalManager.getOrCreateRoom("cancel-test");
     let cleanupCalled = false;
 
     room.scheduleCleanup(async () => {
@@ -64,8 +65,8 @@ describe("Room Cleanup Timer", () => {
     expect(cleanupCalled).toBe(false);
   });
 
-  it("should replace cleanup timer when scheduled multiple times", () => {
-    const room = globalManager.getOrCreateRoom("replace-test");
+  it("should replace cleanup timer when scheduled multiple times", async () => {
+    const room = await globalManager.getOrCreateRoom("replace-test");
     let firstCleanupCalled = false;
     let secondCleanupCalled = false;
 
@@ -84,7 +85,7 @@ describe("Room Cleanup Timer", () => {
   });
 
   it("should cancel cleanup timer when room is cleaned up", async () => {
-    const room = globalManager.getOrCreateRoom("cleanup-cancel-test");
+    const room = await globalManager.getOrCreateRoom("cleanup-cancel-test");
     let cleanupCalled = false;
 
     room.scheduleCleanup(async () => {
@@ -100,7 +101,7 @@ describe("Room Cleanup Timer", () => {
 
   it("should cancel cleanup when client rejoins within grace period", async () => {
     const roomId = "rejoin-test";
-    const room = globalManager.getOrCreateRoom(roomId);
+    const room = await globalManager.getOrCreateRoom(roomId);
     let cleanupCalled = false;
 
     // Add a client
@@ -152,7 +153,7 @@ describe("Room Cleanup Timer", () => {
   });
 
   it("should execute cleanup after the specified delay", async () => {
-    const room = globalManager.getOrCreateRoom("timer-test");
+    const room = await globalManager.getOrCreateRoom("timer-test");
     let cleanupCalled = false;
 
     // Schedule cleanup with a very short delay

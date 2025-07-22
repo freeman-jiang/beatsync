@@ -5,8 +5,6 @@ import { HandlerFunction } from "../types";
 export const handleSetListeningSource: HandlerFunction<
   ExtractWSRequestFrom["SET_LISTENING_SOURCE"]
 > = async ({ ws, message, server }) => {
-  // Handle listening source update
   const { room } = requireRoom(ws);
-
-  room.updateListeningSource(message, server);
+  room.updateListeningSource(message, server); // handles its own broadcast
 };

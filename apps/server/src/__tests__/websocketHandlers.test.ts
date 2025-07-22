@@ -1,15 +1,33 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { handleOpen } from "../routes/websocketHandlers";
-import { globalManager } from "../managers/GlobalManager";
 import { Server } from "bun";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { globalManager } from "../managers/GlobalManager";
+import { handleOpen } from "../routes/websocketHandlers";
+
+// Create arrays to capture messages
+const capturedBroadcasts: any[] = [];
+const capturedUnicasts: any[] = [];
 
 // Mock the sendBroadcast and sendUnicast functions
 mock.module("../utils/responses", () => ({
-  sendBroadcast: mock(() => {}),
-  sendUnicast: mock(() => {}),
+  sendBroadcast: mock(({ server, roomId, message }) => {
+    capturedBroadcasts.push({ roomId, message });
+    // Actually call server.publish so the mock server can capture it
+    server.publish(roomId, JSON.stringify(message));
+  }),
+  sendUnicast: mock(({ ws, message }) => {
+    capturedUnicasts.push(message);
+    // Actually call ws.send so the mock ws can capture it
+    ws.send(JSON.stringify(message));
+  }),
   corsHeaders: {},
   jsonResponse: mock(() => new Response()),
   errorResponse: mock(() => new Response()),
+}));
+
+// Mock the R2 operations
+mock.module("../lib/r2", () => ({
+  deleteObjectsWithPrefix: mock(async () => ({ deletedCount: 0 })),
+  getDefaultAudioSources: mock(async () => []),
 }));
 
 describe("WebSocket Handlers (Simplified Tests)", () => {
@@ -19,13 +37,16 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
     for (const roomId of roomIds) {
       await globalManager.deleteRoom(roomId);
     }
+    // Clear captured messages
+    capturedBroadcasts.length = 0;
+    capturedUnicasts.length = 0;
   });
 
   describe("Audio Source Restoration", () => {
-    it("should send existing audio sources to newly joined client", () => {
+    it("should send existing audio sources to newly joined client", async () => {
       // Create a room with audio sources (simulating restored state)
       const roomId = "restored-room";
-      const room = globalManager.getOrCreateRoom(roomId);
+      const room = await globalManager.getOrCreateRoom(roomId);
       room.addAudioSource({ url: "https://example.com/song1.mp3" });
       room.addAudioSource({ url: "https://example.com/song2.mp3" });
 
@@ -41,43 +62,42 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
         send: mock((message: string) => {
           sentMessages.push(message);
         }),
+        readyState: 1, // WebSocket.OPEN
       };
 
+      // Track messages published to the room
+      const publishedMessages: any[] = [];
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock((roomId: string, message: string) => {
+          publishedMessages.push({ roomId, message });
+        }),
       } as unknown as Server;
 
       // Simulate client connection
-      handleOpen(mockWs as any, mockServer);
+      await handleOpen(mockWs as any, mockServer);
 
-      // Verify SET_AUDIO_SOURCES was sent
-      const audioSourcesMessage = sentMessages.find((msg) => {
-        try {
-          const parsed = JSON.parse(msg);
-          return (
-            parsed.type === "ROOM_EVENT" &&
-            parsed.event?.type === "SET_AUDIO_SOURCES"
-          );
-        } catch {
-          return false;
-        }
-      });
+      // No need to check sent/published messages individually
+      // as we're using the captured arrays from the mocked functions
 
-      expect(audioSourcesMessage).toBeTruthy();
+      // Check captured broadcasts for ROOM_STATE_UPDATE
+      const stateUpdateBroadcast = capturedBroadcasts.find(
+        (b) => b.message.type === "ROOM_STATE_UPDATE"
+      );
+
+      expect(stateUpdateBroadcast).toBeTruthy();
 
       // Verify the audio sources content
-      const parsed = JSON.parse(audioSourcesMessage!);
-      expect(parsed.event.sources).toHaveLength(2);
-      expect(parsed.event.sources).toEqual([
+      expect(stateUpdateBroadcast.message.state.audioSources).toHaveLength(2);
+      expect(stateUpdateBroadcast.message.state.audioSources).toEqual([
         { url: "https://example.com/song1.mp3" },
         { url: "https://example.com/song2.mp3" },
       ]);
     });
 
-    it("should not send audio sources for empty rooms", () => {
+    it("should not send audio sources for empty rooms", async () => {
       // Create an empty room
       const roomId = "new-room";
-      globalManager.getOrCreateRoom(roomId);
+      await globalManager.getOrCreateRoom(roomId);
 
       // Track messages sent to the WebSocket
       const sentMessages: string[] = [];
@@ -91,35 +111,33 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
         send: mock((message: string) => {
           sentMessages.push(message);
         }),
+        readyState: 1, // WebSocket.OPEN
       };
 
+      // Track messages published to the room
+      const publishedMessages: any[] = [];
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock((roomId: string, message: string) => {
+          publishedMessages.push({ roomId, message });
+        }),
       } as unknown as Server;
 
       // Simulate client connection
-      handleOpen(mockWs as any, mockServer);
+      await handleOpen(mockWs as any, mockServer);
 
-      // Verify no SET_AUDIO_SOURCES was sent
-      const audioSourcesMessage = sentMessages.find((msg) => {
-        try {
-          const parsed = JSON.parse(msg);
-          return (
-            parsed.type === "ROOM_EVENT" &&
-            parsed.event?.type === "SET_AUDIO_SOURCES"
-          );
-        } catch {
-          return false;
-        }
-      });
+      // Check captured broadcasts for ROOM_STATE_UPDATE
+      const stateUpdateBroadcast = capturedBroadcasts.find(
+        (b) => b.message.type === "ROOM_STATE_UPDATE"
+      );
 
-      expect(audioSourcesMessage).toBeUndefined();
+      expect(stateUpdateBroadcast).toBeTruthy();
+      expect(stateUpdateBroadcast.message.state.audioSources).toHaveLength(0);
     });
 
-    it("should handle multiple clients joining the same room", () => {
+    it("should handle multiple clients joining the same room", async () => {
       // Create a room with audio sources
       const roomId = "multi-client-room";
-      const room = globalManager.getOrCreateRoom(roomId);
+      const room = await globalManager.getOrCreateRoom(roomId);
       room.addAudioSource({ url: "https://example.com/shared.mp3" });
 
       // First client joins
@@ -134,6 +152,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
         send: mock((message: string) => {
           client1Messages.push(message);
         }),
+        readyState: 1, // WebSocket.OPEN
       };
 
       // Second client joins
@@ -148,42 +167,39 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
         send: mock((message: string) => {
           client2Messages.push(message);
         }),
+        readyState: 1, // WebSocket.OPEN
       };
 
+      // Track messages published to the room
+      const publishedMessages: any[] = [];
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock((roomId: string, message: string) => {
+          publishedMessages.push({ roomId, message });
+        }),
       } as unknown as Server;
 
       // Both clients connect
-      handleOpen(mockWs1 as any, mockServer);
-      handleOpen(mockWs2 as any, mockServer);
+      await handleOpen(mockWs1 as any, mockServer);
+      await handleOpen(mockWs2 as any, mockServer);
 
-      // Verify both clients received the audio sources
-      for (const messages of [client1Messages, client2Messages]) {
-        const audioSourcesMessage = messages.find((msg) => {
-          try {
-            const parsed = JSON.parse(msg);
-            return (
-              parsed.type === "ROOM_EVENT" &&
-              parsed.event?.type === "SET_AUDIO_SOURCES"
-            );
-          } catch {
-            return false;
-          }
-        });
+      // Check captured broadcasts for ROOM_STATE_UPDATE
+      // There should be 2 broadcasts (one for each client joining)
+      const stateUpdates = capturedBroadcasts.filter(
+        (b) => b.message.type === "ROOM_STATE_UPDATE"
+      );
 
-        expect(audioSourcesMessage).toBeTruthy();
-        const parsed = JSON.parse(audioSourcesMessage!);
-        expect(parsed.event.sources).toHaveLength(1);
-        expect(parsed.event.sources[0].url).toBe(
-          "https://example.com/shared.mp3"
-        );
-      }
+      expect(stateUpdates.length).toBeGreaterThanOrEqual(2);
+      // Check the last state update has the audio source
+      const lastUpdate = stateUpdates[stateUpdates.length - 1];
+      expect(lastUpdate.message.state.audioSources).toHaveLength(1);
+      expect(lastUpdate.message.state.audioSources[0].url).toBe(
+        "https://example.com/shared.mp3"
+      );
     });
   });
 
   describe("Client State Management", () => {
-    it("should add client to room on connection", () => {
+    it("should add client to room on connection", async () => {
       const roomId = "client-test-room";
       const mockWs = {
         data: {
@@ -193,17 +209,22 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
         },
         subscribe: mock(() => {}),
         send: mock(() => {}),
+        readyState: 1, // WebSocket.OPEN
       };
 
+      // Track messages published to the room
+      const publishedMessages: any[] = [];
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock((roomId: string, message: string) => {
+          publishedMessages.push({ roomId, message });
+        }),
       } as unknown as Server;
 
       // Verify room doesn't exist yet
       expect(globalManager.hasRoom(roomId)).toBe(false);
 
       // Connect client
-      handleOpen(mockWs as any, mockServer);
+      await handleOpen(mockWs as any, mockServer);
 
       // Verify room was created and client was added
       expect(globalManager.hasRoom(roomId)).toBe(true);

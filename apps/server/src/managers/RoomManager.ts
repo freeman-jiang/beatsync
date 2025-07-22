@@ -8,6 +8,7 @@ import {
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
   PositionType,
+  RoomStateUpdateType,
   RoomType,
   WSBroadcastType,
 } from "@beatsync/shared";
@@ -15,7 +16,7 @@ import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
 import { z } from "zod";
 import { SCHEDULE_TIME_MS } from "../config";
-import { deleteObjectsWithPrefix } from "../lib/r2";
+import { deleteObjectsWithPrefix, getDefaultAudioSources } from "../lib/r2";
 import { calculateGainFromDistanceToSource } from "../spatial";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { positionClientsInCircle } from "../utils/spatial";
@@ -64,6 +65,7 @@ type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
  * Each room has its own instance of RoomManager.
  */
 export class RoomManager {
+  private readonly roomId: string;
   private clients = new Map<string, ClientType>();
   private audioSources: AudioSourceType[] = [];
   private listeningSource: PositionType = {
@@ -83,11 +85,27 @@ export class RoomManager {
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "EVERYONE";
 
-  constructor(
-    private readonly roomId: string,
-    onClientCountChange?: () => void // To update the global # of clients active
-  ) {
+  private constructor({
+    roomId,
+    onClientCountChange,
+  }: {
+    roomId: string;
+    onClientCountChange?: () => void;
+  }) {
+    this.roomId = roomId;
     this.onClientCountChange = onClientCountChange;
+  }
+
+  static async create({
+    roomId,
+    onClientCountChange,
+  }: {
+    roomId: string;
+    onClientCountChange?: () => void;
+  }): Promise<RoomManager> {
+    const room = new RoomManager({ roomId, onClientCountChange });
+    room.audioSources = await getDefaultAudioSources("default/");
+    return room;
   }
 
   /**
@@ -254,7 +272,7 @@ export class RoomManager {
   /**
    * Reorder clients, moving the specified client to the front
    */
-  reorderClients(clientId: string, server: Server): ClientType[] {
+  moveClientToFront(clientId: string, server: Server): ClientType[] {
     const clients = Array.from(this.clients.values());
     const clientIndex = clients.findIndex(
       (client) => client.clientId === clientId
@@ -276,7 +294,7 @@ export class RoomManager {
     positionClientsInCircle(this.clients);
 
     // Update gains
-    this._calculateGainsAndBroadcast(server);
+    this._recalculateAndBroadcastSpatialConfig(server);
 
     return clients;
   }
@@ -292,7 +310,7 @@ export class RoomManager {
     this.clients.set(clientId, client);
 
     // Update spatial audio config
-    this._calculateGainsAndBroadcast(server);
+    this._recalculateAndBroadcastSpatialConfig(server);
   }
 
   /**
@@ -300,7 +318,7 @@ export class RoomManager {
    */
   updateListeningSource(position: PositionType, server: Server): void {
     this.listeningSource = position;
-    this._calculateGainsAndBroadcast(server);
+    this._recalculateAndBroadcastSpatialConfig(server);
   }
 
   /**
@@ -513,10 +531,31 @@ export class RoomManager {
     }
   }
 
+  broadcastStateUpdate({ server }: { server: Server }): void {
+    const state = this._serializeState();
+    sendBroadcast({ server, roomId: this.roomId, message: state });
+  }
+
+  /**
+   * Get complete room state for broadcasting (minus spatial audio)
+   */
+  private _serializeState(): RoomStateUpdateType {
+    // Notably does not include listening source or playback state
+    return {
+      type: "ROOM_STATE_UPDATE",
+      state: {
+        roomId: this.roomId,
+        clients: Array.from(this.clients.values()),
+        audioSources: this.audioSources,
+        playbackControlsPermissions: this.playbackControlsPermissions,
+      },
+    };
+  }
+
   /**
    * Calculate gains and broadcast to all clients
    */
-  private _calculateGainsAndBroadcast(server: Server): void {
+  private _recalculateAndBroadcastSpatialConfig(server: Server): void {
     const clients = Array.from(this.clients.values());
 
     const gains = Object.fromEntries(

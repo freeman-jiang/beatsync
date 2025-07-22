@@ -11,9 +11,14 @@ export const handleNTPRequest: HandlerFunction<
     return;
   }
 
-  // Update heartbeat for client
-  const { room } = requireRoom(ws);
-  room.processNTPRequestFrom(ws.data.clientId);
+  // NTP requests can arrive before room creation completes, so we need to handle this gracefully
+  try {
+    const { room } = requireRoom(ws);
+    room.processNTPRequestFrom(ws.data.clientId);
+  } catch (error) {
+    // Room doesn't exist yet - this is expected during initial connection
+    // We still send the NTP response to maintain clock sync
+  }
 
   sendUnicast({
     ws,

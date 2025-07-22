@@ -1,11 +1,8 @@
-import {
-  WSRequestType,
-  ClientActionEnum,
-  ExtractWSRequestFrom,
-} from "@beatsync/shared";
-import { Server, ServerWebSocket } from "bun";
-import { WSData } from "../utils/websocket";
+import type { ExtractWSRequestFrom, WSRequestType } from "@beatsync/shared";
+import { ClientActionEnum } from "@beatsync/shared";
+import type { Server, ServerWebSocket } from "bun";
 import { z } from "zod";
+import type { WSData } from "../utils/websocket";
 
 // Base handler function type
 export type HandlerFunction<T = WSRequestType> = (data: {

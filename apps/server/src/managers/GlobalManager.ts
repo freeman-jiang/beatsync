@@ -23,11 +23,15 @@ export class GlobalManager {
 
   /**
    * Get or create a room. If the room doesn't exist, it will be created.
+   * This is asynchronous because at the moment of creation the room gets all the default audios
    */
-  getOrCreateRoom(roomId: string): RoomManager {
+  async getOrCreateRoom(roomId: string): Promise<RoomManager> {
     let room = this.rooms.get(roomId);
     if (!room) {
-      room = new RoomManager(roomId, () => this.markActiveUserCountDirty());
+      room = await RoomManager.create({
+        roomId,
+        onClientCountChange: () => this.isDirty = true,
+      });
       this.rooms.set(roomId, room);
     }
     return room;

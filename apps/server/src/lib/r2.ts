@@ -7,7 +7,10 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { R2_AUDIO_FILE_NAME_DELIMITER } from "@beatsync/shared";
+import {
+  AudioSourceType,
+  R2_AUDIO_FILE_NAME_DELIMITER,
+} from "@beatsync/shared";
 import { config } from "dotenv";
 import sanitize = require("sanitize-filename");
 
@@ -456,4 +459,17 @@ export async function cleanupOrphanedRooms(
     console.error("❌ Orphaned room cleanup failed:", error);
     throw error;
   }
+}
+
+export async function getDefaultAudioSources(
+  prefix: string
+): Promise<AudioSourceType[]> {
+  const objects = await listObjectsWithPrefix(prefix);
+  if (!objects || objects.length === 0) {
+    return [];
+  }
+
+  return objects.map((obj) => ({
+    url: `${S3_CONFIG.PUBLIC_URL}/${obj.Key}`,
+  }));
 }

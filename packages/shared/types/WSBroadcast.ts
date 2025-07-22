@@ -1,39 +1,22 @@
 import { z } from "zod";
-import { PauseActionSchema, PlayActionSchema } from "./WSRequest";
+import {
+  PauseActionSchema,
+  PlayActionSchema,
+  PlaybackControlsPermissionsEnum,
+} from "./WSRequest";
 import { AudioSourceSchema, PositionSchema } from "./basic";
 
-// ROOM EVENTS
-
-// Client change
+// Client schema for room state
 const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
-  ws: z.any(),
+  ws: z.any(), // Just gets serialized as {}
   rtt: z.number().nonnegative().default(0), // Round-trip time in milliseconds
   position: PositionSchema,
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
   isAdmin: z.boolean().default(false), // Admin status
 });
 export type ClientType = z.infer<typeof ClientSchema>;
-const ClientChangeMessageSchema = z.object({
-  type: z.literal("CLIENT_CHANGE"),
-  clients: z.array(ClientSchema),
-});
-
-// Set audio sources
-const SetAudioSourcesSchema = z.object({
-  type: z.literal("SET_AUDIO_SOURCES"),
-  sources: z.array(AudioSourceSchema),
-});
-export type SetAudioSourcesType = z.infer<typeof SetAudioSourcesSchema>;
-
-const RoomEventSchema = z.object({
-  type: z.literal("ROOM_EVENT"),
-  event: z.discriminatedUnion("type", [
-    ClientChangeMessageSchema,
-    SetAudioSourcesSchema,
-  ]),
-});
 
 // SCHEDULED ACTIONS
 const SpatialConfigSchema = z.object({
@@ -52,6 +35,7 @@ const StopSpatialAudioSchema = z.object({
 });
 export type StopSpatialAudioType = z.infer<typeof StopSpatialAudioSchema>;
 
+// Separate from the room state update because it's not part of the room state
 export const ScheduledActionSchema = z.object({
   type: z.literal("SCHEDULED_ACTION"),
   serverTimeToExecute: z.number(),
@@ -63,9 +47,24 @@ export const ScheduledActionSchema = z.object({
   ]),
 });
 
-// Export both broadcast types
+const SerializedRoomStateSchema = z.object({
+  roomId: z.string(),
+  clients: z.array(ClientSchema),
+  audioSources: z.array(AudioSourceSchema),
+  playbackControlsPermissions: PlaybackControlsPermissionsEnum,
+});
+export type SerializedRoomStateType = z.infer<typeof SerializedRoomStateSchema>;
+
+// Complete room state update
+const RoomStateUpdateSchema = z.object({
+  type: z.literal("ROOM_STATE_UPDATE"),
+  state: SerializedRoomStateSchema,
+});
+export type RoomStateUpdateType = z.infer<typeof RoomStateUpdateSchema>;
+
+// Export broadcast types - only scheduled actions and room state updates
 export const WSBroadcastSchema = z.discriminatedUnion("type", [
   ScheduledActionSchema,
-  RoomEventSchema,
+  RoomStateUpdateSchema,
 ]);
 export type WSBroadcastType = z.infer<typeof WSBroadcastSchema>;
