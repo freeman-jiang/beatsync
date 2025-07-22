@@ -954,8 +954,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     resetStore: () => {
       const state = get();
 
-      // Preserve the audio cache before reset
-      const preservedAudioCache = state.audioCache;
+      // // Preserve the audio cache before reset
+      // const preservedAudioCache = state.audioCache;
 
       // Stop any playing audio
       if (state.isPlaying && state.audioPlayer) {
@@ -979,7 +979,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Reset state to initial values but preserve cache
       set({
         ...initialState,
-        audioCache: preservedAudioCache,
       });
 
       // Reinitialize audio from scratch
