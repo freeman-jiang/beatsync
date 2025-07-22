@@ -45,6 +45,9 @@ export async function dispatchMessage({
       server,
     });
   } catch (error) {
-    console.error(`[${ws.data.roomId}] Websocket handler threw error:"`, error);
+    console.error(
+      `[${ws.data.roomId}] Websocket handler ${handler.description} threw error:"`,
+      error
+    );
   }
 }
