@@ -65,6 +65,7 @@ type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
  * Each room has its own instance of RoomManager.
  */
 export class RoomManager {
+  private readonly roomId: string;
   private clients = new Map<string, ClientType>();
   private audioSources: AudioSourceType[] = [];
   private listeningSource: PositionType = {
@@ -84,15 +85,25 @@ export class RoomManager {
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "EVERYONE";
 
-  private constructor(
-    private readonly roomId: string,
-    onClientCountChange?: () => void // To update the global # of clients active
-  ) {
+  private constructor({
+    roomId,
+    onClientCountChange,
+  }: {
+    roomId: string;
+    onClientCountChange?: () => void;
+  }) {
+    this.roomId = roomId;
     this.onClientCountChange = onClientCountChange;
   }
 
-  static async create(roomId: string): Promise<RoomManager> {
-    const room = new RoomManager(roomId);
+  static async create({
+    roomId,
+    onClientCountChange,
+  }: {
+    roomId: string;
+    onClientCountChange?: () => void;
+  }): Promise<RoomManager> {
+    const room = new RoomManager({ roomId, onClientCountChange });
     room.audioSources = await getDefaultAudioSources("default/");
     return room;
   }

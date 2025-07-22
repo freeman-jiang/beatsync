@@ -28,7 +28,10 @@ export class GlobalManager {
   async getOrCreateRoom(roomId: string): Promise<RoomManager> {
     let room = this.rooms.get(roomId);
     if (!room) {
-      room = await RoomManager.create(roomId);
+      room = await RoomManager.create({
+        roomId,
+        onClientCountChange: () => this.isDirty = true,
+      });
       this.rooms.set(roomId, room);
     }
     return room;
