@@ -10,7 +10,7 @@ import { AudioSourceSchema, PositionSchema } from "./basic";
 const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
-  ws: z.any(),
+  ws: z.any(), // Just gets serialized as {}
   rtt: z.number().nonnegative().default(0), // Round-trip time in milliseconds
   position: PositionSchema,
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
@@ -47,16 +47,18 @@ export const ScheduledActionSchema = z.object({
   ]),
 });
 
+const SerializedRoomStateSchema = z.object({
+  roomId: z.string(),
+  clients: z.array(ClientSchema),
+  audioSources: z.array(AudioSourceSchema),
+  playbackControlsPermissions: PlaybackControlsPermissionsEnum,
+});
+export type SerializedRoomStateType = z.infer<typeof SerializedRoomStateSchema>;
+
 // Complete room state update
 const RoomStateUpdateSchema = z.object({
   type: z.literal("ROOM_STATE_UPDATE"),
-  state: z.object({
-    roomId: z.string(),
-    clients: z.array(ClientSchema),
-    audioSources: z.array(AudioSourceSchema),
-    listeningSource: PositionSchema,
-    playbackControlsPermissions: PlaybackControlsPermissionsEnum,
-  }),
+  state: SerializedRoomStateSchema,
 });
 export type RoomStateUpdateType = z.infer<typeof RoomStateUpdateSchema>;
 

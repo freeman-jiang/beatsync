@@ -1,7 +1,8 @@
 "use client";
+import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
+import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { NTPMeasurement } from "@/utils/ntp";
 import {
   epochNow,
@@ -9,7 +10,6 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
-import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -56,9 +56,6 @@ export const WebSocketManager = ({
     (state) => state.processSpatialConfig
   );
   const addNTPMeasurement = useGlobalStore((state) => state.addNTPMeasurement);
-  const setConnectedClients = useGlobalStore(
-    (state) => state.setConnectedClients
-  );
   const isSpatialAudioEnabled = useGlobalStore(
     (state) => state.isSpatialAudioEnabled
   );
@@ -68,9 +65,7 @@ export const WebSocketManager = ({
   const processStopSpatialAudio = useGlobalStore(
     (state) => state.processStopSpatialAudio
   );
-  const handleSetAudioSources = useGlobalStore(
-    (state) => state.handleSetAudioSources
-  );
+  const setRoomState = useGlobalStore((state) => state.setRoomState);
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
@@ -120,7 +115,7 @@ export const WebSocketManager = ({
     };
 
     // This onclose event will only fire on unwanted websocket disconnects:
-    // - Network chnage
+    // - Network change
     // - Server restart
     // So we should try to reconnect.
     ws.onclose = () => {
@@ -146,15 +141,6 @@ export const WebSocketManager = ({
 
         // Mark that we received the NTP response
         markNTPResponseReceived();
-      } else if (response.type === "ROOM_EVENT") {
-        const { event } = response;
-        console.log("Room event:", event);
-
-        if (event.type === "CLIENT_CHANGE") {
-          setConnectedClients(event.clients);
-        } else if (event.type === "SET_AUDIO_SOURCES") {
-          handleSetAudioSources({ sources: event.sources });
-        }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
         console.log("Received scheduled action:", response);
@@ -180,6 +166,8 @@ export const WebSocketManager = ({
         }
       } else if (response.type === "SET_CLIENT_ID") {
         setUserId(response.clientId);
+      } else if (response.type === "ROOM_STATE_UPDATE") {
+        setRoomState(response.state);
       } else {
         console.log("Unknown response type:", response);
       }

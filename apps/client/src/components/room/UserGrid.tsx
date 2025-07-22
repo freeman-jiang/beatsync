@@ -168,7 +168,7 @@ export const UserGrid = () => {
   );
 
   // Use clients from global store
-  const clients = useGlobalStore((state) => state.connectedClients);
+  const clients = useGlobalStore((state) => state.roomState.clients);
 
   // State to track dragging status
   const isDraggingListeningSource = useGlobalStore(

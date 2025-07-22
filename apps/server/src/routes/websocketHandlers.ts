@@ -5,7 +5,10 @@ import { sendUnicast } from "../utils/responses";
 import { WSData } from "../utils/websocket";
 import { dispatchMessage } from "../websocket/dispatch";
 
-export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
+export const handleOpen = async (
+  ws: ServerWebSocket<WSData>,
+  server: Server
+) => {
   console.log(
     `WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`
   );
@@ -20,7 +23,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   const { roomId } = ws.data;
   ws.subscribe(roomId);
 
-  const room = globalManager.getOrCreateRoom(roomId);
+  const room = await globalManager.getOrCreateRoom(roomId);
   room.addClient(ws);
   room.broadcastStateUpdate({ server });
 };

@@ -13,7 +13,8 @@ import { usePostHog } from "posthog-js/react";
 
 export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const posthog = usePostHog();
-  const audioSources = useGlobalStore((state) => state.audioSources);
+  const audioSources = useGlobalStore((state) => state.roomState.audioSources);
+  const audioCache = useGlobalStore((state) => state.audioCache);
   const selectedAudioId = useGlobalStore((state) => state.selectedAudioUrl);
   const setSelectedAudioId = useGlobalStore(
     (state) => state.setSelectedAudioUrl
@@ -25,6 +26,11 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
 
   const handleItemClick = (source: AudioSourceType) => {
+    // Don't allow clicking on unloaded tracks
+    if (!audioCache.has(source.url)) {
+      return;
+    }
+
     if (source.url === selectedAudioId) {
       if (isPlaying) {
         broadcastPause();
@@ -55,6 +61,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
             {audioSources.map((source, index) => {
               const isSelected = source.url === selectedAudioId;
               const isPlayingThis = isSelected && isPlaying;
+              const isLoaded = audioCache.has(source.url);
 
               return (
                 <motion.div
@@ -70,40 +77,79 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     "flex items-center pl-2 pr-4 py-3 rounded-md group transition-colors select-none",
                     isSelected
                       ? "text-white hover:bg-neutral-700/20"
-                      : "text-neutral-300 hover:bg-neutral-700/20"
+                      : "text-neutral-300 hover:bg-neutral-700/20",
+                    !isLoaded && "opacity-60 cursor-not-allowed"
                   )}
                   onClick={() => handleItemClick(source)}
                 >
                   {/* Track number / Play icon */}
                   <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center relative cursor-default select-none">
-                    {/* Play/Pause button (shown on hover) */}
-                    <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
-                      {isSelected && isPlaying ? (
-                        <Pause className="fill-current size-3.5 stroke-1" />
-                      ) : (
-                        <Play className="fill-current size-3.5" />
-                      )}
-                    </button>
-
-                    {/* Playing indicator or track number (hidden on hover) */}
-                    <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
-                      {isPlayingThis ? (
-                        <div className="flex items-end justify-center h-4 w-4 gap-[2px]">
-                          <div className="bg-primary-500 w-[2px] h-[40%] animate-[sound-wave-1_1.2s_ease-in-out_infinite]"></div>
-                          <div className="bg-primary-500 w-[2px] h-[80%] animate-[sound-wave-2_1.4s_ease-in-out_infinite]"></div>
-                          <div className="bg-primary-500 w-[2px] h-[60%] animate-[sound-wave-3_1s_ease-in-out_infinite]"></div>
-                        </div>
-                      ) : (
-                        <span
-                          className={cn(
-                            "text-sm group-hover:opacity-0 select-none",
-                            isSelected ? "text-primary-400" : "text-neutral-400"
+                    {isLoaded ? (
+                      <>
+                        {/* Play/Pause button (shown on hover) */}
+                        <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
+                          {isSelected && isPlaying ? (
+                            <Pause className="fill-current size-3.5 stroke-1" />
+                          ) : (
+                            <Play className="fill-current size-3.5" />
                           )}
-                        >
-                          {index + 1}
-                        </span>
-                      )}
-                    </div>
+                        </button>
+
+                        {/* Playing indicator or track number (hidden on hover) */}
+                        <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
+                          {isPlayingThis ? (
+                            <div className="flex items-end justify-center h-4 w-4 gap-[2px]">
+                              <div className="bg-primary-500 w-[2px] h-[40%] animate-[sound-wave-1_1.2s_ease-in-out_infinite]"></div>
+                              <div className="bg-primary-500 w-[2px] h-[80%] animate-[sound-wave-2_1.4s_ease-in-out_infinite]"></div>
+                              <div className="bg-primary-500 w-[2px] h-[60%] animate-[sound-wave-3_1s_ease-in-out_infinite]"></div>
+                            </div>
+                          ) : (
+                            <span
+                              className={cn(
+                                "text-sm group-hover:opacity-0 select-none",
+                                isSelected
+                                  ? "text-primary-400"
+                                  : "text-neutral-400"
+                              )}
+                            >
+                              {index + 1}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      /* Loading indicator */
+                      <div className="w-4 h-4 animate-spin">
+                        <svg className="w-full h-full" viewBox="0 0 24 24">
+                          {/* Background circle */}
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            className="text-neutral-800"
+                          />
+                          {/* Animated arc */}
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="text-green-500"
+                            strokeDasharray="31.4"
+                            strokeDashoffset="23.55"
+                            style={{
+                              transformOrigin: "center",
+                            }}
+                          />
+                        </svg>
+                      </div>
+                    )}
                   </div>
 
                   {/* Track name */}
@@ -111,7 +157,8 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     <div
                       className={cn(
                         "font-medium text-sm truncate select-none",
-                        isSelected ? "text-primary-400" : ""
+                        isSelected && isLoaded && "text-primary-400",
+                        !isLoaded && "text-neutral-500"
                       )}
                     >
                       {extractFileNameFromUrl(source.url)}
@@ -121,7 +168,9 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                   {/* Duration & Optional Re-upload Menu */}
                   <div className="ml-4 flex items-center gap-2">
                     <div className="text-xs text-neutral-500 select-none">
-                      {formatTime(getAudioDuration({ url: source.url }))}
+                      {isLoaded
+                        ? formatTime(getAudioDuration({ url: source.url }))
+                        : "--:--"}
                     </div>
 
                     {/* Dropdown for re-uploading - Always shown */}

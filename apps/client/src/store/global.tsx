@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { fetchDefaultAudioSources } from "@/lib/api";
+import { extractFileNameFromUrl } from "@/lib/utils";
 import {
   NTPMeasurement,
   _sendNTPRequest,
@@ -10,17 +11,16 @@ import { sendWSRequest } from "@/utils/ws";
 import {
   AudioSourceType,
   ClientActionEnum,
-  ClientType,
   GRID,
-  PositionType,
-  SpatialConfigType,
   NTP_CONSTANTS,
+  PositionType,
+  SerializedRoomStateType,
+  SpatialConfigType,
 } from "@beatsync/shared";
+import { Mutex } from "async-mutex";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
-import { Mutex } from "async-mutex";
-import { extractFileNameFromUrl } from "@/lib/utils";
 
 export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
@@ -39,7 +39,6 @@ enum AudioPlayerError {
 // Interface for just the state values (without methods)
 interface GlobalStateValues {
   // Audio Sources
-  audioSources: AudioSourceType[]; // Playlist order, server-synced, based on URL
   audioCache: Map<string, AudioBuffer>; // URL -> AudioBuffer
   isInitingSystem: boolean;
   hasUserStartedSystem: boolean; // Track if user has clicked "Start System" at least once
@@ -54,9 +53,6 @@ interface GlobalStateValues {
   listeningSourcePosition: PositionType;
   isDraggingListeningSource: boolean;
   isSpatialAudioEnabled: boolean;
-
-  // Connected clients
-  connectedClients: ClientType[];
 
   // NTP
   ntpMeasurements: NTPMeasurement[];
@@ -82,12 +78,14 @@ interface GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   };
+
+  // Overall room state - serialized and sent by server
+  roomState: SerializedRoomStateType;
 }
 
 interface GlobalState extends GlobalStateValues {
   // Methods
   getAudioDuration: ({ url }: { url: string }) => number;
-  handleSetAudioSources: ({ sources }: { sources: AudioSourceType[] }) => void;
 
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
@@ -110,7 +108,6 @@ interface GlobalState extends GlobalStateValues {
   setIsDraggingListeningSource: (isDragging: boolean) => void;
   setIsSpatialAudioEnabled: (isEnabled: boolean) => void;
   processStopSpatialAudio: () => void;
-  setConnectedClients: (clients: ClientType[]) => void;
   sendNTPRequest: () => void;
   resetNTPConfig: () => void;
   addNTPMeasurement: (measurement: NTPMeasurement) => void;
@@ -133,12 +130,13 @@ interface GlobalState extends GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   }) => void;
+
+  setRoomState: (roomState: SerializedRoomStateType) => void;
 }
 
 // Define initial state values
 const initialState: GlobalStateValues = {
   // Audio Sources
-  audioSources: [],
   audioCache: new Map(),
 
   // Audio playback state
@@ -158,7 +156,6 @@ const initialState: GlobalStateValues = {
   // Network state
   socket: null,
   lastMessageReceivedTime: null,
-  connectedClients: [],
 
   // NTP state
   ntpMeasurements: [],
@@ -178,6 +175,14 @@ const initialState: GlobalStateValues = {
     isReconnecting: false,
     currentAttempt: 0,
     maxAttempts: 0,
+  },
+
+  // Room state
+  roomState: {
+    roomId: "",
+    clients: [],
+    audioSources: [],
+    playbackControlsPermissions: "EVERYONE",
   },
 };
 
@@ -239,9 +244,28 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     const { audioBuffer } = await loadAudioSourceUrl({ url, audioContext });
 
     set((currentState) => ({
-      audioSources: [...currentState.audioSources, { url }],
       audioCache: new Map([...currentState.audioCache, [url, audioBuffer]]),
     }));
+  };
+
+  const _processAudioSources = async (sources: AudioSourceType[]) => {
+    // Wait for audio initialization to complete if it's in progress
+    if (initializationMutex.isLocked()) {
+      await initializationMutex.waitForUnlock();
+    }
+
+    const state = get();
+
+    // Find only new sources that have not already been loaded and then load them with loadAudioSourceUrl
+    const newSources = sources.filter(
+      (source) => !state.audioCache.has(source.url)
+    );
+
+    console.log("newSources", newSources);
+
+    for (const source of newSources) {
+      await processNewAudioSource({ url: source.url });
+    }
   };
 
   // Function to initialize or reinitialize audio system
@@ -383,7 +407,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const audioIndex = state.findAudioIndexByUrl(url);
       let newDuration = 0;
       if (audioIndex !== null) {
-        const audioSource = state.audioSources[audioIndex];
+        const audioSource = state.roomState!.audioSources[audioIndex];
         const audioBuffer = state.audioCache.get(audioSource.url);
         if (!audioBuffer)
           throw new Error(
@@ -409,7 +433,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     findAudioIndexByUrl: (url: string) => {
       const state = get();
       // Look through the audioSources for a matching ID
-      const index = state.audioSources.findIndex(
+      const index = state.roomState.audioSources.findIndex(
         (source) => source.url === url
       );
       return index >= 0 ? index : null; // Return null if not found
@@ -428,21 +452,32 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         `Playing track ${data.audioSource} at ${data.trackTimeSeconds} seconds in ${waitTimeSeconds}`
       );
 
-      // Update the selected audio ID
+      // Update the selected audio ID and duration
       if (data.audioSource !== state.selectedAudioUrl) {
-        set({ selectedAudioUrl: data.audioSource });
+        const audioBuffer = state.audioCache.get(data.audioSource);
+        const newDuration = audioBuffer ? audioBuffer.duration : 0;
+        set({
+          selectedAudioUrl: data.audioSource,
+          duration: newDuration,
+        });
       }
 
-      // Find the index of the audio to play
+      // Find the index of the audio to play - now this will always exist
       const audioIndex = state.findAudioIndexByUrl(data.audioSource);
-      if (audioIndex === null) {
+
+      // Check if audio buffer is actually loaded
+      const isAudioLoaded = state.audioCache.has(data.audioSource);
+
+      if (audioIndex === null || !isAudioLoaded) {
         // Pause current track to prevent interference
         if (state.isPlaying) {
           state.pauseAudio({ when: 0 });
         }
 
-        console.error(
-          `Cannot play audio: No index found: ${data.audioSource} ${data.trackTimeSeconds}`
+        console.warn(
+          `Cannot play audio: ${
+            audioIndex === null ? "No index found" : "Audio buffer not loaded"
+          }: ${data.audioSource} ${data.trackTimeSeconds}`
         );
         toast.error(
           `"${extractFileNameFromUrl(data.audioSource)}" not loaded yet...`,
@@ -456,7 +491,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
             ws: socket,
             request: { type: ClientActionEnum.enum.SYNC },
           });
-        }, 1000);
+        }, 100);
 
         return;
       }
@@ -487,8 +522,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Use selected audio or fall back to first audio source
       let audioId = state.selectedAudioUrl;
-      if (!audioId && state.audioSources.length > 0) {
-        audioId = state.audioSources[0].url;
+      if (!audioId && state.roomState.audioSources.length > 0) {
+        audioId = state.roomState.audioSources[0].url;
       }
 
       if (!audioId) {
@@ -659,13 +694,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       const startTime = audioContext.currentTime + data.when;
       const audioIndex = data.audioIndex ?? 0;
-      const audioBuffer = state.audioCache.get(
-        state.audioSources[audioIndex].url
-      );
-      if (!audioBuffer)
-        throw new Error(
-          `Audio buffer not decoded for url: ${state.audioSources[audioIndex].url}`
-        );
+      const audioSource = state.roomState.audioSources[audioIndex];
+      if (!audioSource) {
+        console.error(`No audio source found at index ${audioIndex}`);
+        return;
+      }
+
+      const audioBuffer = state.audioCache.get(audioSource.url);
+      if (!audioBuffer) {
+        console.error(`Audio buffer not decoded for url: ${audioSource.url}`);
+        return;
+      }
 
       // Validate offset is within track duration to prevent sync failures
       if (data.offset >= audioBuffer.duration) {
@@ -813,13 +852,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ isDraggingListeningSource: isDragging });
     },
 
-    setConnectedClients: (clients) => set({ connectedClients: clients }),
-
     skipToNextTrack: (isAutoplay = false) => {
       // Accept optional isAutoplay flag
       const state = get();
       const {
-        audioSources: audioSources,
+        roomState: { audioSources },
         selectedAudioUrl: selectedAudioId,
         isShuffled,
       } = state;
@@ -861,7 +898,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     skipToPreviousTrack: () => {
       const state = get();
       const {
-        audioSources,
+        roomState: { audioSources },
         selectedAudioUrl: selectedAudioId /* isShuffled */,
       } = state; // Note: isShuffled is NOT used here currently
       if (audioSources.length === 0) return;
@@ -913,26 +950,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return audioBuffer.duration;
     },
 
-    async handleSetAudioSources({ sources }) {
-      // Wait for audio initialization to complete if it's in progress
-      if (initializationMutex.isLocked()) {
-        await initializationMutex.waitForUnlock();
-      }
-
-      const state = get();
-
-      // Find only new sources that have not already been loaded and then load them with loadAudioSourceUrl
-      const newSources = sources.filter(
-        (source) => !state.audioCache.has(source.url)
-      );
-
-      console.log("newSources", newSources);
-
-      for (const source of newSources) {
-        await processNewAudioSource({ url: source.url });
-      }
-    },
-
     // Reset function to clean up state
     resetStore: () => {
       const state = get();
@@ -969,5 +986,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       initializeAudioExclusively();
     },
     setReconnectionInfo: (info) => set({ reconnectionInfo: info }),
+
+    setRoomState: (roomState) => {
+      // Set the room state first
+      set({ roomState });
+
+      // Then process new audio sources if there are any
+      if (roomState.audioSources.length > 0) {
+        _processAudioSources(roomState.audioSources);
+      }
+    },
   };
 });

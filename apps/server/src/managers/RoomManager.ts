@@ -16,7 +16,7 @@ import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
 import { z } from "zod";
 import { SCHEDULE_TIME_MS } from "../config";
-import { deleteObjectsWithPrefix } from "../lib/r2";
+import { deleteObjectsWithPrefix, getDefaultAudioSources } from "../lib/r2";
 import { calculateGainFromDistanceToSource } from "../spatial";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { positionClientsInCircle } from "../utils/spatial";
@@ -84,11 +84,17 @@ export class RoomManager {
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "EVERYONE";
 
-  constructor(
+  private constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
   ) {
     this.onClientCountChange = onClientCountChange;
+  }
+
+  static async create(roomId: string): Promise<RoomManager> {
+    const room = new RoomManager(roomId);
+    room.audioSources = await getDefaultAudioSources("default/");
+    return room;
   }
 
   /**
@@ -523,13 +529,13 @@ export class RoomManager {
    * Get complete room state for broadcasting (minus spatial audio)
    */
   private _serializeState(): RoomStateUpdateType {
+    // Notably does not include listening source or playback state
     return {
       type: "ROOM_STATE_UPDATE",
       state: {
         roomId: this.roomId,
         clients: Array.from(this.clients.values()),
         audioSources: this.audioSources,
-        listeningSource: this.listeningSource,
         playbackControlsPermissions: this.playbackControlsPermissions,
       },
     };

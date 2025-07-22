@@ -22,7 +22,8 @@ export const Player = () => {
     (state) => state.getCurrentTrackPosition
   );
   const selectedAudioId = useGlobalStore((state) => state.selectedAudioUrl);
-  const audioSources = useGlobalStore((state) => state.audioSources);
+  const audioSources = useGlobalStore((state) => state.roomState.audioSources);
+  const audioCache = useGlobalStore((state) => state.audioCache);
   const currentTime = useGlobalStore((state) => state.currentTime);
   const skipToNextTrack = useGlobalStore((state) => state.skipToNextTrack);
   const skipToPreviousTrack = useGlobalStore(
@@ -30,27 +31,23 @@ export const Player = () => {
   );
   const isShuffled = useGlobalStore((state) => state.isShuffled);
   const toggleShuffle = useGlobalStore((state) => state.toggleShuffle);
+  const duration = useGlobalStore((state) => state.duration);
 
   // Local state for slider
   const [sliderPosition, setSliderPosition] = useState(0);
-  const [trackDuration, setTrackDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
+  // Check if current track is loaded
+  const isCurrentTrackLoaded = selectedAudioId
+    ? audioCache.has(selectedAudioId)
+    : false;
 
-  // Find the selected audio source and its duration
+  // Reset slider position when track changes
   useEffect(() => {
-    if (!selectedAudioId) return;
-
-    const audioSource = audioSources.find(
-      (source) => source.url === selectedAudioId
-    );
-    if (audioSource) {
-      setTrackDuration(getAudioDuration({ url: audioSource.url }));
-      // Reset slider position when track changes
+    if (selectedAudioId) {
       setSliderPosition(0);
     }
-  }, [selectedAudioId, audioSources, getAudioDuration]);
+  }, [selectedAudioId]);
 
   // Sync with currentTime when it changes (e.g., after pausing)
   useEffect(() => {
@@ -97,7 +94,7 @@ export const Player = () => {
       posthog.capture("scrub_confirm", {
         position: newPosition,
         track_id: selectedAudioId,
-        track_duration: trackDuration,
+        track_duration: duration,
       });
     },
     [
@@ -106,11 +103,16 @@ export const Player = () => {
       setSliderPosition,
       posthog,
       selectedAudioId,
-      trackDuration,
+      duration,
     ]
   );
 
   const handlePlay = useCallback(() => {
+    // Don't allow play if track isn't loaded
+    if (!isCurrentTrackLoaded) {
+      return;
+    }
+
     if (isPlaying) {
       broadcastPause();
       posthog.capture("pause_track", { track_id: selectedAudioId });
@@ -128,6 +130,7 @@ export const Player = () => {
     sliderPosition,
     posthog,
     selectedAudioId,
+    isCurrentTrackLoaded,
   ]);
 
   const handleSkipBack = useCallback(() => {
@@ -209,8 +212,13 @@ export const Player = () => {
             <SkipBack className="w-7 h-7 md:w-5 md:h-5 fill-current" />
           </button>
           <button
-            className="bg-white text-black rounded-full p-3 md:p-2 hover:scale-105 transition-transform cursor-pointer duration-200 focus:outline-none"
+            className={cn(
+              "bg-white text-black rounded-full p-3 md:p-2 hover:scale-105 transition-transform cursor-pointer duration-200 focus:outline-none",
+              !isCurrentTrackLoaded &&
+                "opacity-50 cursor-not-allowed hover:scale-100"
+            )}
             onClick={handlePlay}
+            disabled={!isCurrentTrackLoaded}
           >
             {isPlaying ? (
               <Pause className="w-5 h-5 md:w-4 md:h-4 fill-current stroke-1" />
@@ -234,18 +242,19 @@ export const Player = () => {
         </div>
         <div className="flex items-center gap-0">
           <span className="text-xs text-muted-foreground min-w-11 select-none">
-            {formatTime(sliderPosition)}
+            {isCurrentTrackLoaded ? formatTime(sliderPosition) : "--:--"}
           </span>
           <Slider
             value={[sliderPosition]}
             min={0}
-            max={trackDuration}
+            max={duration}
             step={0.1}
             onValueChange={handleSliderChange}
             onValueCommit={handleSliderCommit}
+            disabled={!isCurrentTrackLoaded}
           />
           <span className="text-xs text-muted-foreground min-w-11 text-right select-none">
-            {formatTime(trackDuration)}
+            {isCurrentTrackLoaded ? formatTime(duration) : "--:--"}
           </span>
         </div>
       </div>

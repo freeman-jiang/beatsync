@@ -37,7 +37,7 @@ export class BackupManager {
     roomData: RoomBackupType
   ): Promise<RoomRestoreResult> {
     try {
-      const room = globalManager.getOrCreateRoom(roomId);
+      const room = await globalManager.getOrCreateRoom(roomId);
 
       // Concurrently validate all audio sources in R2 (no limit on concurrency)
       const validationPromises = roomData.audioSources.map((source) =>

@@ -1,12 +1,11 @@
 "use client";
-import { useGlobalStore, MAX_NTP_MEASUREMENTS } from "@/store/global";
+import { SOCIAL_LINKS } from "@/constants";
+import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { Hash, Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { FaDiscord, FaGithub } from "react-icons/fa";
 import { SyncProgress } from "../ui/SyncProgress";
-import { FaDiscord } from "react-icons/fa";
-import { FaGithub } from "react-icons/fa";
-import { SOCIAL_LINKS } from "@/constants";
 
 interface TopBarProps {
   roomId: string;
@@ -16,7 +15,7 @@ export const TopBar = ({ roomId }: TopBarProps) => {
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
   const isSynced = useGlobalStore((state) => state.isSynced);
   const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
-  const connectedClients = useGlobalStore((state) => state.connectedClients);
+  const connectedClients = useGlobalStore((state) => state.roomState.clients);
   const clockOffset = useGlobalStore((state) => state.offsetEstimate);
   const ntpMeasurements = useGlobalStore((state) => state.ntpMeasurements);
 
