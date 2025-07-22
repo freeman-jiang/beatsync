@@ -8,6 +8,7 @@ import {
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
   PositionType,
+  RoomStateUpdateType,
   RoomType,
   WSBroadcastType,
 } from "@beatsync/shared";
@@ -254,7 +255,7 @@ export class RoomManager {
   /**
    * Reorder clients, moving the specified client to the front
    */
-  reorderClients(clientId: string, server: Server): ClientType[] {
+  moveClientToFront(clientId: string, server: Server): ClientType[] {
     const clients = Array.from(this.clients.values());
     const clientIndex = clients.findIndex(
       (client) => client.clientId === clientId
@@ -276,7 +277,7 @@ export class RoomManager {
     positionClientsInCircle(this.clients);
 
     // Update gains
-    this._calculateGainsAndBroadcast(server);
+    this._recalculateAndBroadcastSpatialConfig(server);
 
     return clients;
   }
@@ -292,7 +293,7 @@ export class RoomManager {
     this.clients.set(clientId, client);
 
     // Update spatial audio config
-    this._calculateGainsAndBroadcast(server);
+    this._recalculateAndBroadcastSpatialConfig(server);
   }
 
   /**
@@ -300,7 +301,7 @@ export class RoomManager {
    */
   updateListeningSource(position: PositionType, server: Server): void {
     this.listeningSource = position;
-    this._calculateGainsAndBroadcast(server);
+    this._recalculateAndBroadcastSpatialConfig(server);
   }
 
   /**
@@ -513,10 +514,31 @@ export class RoomManager {
     }
   }
 
+  broadcastStateUpdate({ server }: { server: Server }): void {
+    const state = this._serializeState();
+    sendBroadcast({ server, roomId: this.roomId, message: state });
+  }
+
+  /**
+   * Get complete room state for broadcasting (minus spatial audio)
+   */
+  private _serializeState(): RoomStateUpdateType {
+    return {
+      type: "ROOM_STATE_UPDATE",
+      state: {
+        roomId: this.roomId,
+        clients: Array.from(this.clients.values()),
+        audioSources: this.audioSources,
+        listeningSource: this.listeningSource,
+        playbackControlsPermissions: this.playbackControlsPermissions,
+      },
+    };
+  }
+
   /**
    * Calculate gains and broadcast to all clients
    */
-  private _calculateGainsAndBroadcast(server: Server): void {
+  private _recalculateAndBroadcastSpatialConfig(server: Server): void {
     const clients = Array.from(this.clients.values());
 
     const gains = Object.fromEntries(

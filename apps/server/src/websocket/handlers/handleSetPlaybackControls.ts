@@ -4,7 +4,8 @@ import { HandlerFunction } from "../types";
 
 export const handleSetPlaybackControls: HandlerFunction<
   ExtractWSRequestFrom["SET_PLAYBACK_CONTROLS"]
-> = async ({ ws, message }) => {
+> = async ({ ws, message, server }) => {
   const { room } = requireRoomAdmin(ws);
   room.setPlaybackControls(message.permissions);
+  room.broadcastStateUpdate({ server });
 };

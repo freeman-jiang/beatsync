@@ -1,26 +1,9 @@
-import {
-  ClientActionEnum,
-  epochNow,
-  WSBroadcastType,
-  WSRequestSchema,
-} from "@beatsync/shared";
+import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
 import { Server, ServerWebSocket } from "bun";
 import { globalManager } from "../managers";
-import { sendBroadcast, sendUnicast } from "../utils/responses";
+import { sendUnicast } from "../utils/responses";
 import { WSData } from "../utils/websocket";
 import { dispatchMessage } from "../websocket/dispatch";
-
-const createClientUpdate = (roomId: string) => {
-  const room = globalManager.getRoom(roomId);
-  const message: WSBroadcastType = {
-    type: "ROOM_EVENT",
-    event: {
-      type: "CLIENT_CHANGE",
-      clients: room ? room.getClients() : [],
-    },
-  };
-  return message;
-};
 
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   console.log(
@@ -39,26 +22,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
 
   const room = globalManager.getOrCreateRoom(roomId);
   room.addClient(ws);
-
-  // Send audio sources to the newly joined client if any exist
-  const { audioSources } = room.getState();
-  if (audioSources.length > 0) {
-    console.log(
-      `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
-    );
-    const audioSourcesMessage: WSBroadcastType = {
-      type: "ROOM_EVENT",
-      event: {
-        type: "SET_AUDIO_SOURCES",
-        sources: audioSources,
-      },
-    };
-    // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
-    ws.send(JSON.stringify(audioSourcesMessage));
-  }
-
-  const message = createClientUpdate(roomId);
-  sendBroadcast({ server, roomId, message });
+  room.broadcastStateUpdate({ server });
 };
 
 export const handleMessage = async (
@@ -115,12 +79,13 @@ export const handleClose = async (
       if (!room.hasActiveConnections()) {
         room.stopSpatialAudio();
         globalManager.scheduleRoomCleanup(roomId);
+      } else {
+        // Only broadcast state if room still has active connections
+        room.broadcastStateUpdate({ server });
       }
     }
 
-    const message = createClientUpdate(roomId);
     ws.unsubscribe(roomId);
-    server.publish(roomId, JSON.stringify(message));
   } catch (error) {
     console.error(
       `Error handling WebSocket close for ${ws.data?.username}:`,

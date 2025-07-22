@@ -12,7 +12,7 @@ import {
   validateR2Config,
 } from "../lib/r2";
 import { globalManager } from "../managers";
-import { errorResponse, jsonResponse, sendBroadcast } from "../utils/responses";
+import { errorResponse, jsonResponse } from "../utils/responses";
 
 // New endpoint to get presigned upload URL
 export const handleGetPresignedURL = async (req: Request) => {
@@ -109,18 +109,8 @@ export const handleUploadComplete = async (req: Request, server: Server) => {
       `✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${sources}`
     );
 
-    // Broadcast to room that new audio is available
-    sendBroadcast({
-      server,
-      roomId,
-      message: {
-        type: "ROOM_EVENT",
-        event: {
-          type: "SET_AUDIO_SOURCES",
-          sources,
-        },
-      },
-    });
+    // Broadcast complete room state with new audio
+    room.broadcastStateUpdate({ server });
 
     const response: UploadCompleteResponseType = { success: true };
     return jsonResponse(response);
