@@ -16,7 +16,7 @@ import { getActiveRooms } from "./routes/active";
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
   hostname: "0.0.0.0",
-  port: 8080,
+  port: 2000,
   async fetch(req, server) {
     const url = new URL(req.url);
 

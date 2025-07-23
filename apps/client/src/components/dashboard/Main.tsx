@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { Queue } from "../Queue";
 
-export const Main = () => {
+export const Main = ({ setSelectedAppleMusicTrack, selectedAppleMusicTrack }: { setSelectedAppleMusicTrack: (track: any) => void, selectedAppleMusicTrack: any }) => {
   return (
     <motion.div
       className={cn(
@@ -12,7 +12,7 @@ export const Main = () => {
     >
       <motion.div className="p-6 pt-4">
         {/* <h1 className="text-xl font-semibold mb-8">BeatSync</h1> */}
-        <Queue className="mb-8" />
+        <Queue className="mb-8" setSelectedAppleMusicTrack={setSelectedAppleMusicTrack} selectedAppleMusicTrack={selectedAppleMusicTrack} />
       </motion.div>
     </motion.div>
   );

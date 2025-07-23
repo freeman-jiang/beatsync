@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PositionSchema } from "./basic";
+
 export const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
@@ -22,13 +23,16 @@ export const ClientActionEnum = z.enum([
 export const NTPRequestPacketSchema = z.object({
   type: z.literal(ClientActionEnum.enum.NTP_REQUEST),
   t0: z.number(), // Client send timestamp
-  t1: z.number().optional(), // Server receive timestamp (will be set by the server)
+  t1: z.number().optional(), // Server receive timestamp (set by server)
 });
 
 export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
   trackTimeSeconds: z.number(),
   audioSource: z.string(),
+  sourceType: z.enum(["file", "appleMusic"]).default("file"),
+  appleMusicTrackId: z.string().optional(),
+  appleMusicPosition: z.number().optional(),
 });
 
 export const PauseActionSchema = z.object({
@@ -71,7 +75,7 @@ export type ClientRequestSyncType = z.infer<typeof ClientRequestSyncSchema>;
 const SetAdminSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_ADMIN),
   clientId: z.string(), // The client to set admin status for
-  isAdmin: z.boolean(), // The new admin status
+  isAdmin: z.boolean(),
 });
 
 export const PlaybackControlsPermissionsEnum = z.enum([
@@ -100,13 +104,14 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetAdminSchema,
   SetPlaybackControlsSchema,
 ]);
+
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
 export type PauseActionType = z.infer<typeof PauseActionSchema>;
 export type ReorderClientType = z.infer<typeof ReorderClientSchema>;
 export type SetListeningSourceType = z.infer<typeof SetListeningSourceSchema>;
 
-// Mapped type to access request types by their type field
+// Mapped type for extracting request types by their "type" field
 export type ExtractWSRequestFrom = {
   [K in WSRequestType["type"]]: Extract<WSRequestType, { type: K }>;
 };
