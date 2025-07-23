@@ -3,7 +3,13 @@ import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { ClientType, GRID } from "@beatsync/shared";
-import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
+import {
+  ArrowUp,
+  Crown,
+  HeadphonesIcon,
+  MoreVertical,
+  Rotate3D,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GainMeter } from "../dashboard/GainMeter";
@@ -19,6 +25,12 @@ import {
 
 // Add custom scrollbar styles
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import "./scrollbar.css";
 
 // Define prop types for components
@@ -32,6 +44,8 @@ interface ClientAvatarProps {
 interface ConnectedUserItemProps {
   client: ClientType;
   isCurrentUser: boolean;
+  isAdmin: boolean;
+  onSetAdmin: (clientId: string, isAdmin: boolean) => void;
 }
 
 // Separate Client Avatar component for better performance
@@ -113,7 +127,7 @@ ClientAvatar.displayName = "ClientAvatar";
 
 // Separate connected user list item component
 const ConnectedUserItem = memo<ConnectedUserItemProps>(
-  ({ client, isCurrentUser }) => {
+  ({ client, isCurrentUser, isAdmin, onSetAdmin }) => {
     return (
       <motion.div
         className={cn(
@@ -160,6 +174,39 @@ const ConnectedUserItem = memo<ConnectedUserItemProps>(
         >
           {isCurrentUser ? "You" : "Connected"}
         </Badge>
+        {/* Admin controls dropdown - only show if current user is admin and not targeting self */}
+        {isAdmin && !isCurrentUser && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-neutral-700/50"
+              >
+                <MoreVertical className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              {client.isAdmin ? (
+                <DropdownMenuItem
+                  onClick={() => onSetAdmin(client.clientId, false)}
+                  className="text-xs"
+                >
+                  <Crown className="h-3 w-3 mr-2 text-red-500" />
+                  Remove Admin
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => onSetAdmin(client.clientId, true)}
+                  className="text-xs"
+                >
+                  <Crown className="h-3 w-3 mr-2 text-green-500" />
+                  Make Admin
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </motion.div>
     );
   }
@@ -394,6 +441,11 @@ export const UserGrid = () => {
   }, [clients, userId]);
 
   const reorderClient = useGlobalStore((state) => state.reorderClient);
+  const setAdminStatus = useGlobalStore((state) => state.setAdminStatus);
+
+  // Get current user from global store
+  const currentUser = useGlobalStore((state) => state.currentUser);
+  const isCurrentUserAdmin = currentUser?.isAdmin || false;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -522,6 +574,8 @@ export const UserGrid = () => {
                     key={client.clientId}
                     client={client}
                     isCurrentUser={isCurrentUser}
+                    isAdmin={isCurrentUserAdmin}
+                    onSetAdmin={setAdminStatus}
                   />
                 ))}
               </div>

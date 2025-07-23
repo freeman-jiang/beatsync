@@ -1,7 +1,6 @@
 "use client";
 import { SOCIAL_LINKS } from "@/constants";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
-import { useRoomStore } from "@/store/room";
 import { Crown, Hash, Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -20,11 +19,8 @@ export const TopBar = ({ roomId }: TopBarProps) => {
   const clockOffset = useGlobalStore((state) => state.offsetEstimate);
   const ntpMeasurements = useGlobalStore((state) => state.ntpMeasurements);
 
-  // Get current user ID to check admin status
-  const userId = useRoomStore((state) => state.userId);
-  const currentUser = connectedClients.find(
-    (client) => client.clientId === userId
-  );
+  // Get current user from global store to check admin status
+  const currentUser = useGlobalStore((state) => state.currentUser);
   const isAdmin = currentUser?.isAdmin || false;
 
   // Show minimal nav bar when synced and not loading

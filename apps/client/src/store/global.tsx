@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { fetchDefaultAudioSources } from "@/lib/api";
+import { extractFileNameFromUrl } from "@/lib/utils";
 import {
   NTPMeasurement,
   _sendNTPRequest,
@@ -12,15 +13,14 @@ import {
   ClientActionEnum,
   ClientType,
   GRID,
+  NTP_CONSTANTS,
   PositionType,
   SpatialConfigType,
-  NTP_CONSTANTS,
 } from "@beatsync/shared";
+import { Mutex } from "async-mutex";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
-import { Mutex } from "async-mutex";
-import { extractFileNameFromUrl } from "@/lib/utils";
 
 export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
@@ -57,6 +57,7 @@ interface GlobalStateValues {
 
   // Connected clients
   connectedClients: ClientType[];
+  currentUser: ClientType | null;
 
   // NTP
   ntpMeasurements: NTPMeasurement[];
@@ -91,6 +92,7 @@ interface GlobalState extends GlobalStateValues {
 
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
+  setAdminStatus: (clientId: string, isAdmin: boolean) => void;
   setSelectedAudioUrl: (url: string) => boolean;
   findAudioIndexByUrl: (url: string) => number | null;
   schedulePlay: (data: {
@@ -159,6 +161,7 @@ const initialState: GlobalStateValues = {
   socket: null,
   lastMessageReceivedTime: null,
   connectedClients: [],
+  currentUser: null,
 
   // NTP state
   ntpMeasurements: [],
@@ -314,6 +317,20 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         request: {
           type: ClientActionEnum.enum.REORDER_CLIENT,
           clientId,
+        },
+      });
+    },
+
+    setAdminStatus: (clientId, isAdmin) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_ADMIN,
+          clientId,
+          isAdmin,
         },
       });
     },
@@ -813,7 +830,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ isDraggingListeningSource: isDragging });
     },
 
-    setConnectedClients: (clients) => set({ connectedClients: clients }),
+    setConnectedClients: (clients) => {
+      const userId = useRoomStore.getState().userId;
+      const currentUser = clients.find(client => client.clientId === userId) || null;
+      set({ connectedClients: clients, currentUser });
+    },
 
     skipToNextTrack: (isAutoplay = false) => {
       // Accept optional isAutoplay flag
