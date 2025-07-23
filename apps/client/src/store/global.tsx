@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { useRoomStore } from "./room";
 import { Mutex } from "async-mutex";
+import { extractFileNameFromUrl } from "@/lib/utils";
 
 export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
@@ -95,7 +96,7 @@ interface GlobalState extends GlobalStateValues {
   schedulePlay: (data: {
     trackTimeSeconds: number;
     targetServerTime: number;
-    audioId: string;
+    audioSource: string;
   }) => void;
   schedulePause: (data: { targetServerTime: number }) => void;
   setSocket: (socket: WebSocket) => void;
@@ -350,6 +351,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
             console.warn("Failed to resume AudioContext", err);
           }
         }
+
+        const { socket } = getSocket(state);
+
+        // Request sync with room if conditions are met
+        console.log("Requesting sync from server for late joiner");
+        sendWSRequest({
+          ws: socket,
+          request: { type: ClientActionEnum.enum.SYNC },
+        });
       }
 
       // Update the initialization state
@@ -405,11 +415,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return index >= 0 ? index : null; // Return null if not found
     },
 
-    schedulePlay: (data: {
-      trackTimeSeconds: number;
-      targetServerTime: number;
-      audioId: string;
-    }) => {
+    schedulePlay: (data) => {
       const state = get();
       if (state.isInitingSystem) {
         console.log("Not playing audio, still loading");
@@ -419,21 +425,39 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       const waitTimeSeconds = getWaitTimeSeconds(state, data.targetServerTime);
       console.log(
-        `Playing track ${data.audioId} at ${data.trackTimeSeconds} seconds in ${waitTimeSeconds}`
+        `Playing track ${data.audioSource} at ${data.trackTimeSeconds} seconds in ${waitTimeSeconds}`
       );
 
       // Update the selected audio ID
-      if (data.audioId !== state.selectedAudioUrl) {
-        set({ selectedAudioUrl: data.audioId });
+      if (data.audioSource !== state.selectedAudioUrl) {
+        set({ selectedAudioUrl: data.audioSource });
       }
 
       // Find the index of the audio to play
-      const audioIndex = state.findAudioIndexByUrl(data.audioId);
+      const audioIndex = state.findAudioIndexByUrl(data.audioSource);
       if (audioIndex === null) {
+        // Pause current track to prevent interference
+        if (state.isPlaying) {
+          state.pauseAudio({ when: 0 });
+        }
+
         console.error(
-          `Cannot play audio: No index found: ${data.audioId} ${data.trackTimeSeconds}`
+          `Cannot play audio: No index found: ${data.audioSource} ${data.trackTimeSeconds}`
         );
-        toast.error("Audio file not found. Please reupload the audio file.");
+        toast.error(
+          `"${extractFileNameFromUrl(data.audioSource)}" not loaded yet...`,
+          { id: "schedulePlay" }
+        );
+
+        // Resend the sync request in a couple seconds
+        const { socket } = getSocket(state);
+        setTimeout(() => {
+          sendWSRequest({
+            ws: socket,
+            request: { type: ClientActionEnum.enum.SYNC },
+          });
+        }, 1000);
+
         return;
       }
 
@@ -456,6 +480,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     setSocket: (socket) => set({ socket }),
 
+    // if trackTimeSeconds is not provided, use the current track position
     broadcastPlay: (trackTimeSeconds?: number) => {
       const state = get();
       const { socket } = getSocket(state);
@@ -476,7 +501,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         request: {
           type: ClientActionEnum.enum.PLAY,
           trackTimeSeconds: trackTimeSeconds ?? state.getCurrentTrackPosition(),
-          audioId,
+          audioSource: audioId,
         },
       });
     },
@@ -489,6 +514,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         ws: socket,
         request: {
           type: ClientActionEnum.enum.PAUSE,
+          trackTimeSeconds: state.getCurrentTrackPosition(),
+          audioSource: state.selectedAudioUrl,
         },
       });
     },
@@ -639,6 +666,18 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         throw new Error(
           `Audio buffer not decoded for url: ${state.audioSources[audioIndex].url}`
         );
+
+      // Validate offset is within track duration to prevent sync failures
+      if (data.offset >= audioBuffer.duration) {
+        console.error(
+          `Sync offset ${data.offset.toFixed(
+            2
+          )}s is beyond track duration ${audioBuffer.duration.toFixed(
+            2
+          )}s. Aborting playback.`
+        );
+        return;
+      }
 
       // Create a new source node
       const newSourceNode = audioContext.createBufferSource();

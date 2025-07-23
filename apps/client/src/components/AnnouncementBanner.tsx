@@ -13,9 +13,8 @@ export const AnnouncementBanner = () => {
       <div className="relative">
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
-            <span className="font-semibold">{"Jul 14:"}</span> Custom audio
-            uploads are automatically sent to new clients and persist across
-            reloads.
+            <span className="font-semibold">{"Jul 17, 2025: "}</span> Late
+            joiners automatically sync with room audio and playlist.
             {/* <a
               href="#"
               className="ml-3 inline-flex items-center text-white underline hover:no-underline font-semibold"

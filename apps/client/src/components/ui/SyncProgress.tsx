@@ -36,7 +36,9 @@ export const SyncProgress = ({
     (state) => state.ntpMeasurements.length / MAX_NTP_MEASUREMENTS
   );
   const isSyncComplete = useGlobalStore((state) => state.isSynced);
-  const setIsLoadingAudio = useGlobalStore((state) => state.setIsInitingSystem);
+  const setIsInitingSystem = useGlobalStore(
+    (state) => state.setIsInitingSystem
+  );
   const hasUserStartedSystem = useGlobalStore(
     (state) => state.hasUserStartedSystem
   );
@@ -326,7 +328,7 @@ export const SyncProgress = ({
               scale: 1.015,
             }}
             transition={{ duration: 0.3 }}
-            onClick={() => setIsLoadingAudio(false)}
+            onClick={() => setIsInitingSystem(false)}
           >
             Start System
           </motion.button>

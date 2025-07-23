@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PositionSchema } from "./basic";
+
 export const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
@@ -8,24 +9,27 @@ export const ClientSchema = z.object({
 export const ClientActionEnum = z.enum([
   "PLAY",
   "PAUSE",
-  "CLIENT_CHANGE",
   "NTP_REQUEST",
   "START_SPATIAL_AUDIO",
   "STOP_SPATIAL_AUDIO",
   "REORDER_CLIENT",
   "SET_LISTENING_SOURCE",
   "MOVE_CLIENT",
+  "SYNC", // Client joins late, requests sync
+  "SET_ADMIN", // Set admin status
+  "SET_PLAYBACK_CONTROLS", // Set playback controls
 ]);
 
 export const NTPRequestPacketSchema = z.object({
   type: z.literal(ClientActionEnum.enum.NTP_REQUEST),
   t0: z.number(), // Client send timestamp
+  t1: z.number().optional(), // Server receive timestamp (set by server)
 });
 
 export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
   trackTimeSeconds: z.number(),
-  audioId: z.string(),
+  audioSource: z.string(),
   sourceType: z.enum(["file", "appleMusic"]).default("file"),
   appleMusicTrackId: z.string().optional(),
   appleMusicPosition: z.number().optional(),
@@ -33,6 +37,8 @@ export const PlayActionSchema = z.object({
 
 export const PauseActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PAUSE),
+  audioSource: z.string(),
+  trackTimeSeconds: z.number(),
 });
 
 const StartSpatialAudioSchema = z.object({
@@ -61,6 +67,30 @@ const MoveClientSchema = z.object({
 });
 export type MoveClientType = z.infer<typeof MoveClientSchema>;
 
+const ClientRequestSyncSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SYNC),
+});
+export type ClientRequestSyncType = z.infer<typeof ClientRequestSyncSchema>;
+
+const SetAdminSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_ADMIN),
+  clientId: z.string(), // The client to set admin status for
+  isAdmin: z.boolean(),
+});
+
+export const PlaybackControlsPermissionsEnum = z.enum([
+  "ADMIN_ONLY",
+  "EVERYONE",
+]);
+export type PlaybackControlsPermissionsType = z.infer<
+  typeof PlaybackControlsPermissionsEnum
+>;
+
+const SetPlaybackControlsSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_PLAYBACK_CONTROLS),
+  permissions: PlaybackControlsPermissionsEnum,
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -70,9 +100,18 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ReorderClientSchema,
   SetListeningSourceSchema,
   MoveClientSchema,
+  ClientRequestSyncSchema,
+  SetAdminSchema,
+  SetPlaybackControlsSchema,
 ]);
+
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
 export type PauseActionType = z.infer<typeof PauseActionSchema>;
 export type ReorderClientType = z.infer<typeof ReorderClientSchema>;
 export type SetListeningSourceType = z.infer<typeof SetListeningSourceSchema>;
+
+// Mapped type for extracting request types by their "type" field
+export type ExtractWSRequestFrom = {
+  [K in WSRequestType["type"]]: Extract<WSRequestType, { type: K }>;
+};

@@ -1,18 +1,23 @@
 import {
+  AudioSourceType,
   ClientType,
   epochNow,
-  AudioSourceType,
-  PositionType,
-  WSBroadcastType,
   NTP_CONSTANTS,
+  PauseActionType,
+  PlayActionType,
+  PlaybackControlsPermissionsEnum,
+  PlaybackControlsPermissionsType,
+  PositionType,
   RoomType,
+  WSBroadcastType,
 } from "@beatsync/shared";
-import { GRID } from "@beatsync/shared/types/basic";
+import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
+import { z } from "zod";
 import { SCHEDULE_TIME_MS } from "../config";
 import { deleteObjectsWithPrefix } from "../lib/r2";
 import { calculateGainFromDistanceToSource } from "../spatial";
-import { sendBroadcast } from "../utils/responses";
+import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { positionClientsInCircle } from "../utils/spatial";
 import { WSData } from "../utils/websocket";
 
@@ -22,7 +27,37 @@ interface RoomData {
   roomId: string;
   intervalId?: NodeJS.Timeout;
   listeningSource: PositionType;
+  playbackControlsPermissions: PlaybackControlsPermissionsType;
 }
+
+// Define Zod schemas for backup validation
+const BackupClientSchema = z.object({
+  clientId: z.string(),
+  username: z.string(),
+  isAdmin: z.boolean(),
+});
+
+const RoomBackupSchema = z.object({
+  clients: z.array(BackupClientSchema),
+  audioSources: z.array(AudioSourceSchema),
+});
+export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
+
+export const ServerBackupSchema = z.object({
+  timestamp: z.number(),
+  data: z.object({
+    rooms: z.record(z.string(), RoomBackupSchema),
+  }),
+});
+export type ServerBackupType = z.infer<typeof ServerBackupSchema>;
+
+const RoomPlaybackStateSchema = z.object({
+  type: z.enum(["playing", "paused"]),
+  audioSource: z.string(), // URL of the audio source
+  serverTimeToExecute: z.number(), // When playback started/paused (server time)
+  trackPositionSeconds: z.number(), // Position in track when started/paused (seconds)
+});
+type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
 
 /**
  * RoomManager handles all operations for a single room.
@@ -31,14 +66,27 @@ interface RoomData {
 export class RoomManager {
   private clients = new Map<string, ClientType>();
   private audioSources: AudioSourceType[] = [];
-  private listeningSource: PositionType;
+  private listeningSource: PositionType = {
+    x: GRID.ORIGIN_X,
+    y: GRID.ORIGIN_Y,
+  };
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
   private heartbeatCheckInterval?: NodeJS.Timeout;
   private onClientCountChange?: () => void;
+  private playbackState: RoomPlaybackState = {
+    type: "paused",
+    audioSource: "",
+    serverTimeToExecute: 0,
+    trackPositionSeconds: 0,
+  };
+  private playbackControlsPermissions: PlaybackControlsPermissionsType =
+    "EVERYONE";
 
-  constructor(private readonly roomId: string, onClientCountChange?: () => void) {
-    this.listeningSource = { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y };
+  constructor(
+    private readonly roomId: string,
+    onClientCountChange?: () => void // To update the global # of clients active
+  ) {
     this.onClientCountChange = onClientCountChange;
   }
 
@@ -58,11 +106,15 @@ export class RoomManager {
 
     const { username, clientId } = ws.data;
 
+    // The first client to join a room will always be an admin
+    const isAdmin = this.clients.size === 0;
+
     // Add the new client
     this.clients.set(clientId, {
       username,
       clientId,
       ws,
+      isAdmin,
       rtt: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
@@ -72,7 +124,7 @@ export class RoomManager {
 
     // Idempotently start heartbeat checking
     this.startHeartbeatChecking();
-    
+
     // Notify that client count changed
     this.onClientCountChange?.();
   }
@@ -90,9 +142,28 @@ export class RoomManager {
       // Stop heartbeat checking if no clients remain
       this.stopHeartbeatChecking();
     }
-    
+
     // Notify that client count changed
     this.onClientCountChange?.();
+  }
+
+  setAdmin({
+    targetClientId,
+    isAdmin,
+  }: {
+    targetClientId: string;
+    isAdmin: boolean;
+  }): void {
+    const client = this.clients.get(targetClientId);
+    if (!client) return;
+    client.isAdmin = isAdmin;
+    this.clients.set(targetClientId, client);
+  }
+
+  setPlaybackControls(
+    permissions: z.infer<typeof PlaybackControlsPermissionsEnum>
+  ): void {
+    this.playbackControlsPermissions = permissions;
   }
 
   /**
@@ -150,6 +221,7 @@ export class RoomManager {
       roomId: this.roomId,
       intervalId: this.intervalId,
       listeningSource: this.listeningSource,
+      playbackControlsPermissions: this.playbackControlsPermissions,
     };
   }
 
@@ -306,14 +378,93 @@ export class RoomManager {
     }
   }
 
+  updatePlaybackSchedulePause(
+    pauseSchema: PauseActionType,
+    serverTimeToExecute: number
+  ) {
+    this.playbackState = {
+      type: "paused",
+      audioSource: pauseSchema.audioSource,
+      trackPositionSeconds: pauseSchema.trackTimeSeconds,
+      serverTimeToExecute: serverTimeToExecute,
+    };
+  }
+
+  updatePlaybackSchedulePlay(
+    playSchema: PlayActionType,
+    serverTimeToExecute: number
+  ) {
+    this.playbackState = {
+      type: "playing",
+      audioSource: playSchema.audioSource,
+      trackPositionSeconds: playSchema.trackTimeSeconds,
+      serverTimeToExecute: serverTimeToExecute,
+    };
+  }
+
+  syncClient(ws: ServerWebSocket<WSData>): void {
+    // A client has joined late, and needs to sync with the room
+    // Predict where the playback state will be in epochNow() + SCHEDULE_TIME_MS
+    // And make client play at that position then
+
+    // Determine if we are currently playing or paused
+    if (this.playbackState.type === "paused") {
+      return; // Nothing to do - client will play on next scheduled action
+    }
+
+    const serverTimeWhenPlaybackStarted =
+      this.playbackState.serverTimeToExecute;
+    const trackPositionSecondsWhenPlaybackStarted =
+      this.playbackState.trackPositionSeconds;
+    const now = epochNow();
+    const serverTimeToExecute = now + SCHEDULE_TIME_MS;
+
+    // Calculate how much time has elapsed since playback started
+    const timeElapsedSincePlaybackStarted = now - serverTimeWhenPlaybackStarted;
+
+    // Calculate how much time will have elapsed by the time the client responds
+    // to the sync response
+    const timeElapsedAtExecution =
+      serverTimeToExecute - serverTimeWhenPlaybackStarted;
+
+    // Convert to seconds and add to the starting position
+    const resumeTrackTimeSeconds =
+      trackPositionSecondsWhenPlaybackStarted + timeElapsedAtExecution / 1000;
+    console.log(
+      `Syncing late client: track started at ${trackPositionSecondsWhenPlaybackStarted.toFixed(
+        2
+      )}s, ` +
+        `${(timeElapsedSincePlaybackStarted / 1000).toFixed(2)}s elapsed, ` +
+        `will be at ${resumeTrackTimeSeconds.toFixed(2)}s when client starts`
+    );
+
+    sendUnicast({
+      ws,
+      message: {
+        type: "SCHEDULED_ACTION",
+        scheduledAction: {
+          type: "PLAY",
+          audioSource: this.playbackState.audioSource,
+          trackTimeSeconds: resumeTrackTimeSeconds, // Use the calculated position
+        },
+        serverTimeToExecute: serverTimeToExecute,
+      },
+    });
+  }
+
+  getClient(clientId: string): ClientType | undefined {
+    return this.clients.get(clientId);
+  }
+
   /**
    * Get the backup state for this room
    */
-  getBackupState() {
+  createBackup(): RoomBackupType {
     return {
       clients: this.getClients().map((client) => ({
         clientId: client.clientId,
         username: client.username,
+        isAdmin: client.isAdmin,
       })),
       audioSources: this.audioSources,
     };

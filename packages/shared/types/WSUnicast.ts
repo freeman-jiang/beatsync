@@ -1,5 +1,6 @@
 // 1:1 Private WS Responses
 import { z } from "zod";
+import { ScheduledActionSchema } from "./WSBroadcast";
 
 const NTPResponseMessageSchema = z.object({
   type: z.literal("NTP_RESPONSE"),
@@ -17,5 +18,6 @@ const SetClientID = z.object({
 export const WSUnicastSchema = z.discriminatedUnion("type", [
   NTPResponseMessageSchema,
   SetClientID,
+  ScheduledActionSchema,
 ]);
 export type WSUnicastType = z.infer<typeof WSUnicastSchema>;

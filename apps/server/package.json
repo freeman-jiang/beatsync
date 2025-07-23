@@ -7,7 +7,8 @@
     "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage"
+    "test:coverage": "bun test --coverage",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.828.0",

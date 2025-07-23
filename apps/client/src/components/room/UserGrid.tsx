@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { ClientType, GRID } from "@beatsync/shared";
-import { ArrowUp, HeadphonesIcon, Rotate3D } from "lucide-react";
+import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GainMeter } from "../dashboard/GainMeter";
@@ -85,12 +85,24 @@ const ClientAvatar = memo<ClientAvatarProps>(
                   )}
                 ></span>
               )}
+              {/* Admin crown indicator */}
+              {client.isAdmin && (
+                <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full p-0.5">
+                  <Crown
+                    className="h-3 w-3 text-yellow-900"
+                    fill="currentColor"
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         </TooltipTrigger>
         <TooltipContent side="top">
           <div className="text-xs font-medium">{client.username}</div>
-          <div>{isCurrentUser ? "You" : "Connected"}</div>
+          <div className="text-xs text-muted-foreground">
+            {isCurrentUser ? "You" : "Connected"}
+            {client.isAdmin && " • Admin"}
+          </div>
         </TooltipContent>
       </Tooltip>
     );
@@ -115,14 +127,25 @@ const ConnectedUserItem = memo<ConnectedUserItemProps>(
         }}
         transition={{ duration: 0.3 }}
       >
-        <Avatar className="h-8 w-8">
-          <AvatarImage />
-          <AvatarFallback
-            className={isCurrentUser ? "bg-primary-600" : "bg-neutral-600"}
-          >
-            {client.username.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-8 w-8">
+            <AvatarImage />
+            <AvatarFallback
+              className={isCurrentUser ? "bg-primary-600" : "bg-neutral-600"}
+            >
+              {client.username.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {/* Admin crown indicator */}
+          {client.isAdmin && (
+            <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full p-0.5">
+              <Crown
+                className="h-2.5 w-2.5 text-yellow-900"
+                fill="currentColor"
+              />
+            </div>
+          )}
+        </div>
         <div className="flex flex-col min-w-0">
           <span className="text-xs font-medium truncate">
             {client.username}

@@ -1,36 +1,19 @@
-import { globalManager } from "./GlobalManager";
+import pLimit from "p-limit";
 import {
-  uploadJSON,
+  cleanupOrphanedRooms,
+  deleteObject,
   downloadJSON,
   getLatestFileWithPrefix,
   getSortedFilesWithPrefix,
-  deleteObject,
-  cleanupOrphanedRooms,
+  uploadJSON,
   validateAudioFileExists,
 } from "../lib/r2";
-import { z } from "zod";
-import { AudioSourceSchema } from "@beatsync/shared/types/basic";
-import pLimit from "p-limit";
-
-// Define Zod schemas for backup validation
-const BackupClientSchema = z.object({
-  clientId: z.string(),
-  username: z.string(),
-});
-
-const BackupRoomSchema = z.object({
-  clients: z.array(BackupClientSchema),
-  audioSources: z.array(AudioSourceSchema),
-});
-
-const BackupStateSchema = z.object({
-  timestamp: z.number(),
-  data: z.object({
-    rooms: z.record(z.string(), BackupRoomSchema),
-  }),
-});
-
-type BackupState = z.infer<typeof BackupStateSchema>;
+import { globalManager } from "./GlobalManager";
+import {
+  RoomBackupType,
+  ServerBackupSchema,
+  ServerBackupType,
+} from "./RoomManager";
 
 interface RoomRestoreResult {
   room: {
@@ -51,7 +34,7 @@ export class BackupManager {
    */
   private static async restoreRoom(
     roomId: string,
-    roomData: z.infer<typeof BackupRoomSchema>
+    roomData: RoomBackupType
   ): Promise<RoomRestoreResult> {
     try {
       const room = globalManager.getOrCreateRoom(roomId);
@@ -117,13 +100,13 @@ export class BackupManager {
       console.log("🔄 Starting state backup...");
 
       // Collect state from all rooms
-      const rooms: BackupState["data"]["rooms"] = {};
+      const rooms: ServerBackupType["data"]["rooms"] = {};
 
       globalManager.forEachRoom((room, roomId) => {
-        rooms[roomId] = room.getBackupState();
+        rooms[roomId] = room.createBackup();
       });
 
-      const backupData: BackupState = {
+      const backupData: ServerBackupType = {
         timestamp: Date.now(),
         data: { rooms },
       };
@@ -176,7 +159,7 @@ export class BackupManager {
       }
 
       // Validate backup data with Zod schema
-      const parseResult = BackupStateSchema.safeParse(rawBackupData);
+      const parseResult = ServerBackupSchema.safeParse(rawBackupData);
 
       if (!parseResult.success) {
         throw new Error(
