@@ -97,6 +97,10 @@ export class RoomManager {
     return this.roomId;
   }
 
+  getPlaybackControlsPermissions(): PlaybackControlsPermissionsType {
+    return this.playbackControlsPermissions;
+  }
+
   /**
    * Add a client to the room
    */

@@ -71,6 +71,9 @@ export const WebSocketManager = ({
   const handleSetAudioSources = useGlobalStore(
     (state) => state.handleSetAudioSources
   );
+  const setPlaybackControlsPermissions = useGlobalStore(
+    (state) => state.setPlaybackControlsPermissions
+  );
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
@@ -155,6 +158,8 @@ export const WebSocketManager = ({
           setConnectedClients(event.clients);
         } else if (event.type === "SET_AUDIO_SOURCES") {
           handleSetAudioSources({ sources: event.sources });
+        } else if (event.type === "SET_PLAYBACK_CONTROLS") {
+          setPlaybackControlsPermissions(event.permissions);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action

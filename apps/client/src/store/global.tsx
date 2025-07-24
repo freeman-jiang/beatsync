@@ -14,6 +14,8 @@ import {
   ClientType,
   GRID,
   NTP_CONSTANTS,
+  PlaybackControlsPermissionsEnum,
+  PlaybackControlsPermissionsType,
   PositionType,
   SpatialConfigType,
 } from "@beatsync/shared";
@@ -83,6 +85,9 @@ interface GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   };
+
+  // Playback controls
+  playbackControlsPermissions: PlaybackControlsPermissionsType;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -135,6 +140,9 @@ interface GlobalState extends GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   }) => void;
+  setPlaybackControlsPermissions: (
+    permissions: PlaybackControlsPermissionsType
+  ) => void;
 }
 
 // Define initial state values
@@ -182,6 +190,9 @@ const initialState: GlobalStateValues = {
     currentAttempt: 0,
     maxAttempts: 0,
   },
+
+  // Playback controls
+  playbackControlsPermissions: PlaybackControlsPermissionsEnum.enum.EVERYONE,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -832,7 +843,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     setConnectedClients: (clients) => {
       const userId = useRoomStore.getState().userId;
-      const currentUser = clients.find(client => client.clientId === userId) || null;
+      const currentUser =
+        clients.find((client) => client.clientId === userId) || null;
       set({ connectedClients: clients, currentUser });
     },
 
@@ -990,5 +1002,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       initializeAudioExclusively();
     },
     setReconnectionInfo: (info) => set({ reconnectionInfo: info }),
+    setPlaybackControlsPermissions: (permissions) =>
+      set({ playbackControlsPermissions: permissions }),
   };
 });

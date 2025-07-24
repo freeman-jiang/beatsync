@@ -46,6 +46,11 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
     console.log(
       `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
     );
+
+    // TODO: this is not ideal:
+    // - we need to send one message per event, what we are really trying to do is sync this client
+    // We should actually just create a single unicast message catching the client up with all of this bundled into one message (even broadcast is fine but it should be one message)
+    // just the issue is that we do diff instead of full state sync
     const audioSourcesMessage: WSBroadcastType = {
       type: "ROOM_EVENT",
       event: {
@@ -53,8 +58,19 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
         sources: audioSources,
       },
     };
+
+    // Send also the current playback controls
+    const playbackControlsMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_PLAYBACK_CONTROLS",
+        permissions: room.getPlaybackControlsPermissions(),
+      },
+    };
+
     // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
     ws.send(JSON.stringify(audioSourcesMessage));
+    ws.send(JSON.stringify(playbackControlsMessage));
   }
 
   const message = createClientUpdate(roomId);
