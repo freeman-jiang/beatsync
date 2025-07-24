@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { PauseActionSchema, PlayActionSchema } from "./WSRequest";
+import {
+  PauseActionSchema,
+  PlayActionSchema,
+  SetPlaybackControlsSchema,
+} from "./WSRequest";
 import { AudioSourceSchema, PositionSchema } from "./basic";
 
 // ROOM EVENTS
@@ -32,6 +36,7 @@ const RoomEventSchema = z.object({
   event: z.discriminatedUnion("type", [
     ClientChangeMessageSchema,
     SetAudioSourcesSchema,
+    SetPlaybackControlsSchema,
   ]),
 });
 

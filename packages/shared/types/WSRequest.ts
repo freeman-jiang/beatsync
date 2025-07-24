@@ -82,7 +82,7 @@ export type PlaybackControlsPermissionsType = z.infer<
   typeof PlaybackControlsPermissionsEnum
 >;
 
-const SetPlaybackControlsSchema = z.object({
+export const SetPlaybackControlsSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_PLAYBACK_CONTROLS),
   permissions: PlaybackControlsPermissionsEnum,
 });

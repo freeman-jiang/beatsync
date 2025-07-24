@@ -1,7 +1,8 @@
 "use client";
+import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
+import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { NTPMeasurement } from "@/utils/ntp";
 import {
   epochNow,
@@ -9,7 +10,6 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
-import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -134,6 +134,7 @@ export const WebSocketManager = ({
       scheduleReconnection();
     };
 
+    // TODO: Refactor into exhaustive handler registry
     ws.onmessage = async (msg) => {
       // Update last message received time for connection health
       useGlobalStore.setState({ lastMessageReceivedTime: Date.now() });
