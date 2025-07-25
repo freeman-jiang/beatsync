@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
-import { AudioControls } from "./AudioControls";
+import { ConnectedUsersList } from "./ConnectedUsersList";
 
 interface LeftProps {
   className?: string;
@@ -28,9 +28,7 @@ export const Left = ({ className }: LeftProps) => {
   return (
     <motion.div
       className={cn(
-        "w-full lg:w-72 flex-shrink-0 border-r border-neutral-800/50 bg-neutral-900/50 backdrop-blur-md flex flex-col h-full text-sm",
-        "scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20",
-        "overflow-y-auto",
+        "w-full lg:w-80 lg:flex-shrink-0 border-l border-neutral-800/50 bg-neutral-900/50 backdrop-blur-md flex flex-col pb-4 lg:pb-0 text-sm space-y-1 overflow-y-auto pr-2 flex-shrink-0 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20",
         className
       )}
     >
@@ -45,6 +43,7 @@ export const Left = ({ className }: LeftProps) => {
 
       <Separator className="bg-neutral-800/50" /> */}
 
+      {/* Your Library Section */}
       <h2 className="text-base font-bold select-none px-4 py-3 -mb-2">
         Your Library
       </h2>
@@ -72,8 +71,10 @@ export const Left = ({ className }: LeftProps) => {
 
       <Separator className="bg-neutral-800/50" />
 
-      {/* Audio Controls */}
-      <AudioControls />
+      {/* Connected Users List */}
+      <ConnectedUsersList />
+
+      <Separator className="bg-neutral-800/50" />
 
       {/* Tips Section */}
       <motion.div className="mt-auto pb-4 pt-2 text-neutral-400">

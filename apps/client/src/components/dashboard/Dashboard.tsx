@@ -67,7 +67,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                   value="library"
                   className="flex-1 data-[state=active]:bg-white/5 data-[state=active]:shadow-none rounded-none text-xs h-full gap-1 text-neutral-400 data-[state=active]:text-white transition-all duration-200"
                 >
-                  <Library size={16} /> Library
+                  <Library size={16} /> Session
                 </TabsTrigger>
                 <TabsTrigger
                   value="queue"

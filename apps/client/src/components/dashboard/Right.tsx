@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
 import { motion } from "motion/react";
 import { UserGrid } from "../room/UserGrid";
+import { AudioControls } from "./AudioControls";
 
 interface RightProps {
   className?: string;
@@ -15,8 +16,15 @@ export const Right = ({ className }: RightProps) => {
         className
       )}
     >
-      <motion.div className="flex-1">
-        <UserGrid />
+      {/* Spatial Audio Controls */}
+      <motion.div className="flex-1 flex flex-col">
+        {/* Spatial Audio Grid */}
+        <div className="flex-1">
+          <UserGrid />
+        </div>
+
+        {/* Audio Effects Controls */}
+        <AudioControls />
       </motion.div>
 
       <motion.div className="flex flex-col gap-3 px-4 py-3 mt-1 bg-neutral-800/30 rounded-lg mx-3 mb-3 text-neutral-400">
@@ -33,7 +41,7 @@ export const Right = ({ className }: RightProps) => {
             </p>
             <p className="text-xs leading-relaxed mt-3">
               {
-                "Drag the headphone icon around and hear how the volume changes on each device. Isn't it cool!"
+                "Drag the headphone icon around and hear how the volume changes on each device."
               }
             </p>
           </div>
