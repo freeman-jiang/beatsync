@@ -81,7 +81,7 @@ export const PlaybackPermissions = () => {
           {/* Everyone Option */}
           <div
             className={cn(
-              "relative z-10 flex-1 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors duration-200",
+              "relative z-10 flex-1 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors duration-200 h-full",
               !isAdminOnly ? "text-white" : "text-neutral-400"
             )}
           >
@@ -92,7 +92,7 @@ export const PlaybackPermissions = () => {
           {/* Admin Only Option */}
           <div
             className={cn(
-              "relative z-10 flex-1 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors duration-200",
+              "relative z-10 flex-1 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors duration-200 h-full",
               isAdminOnly ? "text-white" : "text-neutral-400"
             )}
           >
