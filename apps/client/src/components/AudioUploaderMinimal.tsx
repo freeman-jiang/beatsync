@@ -4,6 +4,7 @@ import { uploadAudioFile } from "@/lib/api";
 import { cn, trimFileName } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
+import { PlaybackControlsPermissionsEnum } from "@beatsync/shared";
 import { CloudUpload, Plus } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
@@ -14,13 +15,18 @@ export const AudioUploaderMinimal = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const currentUser = useGlobalStore((state) => state.currentUser);
+  const playbackControlsPermissions = useGlobalStore(
+    (state) => state.playbackControlsPermissions
+  );
   const roomId = useRoomStore((state) => state.roomId);
   const posthog = usePostHog();
 
-  const notAdmin = !currentUser?.isAdmin;
+  const isAdmin = currentUser?.isAdmin || false;
+  const isAdminOnly = playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.ADMIN_ONLY;
+  const isDisabled = !isAdmin && isAdminOnly;
 
   const handleFileUpload = async (file: File) => {
-    if (notAdmin) return;
+    if (isDisabled) return;
 
     // Store file name for display
     setFileName(file.name);
@@ -70,28 +76,28 @@ export const AudioUploaderMinimal = () => {
   };
 
   const onInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (notAdmin) return;
+    if (isDisabled) return;
     const file = event.target.files?.[0];
     if (!file) return;
     handleFileUpload(file);
   };
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (notAdmin) return;
+    if (isDisabled) return;
     event.preventDefault();
     event.stopPropagation();
     setIsDragging(true);
   };
 
   const onDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    if (notAdmin) return;
+    if (isDisabled) return;
     event.preventDefault();
     event.stopPropagation();
     setIsDragging(false);
   };
 
   const onDropEvent = (event: React.DragEvent<HTMLDivElement>) => {
-    if (notAdmin) return;
+    if (isDisabled) return;
     event.preventDefault();
     event.stopPropagation();
     setIsDragging(false);
@@ -111,10 +117,10 @@ export const AudioUploaderMinimal = () => {
     <div
       className={cn(
         "border border-neutral-700/50 rounded-md mx-2 transition-all overflow-hidden",
-        notAdmin
+        isDisabled
           ? "bg-neutral-800/20 opacity-50"
           : "bg-neutral-800/30 hover:bg-neutral-800/50",
-        isDragging && !notAdmin
+        isDragging && !isDisabled
           ? "outline outline-primary-400 outline-dashed"
           : "outline-none"
       )}
@@ -123,17 +129,17 @@ export const AudioUploaderMinimal = () => {
       onDragLeave={onDragLeave}
       onDragEnd={onDragLeave}
       onDrop={onDropEvent}
-      title={notAdmin ? "You must be admin to upload" : undefined}
+      title={isDisabled ? "Admin-only mode - only admins can upload" : undefined}
     >
       <label
         htmlFor="audio-upload"
-        className={cn("block w-full", notAdmin ? "" : "cursor-pointer")}
+        className={cn("block w-full", isDisabled ? "" : "cursor-pointer")}
       >
         <div className="p-3 flex items-center gap-3">
           <div
             className={cn(
               "p-1.5 rounded-md flex-shrink-0",
-              notAdmin
+              isDisabled
                 ? "bg-neutral-600 text-neutral-400"
                 : "bg-primary-700 text-white"
             )}
@@ -156,11 +162,11 @@ export const AudioUploaderMinimal = () => {
               <div
                 className={cn(
                   "text-xs truncate",
-                  notAdmin ? "text-neutral-500" : "text-neutral-400"
+                  isDisabled ? "text-neutral-500" : "text-neutral-400"
                 )}
               >
-                {notAdmin
-                  ? "Only admins can add to queue"
+                {isDisabled
+                  ? "Admin-only mode"
                   : "Add music to queue"}
               </div>
             )}
@@ -173,7 +179,7 @@ export const AudioUploaderMinimal = () => {
         type="file"
         accept="audio/*"
         onChange={onInputChange}
-        disabled={isUploading || notAdmin}
+        disabled={isUploading || isDisabled}
         className="hidden"
       />
     </div>

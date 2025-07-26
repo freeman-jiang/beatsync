@@ -7,7 +7,7 @@ import {
   ClientActionEnum,
   PlaybackControlsPermissionsEnum,
 } from "@beatsync/shared";
-import { Shield, Users } from "lucide-react";
+import { Crown, Play, Users } from "lucide-react";
 import { motion } from "motion/react";
 
 export const PlaybackPermissions = () => {
@@ -46,7 +46,7 @@ export const PlaybackPermissions = () => {
     <div className="">
       <div className="flex items-center justify-between px-4 pt-3">
         <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 flex items-center gap-2">
-          <Shield className="h-3.5 w-3.5" />
+          <Play className="h-3.5 w-3.5" />
           <span>Playback Permissions</span>
         </h2>
       </div>
@@ -57,7 +57,7 @@ export const PlaybackPermissions = () => {
           onClick={isAdmin ? handleToggle : undefined}
           disabled={!isAdmin}
           className={cn(
-            "relative flex w-full h-8 bg-neutral-800 rounded-lg p-0.5 mt-2.5",
+            "relative flex w-full h-8 bg-neutral-800 rounded-lg p-0.5 mt-2.5 focus:outline-none",
             isAdmin ? "cursor-pointer" : "opacity-75"
           )}
         >
@@ -96,8 +96,8 @@ export const PlaybackPermissions = () => {
               isAdminOnly ? "text-white" : "text-neutral-400"
             )}
           >
-            <Shield className="h-3 w-3" />
-            <span>Admin Only</span>
+            <Crown className="h-3 w-3" />
+            <span>Admins</span>
           </div>
         </button>
       </div>
