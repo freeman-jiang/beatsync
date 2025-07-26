@@ -50,7 +50,7 @@ const ConnectedUserItem = memo<ConnectedUserItemProps>(
           </Avatar>
           {/* Admin crown indicator */}
           {client.isAdmin && (
-            <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full p-0.5">
+            <div className="absolute -top-1 -right-0.5 bg-yellow-500 rounded-full p-0.5">
               <Crown
                 className="h-2.5 w-2.5 text-yellow-900"
                 fill="currentColor"
@@ -148,18 +148,18 @@ export const ConnectedUsersList = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex mb-4 justify-end">
-              {/* <Button
+            {/* <div className="flex mb-4 justify-end">
+              <Button
                 className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white transition-colors duration-200 cursor-pointer w-full"
                 size="sm"
                 onClick={() => reorderClient(userId)}
               >
                 <ArrowUp className="size-4" /> Move to Top
-              </Button> */}
-            </div>
+              </Button>
+            </div> */}
 
             {/* List of connected users - Constrained height */}
-            <div className="relative">
+            <div className="relative mt-2.5">
               <div className="space-y-1 overflow-y-auto flex-shrink-0 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20">
                 {clientsWithData.map(({ client, isCurrentUser }) => (
                   <ConnectedUserItem

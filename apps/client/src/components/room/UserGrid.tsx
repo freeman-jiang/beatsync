@@ -78,9 +78,9 @@ const ClientAvatar = memo<ClientAvatarProps>(
               )}
               {/* Admin crown indicator */}
               {client.isAdmin && (
-                <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full p-0.5">
+                <div className="absolute -top-0 -right-0 bg-yellow-500 rounded-full p-0.5">
                   <Crown
-                    className="h-3 w-3 text-yellow-900"
+                    className="h-2.5 w-2.5 text-yellow-900"
                     fill="currentColor"
                   />
                 </div>
@@ -329,7 +329,7 @@ export const UserGrid = () => {
   }, [clients, userId]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 font-medium">
           <Rotate3D size={18} />
@@ -432,7 +432,7 @@ export const UserGrid = () => {
             </div>
 
             {/* Gain Meter */}
-            <div className="mb-3 mt-2.5">
+            <div className="mt-2.5">
               <GainMeter />
             </div>
           </>

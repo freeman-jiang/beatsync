@@ -1,7 +1,7 @@
 "use client";
 
 import { useGlobalStore } from "@/store/global";
-import { Construction, Orbit } from "lucide-react";
+import { Construction, Orbit, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
 import { Button } from "../ui/button";
@@ -25,19 +25,13 @@ export const AudioControls = () => {
   };
 
   return (
-    <motion.div className="px-4 space-y-3 py-3">
-      <h2
-        className={`text-xs font-medium uppercase tracking-wide ${
-          isLoadingAudio ? "text-neutral-500" : "text-neutral-400"
-        }`}
-      >
-        Audio Effects{" "}
-        {isLoadingAudio && (
-          <span className="text-xs opacity-70">(loading...)</span>
-        )}
-      </h2>
+    <motion.div className="px-4 space-y-2 py-3 mt-1">
+      <div className="flex items-center gap-2 font-medium">
+        <Sparkles size={18} />
+        <span>Audio Effects</span>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         <motion.div className="bg-neutral-800/20 rounded-md p-3 hover:bg-neutral-800/30 transition-colors">
           <div className="flex justify-between items-center">
             <div className="text-xs text-neutral-300 flex items-center gap-1.5">
@@ -64,7 +58,7 @@ export const AudioControls = () => {
             </div>
           </div>
         </motion.div>
-        <div className="bg-neutral-800/20 rounded-md p-3 hover:bg-neutral-800/30 transition-colors">
+        <div className="bg-neutral-800/20 rounded-md p-2.5 hover:bg-neutral-800/30 transition-colors">
           <div className="flex flex-col gap-2">
             <div className="text-xs text-neutral-500 flex items-center gap-1.5">
               <Construction className="h-3 w-3 text-neutral-400" />
