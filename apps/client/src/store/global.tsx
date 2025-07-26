@@ -244,6 +244,18 @@ const initializeAudioContext = () => {
 
 const initializationMutex = new Mutex();
 
+// Selector for canMutate
+export const useCanMutate = () => {
+  const currentUser = useGlobalStore((state) => state.currentUser);
+  const playbackControlsPermissions = useGlobalStore(
+    (state) => state.playbackControlsPermissions
+  );
+  
+  const isAdmin = currentUser?.isAdmin || false;
+  const isEveryoneMode = playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.EVERYONE;
+  return isAdmin || isEveryoneMode;
+};
+
 export const useGlobalStore = create<GlobalState>((set, get) => {
   const processNewAudioSource = async ({ url }: AudioSourceType) => {
     console.log(`Processing new audio source ${url}`);

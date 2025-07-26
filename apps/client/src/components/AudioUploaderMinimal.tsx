@@ -2,9 +2,8 @@
 
 import { uploadAudioFile } from "@/lib/api";
 import { cn, trimFileName } from "@/lib/utils";
-import { useGlobalStore } from "@/store/global";
+import { useCanMutate } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { PlaybackControlsPermissionsEnum } from "@beatsync/shared";
 import { CloudUpload, Plus } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
@@ -14,16 +13,11 @@ export const AudioUploaderMinimal = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const currentUser = useGlobalStore((state) => state.currentUser);
-  const playbackControlsPermissions = useGlobalStore(
-    (state) => state.playbackControlsPermissions
-  );
+  const canMutate = useCanMutate();
   const roomId = useRoomStore((state) => state.roomId);
   const posthog = usePostHog();
 
-  const isAdmin = currentUser?.isAdmin || false;
-  const isAdminOnly = playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.ADMIN_ONLY;
-  const isDisabled = !isAdmin && isAdminOnly;
+  const isDisabled = !canMutate;
 
   const handleFileUpload = async (file: File) => {
     if (isDisabled) return;
