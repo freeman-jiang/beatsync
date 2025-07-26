@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Library, Search } from "lucide-react";
+import { useRoomStore } from "@/store/room";
+import { Hash, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Button } from "../ui/button";
@@ -26,6 +27,8 @@ export const Left = ({ className }: LeftProps) => {
   //   }
   // };
 
+  const roomId = useRoomStore((state) => state.roomId);
+
   return (
     <motion.div
       className={cn(
@@ -44,24 +47,16 @@ export const Left = ({ className }: LeftProps) => {
 
       <Separator className="bg-neutral-800/50" /> */}
 
-      {/* Your Library Section */}
-      <h2 className="text-base font-bold select-none px-4 py-3 -mb-2">
-        Your Library
-      </h2>
-
       {/* Navigation menu */}
-      <motion.div className="px-3.5 space-y-1.5 py-2">
-        <Button
-          className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-md text-xs transition-colors duration-200"
-          variant="ghost"
-        >
-          <Library className="h-4 w-4" />
-          <span>Default Library</span>
-        </Button>
+      <motion.div className="px-3.5 space-y-2.5 py-2 mt-1">
+        <div className="flex items-center gap-2 font-medium">
+          <Hash size={18} />
+          <span>Room {roomId}</span>
+        </div>
 
-        <a href="https://cobalt.tools/" target="_blank">
+        <a href="https://ytmp3.cx/" target="_blank">
           <Button
-            className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-md text-xs transition-colors duration-200 cursor-pointer"
+            className="w-full flex justify-start gap-3 py-2 text-white font-medium bg-white/10 hover:bg-white/15 rounded-lg text-xs transition-colors duration-200 cursor-pointer"
             variant="ghost"
           >
             <Search className="h-4 w-4" />
