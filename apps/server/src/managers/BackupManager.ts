@@ -53,6 +53,11 @@ export class BackupManager {
       // Restore audio sources
       room.setAudioSources(validAudioSources);
 
+      // Restore client cache if it exists (for backwards compatibility with older backups)
+      if (roomData.clientCache) {
+        room.restoreClientCache(roomData.clientCache);
+      }
+
       // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
       globalManager.scheduleRoomCleanup(roomId);
       return {

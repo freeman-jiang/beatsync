@@ -37,9 +37,15 @@ const BackupClientSchema = z.object({
   isAdmin: z.boolean(),
 });
 
+export const ClientCacheBackupSchema = z.record(
+  z.string(),
+  z.object({ isAdmin: z.boolean() })
+);
+
 const RoomBackupSchema = z.object({
   clients: z.array(BackupClientSchema),
   audioSources: z.array(AudioSourceSchema),
+  clientCache: ClientCacheBackupSchema.optional(),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -65,6 +71,7 @@ type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
  */
 export class RoomManager {
   private clients = new Map<string, ClientType>();
+  private clientCache = new Map<string, Pick<ClientType, "isAdmin">>();
   private audioSources: AudioSourceType[] = [];
   private listeningSource: PositionType = {
     x: GRID.ORIGIN_X,
@@ -110,8 +117,19 @@ export class RoomManager {
 
     const { username, clientId } = ws.data;
 
-    // The first client to join a room will always be an admin
-    const isAdmin = this.clients.size === 0;
+    // Check if this username has cached admin status
+    const cachedClient = this.clientCache.get(username);
+    let isAdmin: boolean;
+    if (cachedClient) {
+      // Restore admin status from cache
+      isAdmin = cachedClient.isAdmin;
+    } else {
+      // The first client to join a room will always be an admin
+      isAdmin = this.clients.size === 0;
+    }
+
+    // Update the client cache
+    this.clientCache.set(username, { isAdmin });
 
     // Add the new client
     this.clients.set(clientId, {
@@ -162,6 +180,9 @@ export class RoomManager {
     if (!client) return;
     client.isAdmin = isAdmin;
     this.clients.set(targetClientId, client);
+
+    // Update the client cache to remember this admin status
+    this.clientCache.set(client.username, { isAdmin });
   }
 
   setPlaybackControls(
@@ -182,6 +203,11 @@ export class RoomManager {
   setAudioSources(sources: AudioSourceType[]): AudioSourceType[] {
     this.audioSources = sources;
     return this.audioSources;
+  }
+
+  // Restore client cache from backup
+  restoreClientCache(cache: z.infer<typeof ClientCacheBackupSchema>): void {
+    this.clientCache = new Map(Object.entries(cache));
   }
 
   /**
@@ -464,6 +490,9 @@ export class RoomManager {
    * Get the backup state for this room
    */
   createBackup(): RoomBackupType {
+    // Convert clientCache Map to object for serialization
+    const clientCacheObject = Object.fromEntries(this.clientCache);
+
     return {
       clients: this.getClients().map((client) => ({
         clientId: client.clientId,
@@ -471,6 +500,7 @@ export class RoomManager {
         isAdmin: client.isAdmin,
       })),
       audioSources: this.audioSources,
+      clientCache: clientCacheObject,
     };
   }
 
