@@ -119,14 +119,9 @@ export class RoomManager {
 
     // Check if this username has cached admin status
     const cachedClient = this.clientCache.get(username);
-    let isAdmin: boolean;
-    if (cachedClient) {
-      // Restore admin status from cache
-      isAdmin = cachedClient.isAdmin;
-    } else {
-      // The first client to join a room will always be an admin
-      isAdmin = this.clients.size === 0;
-    }
+
+    // The first client to join a room will always be an admin, otherwise they are an admin if they were an admin in the past
+    const isAdmin = cachedClient?.isAdmin || this.clients.size === 0;
 
     // Update the client cache
     this.clientCache.set(username, { isAdmin });
