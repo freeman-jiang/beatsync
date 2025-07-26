@@ -28,6 +28,12 @@ export const metadata: Metadata = {
     "Beatsync is an open-source, web audio player built for multi-device playback.",
   keywords: ["music", "sync", "audio", "collaboration", "real-time"],
   authors: [{ name: "Freeman Jiang" }],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({

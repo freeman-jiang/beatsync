@@ -16,7 +16,9 @@ interface DashboardProps {
 export const Dashboard = ({ roomId }: DashboardProps) => {
   const isSynced = useGlobalStore((state) => state.isSynced);
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
-  const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
+  const hasUserStartedSystem = useGlobalStore(
+    (state) => state.hasUserStartedSystem
+  );
 
   const isReady = isSynced && !isLoadingAudio;
 
@@ -32,14 +34,12 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col text-white bg-neutral-950">
+    <div className="w-full h-dvh flex flex-col text-white bg-neutral-950">
       {/* Top bar: Fixed height */}
       <TopBar roomId={roomId} />
 
       {/* Show SyncProgress during reconnection (when user has already started but lost sync) */}
-      {!isSynced && hasUserStartedSystem && !isLoadingAudio && (
-        <SyncProgress />
-      )}
+      {!isSynced && hasUserStartedSystem && !isLoadingAudio && <SyncProgress />}
 
       {isReady && (
         <motion.div
