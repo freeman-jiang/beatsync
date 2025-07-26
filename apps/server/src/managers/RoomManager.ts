@@ -71,7 +71,7 @@ type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
  */
 export class RoomManager {
   private clients = new Map<string, ClientType>();
-  private clientCache = new Map<string, Pick<ClientType, "isAdmin">>();
+  private clientCache = new Map<string, Pick<ClientType, "isAdmin">>(); // user id -> isAdmin
   private audioSources: AudioSourceType[] = [];
   private listeningSource: PositionType = {
     x: GRID.ORIGIN_X,
@@ -118,13 +118,13 @@ export class RoomManager {
     const { username, clientId } = ws.data;
 
     // Check if this username has cached admin status
-    const cachedClient = this.clientCache.get(username);
+    const cachedClient = this.clientCache.get(clientId);
 
     // The first client to join a room will always be an admin, otherwise they are an admin if they were an admin in the past
     const isAdmin = cachedClient?.isAdmin || this.clients.size === 0;
 
     // Update the client cache
-    this.clientCache.set(username, { isAdmin });
+    this.clientCache.set(clientId, { isAdmin });
 
     // Add the new client
     this.clients.set(clientId, {
@@ -177,7 +177,7 @@ export class RoomManager {
     this.clients.set(targetClientId, client);
 
     // Update the client cache to remember this admin status
-    this.clientCache.set(client.username, { isAdmin });
+    this.clientCache.set(client.clientId, { isAdmin });
   }
 
   setPlaybackControls(
