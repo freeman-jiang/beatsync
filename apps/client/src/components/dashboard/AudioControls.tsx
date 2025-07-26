@@ -1,13 +1,15 @@
 "use client";
 
-import { useGlobalStore } from "@/store/global";
+import { useGlobalStore, useCanMutate } from "@/store/global";
 import { Construction, Orbit, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
 import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
 export const AudioControls = () => {
   const posthog = usePostHog();
+  const canMutate = useCanMutate();
   const startSpatialAudio = useGlobalStore((state) => state.startSpatialAudio);
   const stopSpatialAudio = useGlobalStore(
     (state) => state.sendStopSpatialAudio
@@ -15,11 +17,13 @@ export const AudioControls = () => {
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
 
   const handleStartSpatialAudio = () => {
+    if (!canMutate) return;
     startSpatialAudio();
     posthog.capture("start_spatial_audio");
   };
 
   const handleStopSpatialAudio = () => {
+    if (!canMutate) return;
     stopSpatialAudio();
     posthog.capture("stop_spatial_audio");
   };
@@ -32,7 +36,10 @@ export const AudioControls = () => {
       </div>
 
       <div className="space-y-2">
-        <motion.div className="bg-neutral-800/20 rounded-md p-3 hover:bg-neutral-800/30 transition-colors">
+        <motion.div className={cn(
+          "bg-neutral-800/20 rounded-md p-3 hover:bg-neutral-800/30 transition-colors",
+          !canMutate && "opacity-50"
+        )}>
           <div className="flex justify-between items-center">
             <div className="text-xs text-neutral-300 flex items-center gap-1.5">
               <Orbit className="h-3 w-3 text-primary-500" />
@@ -43,7 +50,7 @@ export const AudioControls = () => {
                 className="text-xs px-3 py-1 h-auto bg-primary-600/80 hover:bg-primary-600 text-white"
                 size="sm"
                 onClick={handleStartSpatialAudio}
-                disabled={isLoadingAudio}
+                disabled={isLoadingAudio || !canMutate}
               >
                 Start
               </Button>
@@ -51,7 +58,7 @@ export const AudioControls = () => {
                 className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white"
                 size="sm"
                 onClick={handleStopSpatialAudio}
-                disabled={isLoadingAudio}
+                disabled={isLoadingAudio || !canMutate}
               >
                 Stop
               </Button>

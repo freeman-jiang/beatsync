@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
-import { useGlobalStore } from "@/store/global";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { AudioSourceType } from "@beatsync/shared";
 import { MoreHorizontal, Pause, Play, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -23,8 +23,10 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
   const isPlaying = useGlobalStore((state) => state.isPlaying);
   const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
+  const canMutate = useCanMutate();
 
   const handleItemClick = (source: AudioSourceType) => {
+    if (!canMutate) return;
     if (source.url === selectedAudioId) {
       if (isPlaying) {
         broadcastPause();
@@ -70,7 +72,8 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     "flex items-center pl-2 pr-4 py-3 rounded-md group transition-colors select-none",
                     isSelected
                       ? "text-white hover:bg-neutral-700/20"
-                      : "text-neutral-300 hover:bg-neutral-700/20"
+                      : "text-neutral-300 hover:bg-neutral-700/20",
+                    !canMutate && "text-white/50"
                   )}
                   onClick={() => handleItemClick(source)}
                 >

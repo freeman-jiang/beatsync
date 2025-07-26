@@ -1,6 +1,6 @@
 import { cn, formatTime } from "@/lib/utils";
 
-import { useGlobalStore } from "@/store/global";
+import { useGlobalStore, useCanMutate } from "@/store/global";
 import {
   Pause,
   Play,
@@ -15,6 +15,7 @@ import { Slider } from "../ui/slider";
 
 export const Player = () => {
   const posthog = usePostHog();
+  const canMutate = useCanMutate();
   const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
   const isPlaying = useGlobalStore((state) => state.isPlaying);
@@ -75,14 +76,16 @@ export const Player = () => {
 
   // Handle slider change
   const handleSliderChange = useCallback((value: number[]) => {
+    if (!canMutate) return;
     const position = value[0];
     setIsDragging(true);
     setSliderPosition(position);
-  }, []);
+  }, [canMutate]);
 
   // Handle slider release - seek to that position
   const handleSliderCommit = useCallback(
     (value: number[]) => {
+      if (!canMutate) return;
       const newPosition = value[0];
       setIsDragging(false);
       // If currently playing, broadcast play at new position
@@ -101,6 +104,7 @@ export const Player = () => {
       });
     },
     [
+      canMutate,
       broadcastPlay,
       isPlaying,
       setSliderPosition,
@@ -111,6 +115,7 @@ export const Player = () => {
   );
 
   const handlePlay = useCallback(() => {
+    if (!canMutate) return;
     if (isPlaying) {
       broadcastPause();
       posthog.capture("pause_track", { track_id: selectedAudioId });
@@ -122,6 +127,7 @@ export const Player = () => {
       });
     }
   }, [
+    canMutate,
     isPlaying,
     broadcastPause,
     broadcastPlay,
@@ -131,28 +137,31 @@ export const Player = () => {
   ]);
 
   const handleSkipBack = useCallback(() => {
+    if (!canMutate) return;
     if (!isShuffled) {
       skipToPreviousTrack();
       posthog.capture("skip_previous", {
         from_track_id: selectedAudioId,
       });
     }
-  }, [skipToPreviousTrack, isShuffled, posthog, selectedAudioId]);
+  }, [canMutate, skipToPreviousTrack, isShuffled, posthog, selectedAudioId]);
 
   const handleSkipForward = useCallback(() => {
+    if (!canMutate) return;
     skipToNextTrack();
     posthog.capture("skip_next", {
       from_track_id: selectedAudioId,
     });
-  }, [skipToNextTrack, posthog, selectedAudioId]);
+  }, [canMutate, skipToNextTrack, posthog, selectedAudioId]);
 
   const handleShuffle = useCallback(() => {
+    if (!canMutate) return;
     toggleShuffle();
     posthog.capture("toggle_shuffle", {
       shuffle_enabled: !isShuffled,
       queue_size: audioSources.length,
     });
-  }, [toggleShuffle, posthog, isShuffled, audioSources.length]);
+  }, [canMutate, toggleShuffle, posthog, isShuffled, audioSources.length]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -184,10 +193,11 @@ export const Player = () => {
           <button
             className={cn(
               "text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200",
-              isShuffled && "text-primary-400"
+              isShuffled && "text-primary-400",
+              !canMutate && "opacity-50 cursor-not-allowed"
             )}
             onClick={handleShuffle}
-            disabled={audioSources.length <= 1}
+            disabled={audioSources.length <= 1 || !canMutate}
           >
             <div className="relative">
               <Shuffle
@@ -202,15 +212,22 @@ export const Player = () => {
             </div>
           </button>
           <button
-            className="text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(
+              "text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+              !canMutate && "opacity-50 cursor-not-allowed"
+            )}
             onClick={handleSkipBack}
-            disabled={isShuffled || audioSources.length <= 1}
+            disabled={isShuffled || audioSources.length <= 1 || !canMutate}
           >
             <SkipBack className="w-7 h-7 md:w-5 md:h-5 fill-current" />
           </button>
           <button
-            className="bg-white text-black rounded-full p-3 md:p-2 hover:scale-105 transition-transform cursor-pointer duration-200 focus:outline-none"
+            className={cn(
+              "bg-white text-black rounded-full p-3 md:p-2 hover:scale-105 transition-transform cursor-pointer duration-200 focus:outline-none",
+              !canMutate && "opacity-50 cursor-not-allowed"
+            )}
             onClick={handlePlay}
+            disabled={!canMutate}
           >
             {isPlaying ? (
               <Pause className="w-5 h-5 md:w-4 md:h-4 fill-current stroke-1" />
@@ -219,9 +236,12 @@ export const Player = () => {
             )}
           </button>
           <button
-            className="text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(
+              "text-gray-400 hover:text-white transition-colors cursor-pointer hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+              !canMutate && "opacity-50 cursor-not-allowed"
+            )}
             onClick={handleSkipForward}
-            disabled={audioSources.length <= 1}
+            disabled={audioSources.length <= 1 || !canMutate}
           >
             <SkipForward className="w-7 h-7 md:w-5 md:h-5 fill-current" />
           </button>
@@ -243,6 +263,8 @@ export const Player = () => {
             step={0.1}
             onValueChange={handleSliderChange}
             onValueCommit={handleSliderCommit}
+            disabled={!canMutate}
+            className={cn(!canMutate && "opacity-50")}
           />
           <span className="text-xs text-muted-foreground min-w-11 text-right select-none">
             {formatTime(trackDuration)}

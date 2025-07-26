@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { useGlobalStore } from "@/store/global";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { ClientType, GRID } from "@beatsync/shared";
 import { Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
@@ -103,6 +103,7 @@ ClientAvatar.displayName = "ClientAvatar";
 
 export const UserGrid = () => {
   const userId = useRoomStore((state) => state.userId);
+  const canMutate = useCanMutate();
   const listeningSource = useGlobalStore(
     (state) => state.listeningSourcePosition
   );
@@ -182,18 +183,20 @@ export const UserGrid = () => {
   // Handlers for dragging the listening source
   const handleSourceMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (!canMutate) return;
       e.stopPropagation(); // Prevent grid click handler from firing
       setIsDraggingListeningSource(true);
     },
-    [setIsDraggingListeningSource]
+    [canMutate, setIsDraggingListeningSource]
   );
 
   const handleSourceTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      if (!canMutate) return;
       e.stopPropagation(); // Prevent grid touch handler from firing
       setIsDraggingListeningSource(true);
     },
-    [setIsDraggingListeningSource]
+    [canMutate, setIsDraggingListeningSource]
   );
 
   const handleSourceMouseUp = useCallback(() => {
@@ -338,6 +341,7 @@ export const UserGrid = () => {
           <Switch
             checked={isSpatialAudioEnabled}
             onCheckedChange={(checked) => {
+              if (!canMutate) return;
               setIsSpatialAudioEnabled(checked);
               if (checked) {
                 // When turning on, send current listening source position
@@ -346,6 +350,8 @@ export const UserGrid = () => {
                 stopSpatialAudio();
               }
             }}
+            disabled={!canMutate}
+            className={cn(!canMutate && "opacity-50")}
           />
         </div>
       </div>
@@ -381,18 +387,21 @@ export const UserGrid = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <motion.div
-                      className="absolute z-40 cursor-move"
+                      className={cn(
+                        "absolute z-40",
+                        canMutate ? "cursor-move" : ""
+                      )}
                       style={{
                         left: `${listeningSource.x}%`,
                         top: `${listeningSource.y}%`,
                         transform: "translate(-50%, -50%)",
-                        opacity: isSpatialAudioEnabled ? 1 : 0.7,
+                        opacity: isSpatialAudioEnabled && canMutate ? 1 : 0.7,
                       }}
                       {...(!isDraggingListeningSource && {
                         animate: {
                           left: `${listeningSource.x}%`,
                           top: `${listeningSource.y}%`,
-                          opacity: isSpatialAudioEnabled ? 1 : 0.7,
+                          opacity: isSpatialAudioEnabled && canMutate ? 1 : 0.7,
                         },
                         transition: {
                           type: "tween",
