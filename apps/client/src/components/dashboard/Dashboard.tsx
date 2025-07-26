@@ -52,7 +52,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden min-h-0">
             <Left className="flex" />
             <Main />
-            <Right className="flex lg:w-80 lg:flex-shrink-0" />
+            <Right className="flex lg:flex-shrink-0" />
           </div>
 
           {/* --- MOBILE LAYOUT (< lg) --- */}
