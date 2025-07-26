@@ -158,7 +158,7 @@ export const ConnectedUsersList = () => {
 
             {/* List of connected users - Constrained height */}
             <div className="relative mt-2.5">
-              <div className="space-y-1 overflow-y-auto flex-shrink-0 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20">
+              <div className="space-y-1 overflow-y-auto flex-shrink-0 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20 -mx-1">
                 {clientsWithData.map(({ client, isCurrentUser }) => (
                   <ConnectedUserItem
                     key={client.clientId}
