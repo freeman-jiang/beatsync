@@ -7,6 +7,7 @@ import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { ConnectedUsersList } from "./ConnectedUsersList";
+import { PlaybackPermissions } from "./PlaybackPermissions";
 
 interface LeftProps {
   className?: string;
@@ -71,23 +72,22 @@ export const Left = ({ className }: LeftProps) => {
 
       <Separator className="bg-neutral-800/50" />
 
+      <PlaybackPermissions />
+
+      <Separator className="bg-neutral-800/50" />
+
       {/* Connected Users List */}
       <ConnectedUsersList />
 
-      <Separator className="bg-neutral-800/50" />
+      {/* Playback Permissions */}
+
+      {/* <Separator className="bg-neutral-800/50" /> */}
 
       {/* Tips Section */}
       <motion.div className="mt-auto pb-4 pt-2 text-neutral-400">
         <div className="flex flex-col gap-2 p-4 border-t border-neutral-800/50">
           <h5 className="text-xs font-medium text-neutral-300">Tips</h5>
           <ul className="list-disc list-outside pl-4 space-y-1.5">
-            <li className="text-xs leading-relaxed">
-              Works best with multiple devices IRL in the same space.
-            </li>
-            <li className="text-xs leading-relaxed">
-              If audio gets de-synced, pause, play / full sync and try again or
-              refresh.
-            </li>
             <li className="text-xs leading-relaxed">
               {"Play on speaker directly. Don't use Bluetooth."}
             </li>

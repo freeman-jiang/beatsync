@@ -112,7 +112,7 @@ export const AudioUploaderMinimal = () => {
       className={cn(
         "border border-neutral-700/50 rounded-md mx-2 transition-all overflow-hidden",
         notAdmin
-          ? "bg-neutral-800/20 opacity-50 cursor-not-allowed"
+          ? "bg-neutral-800/20 opacity-50"
           : "bg-neutral-800/30 hover:bg-neutral-800/50",
         isDragging && !notAdmin
           ? "outline outline-primary-400 outline-dashed"
@@ -127,10 +127,7 @@ export const AudioUploaderMinimal = () => {
     >
       <label
         htmlFor="audio-upload"
-        className={cn(
-          "block w-full",
-          notAdmin ? "cursor-not-allowed" : "cursor-pointer"
-        )}
+        className={cn("block w-full", notAdmin ? "" : "cursor-pointer")}
       >
         <div className="p-3 flex items-center gap-3">
           <div
