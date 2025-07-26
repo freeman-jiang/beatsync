@@ -3,11 +3,12 @@ import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { ClientType, GRID } from "@beatsync/shared";
-import { Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
+import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GainMeter } from "../dashboard/GainMeter";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import {
   Tooltip,
@@ -124,6 +125,7 @@ export const UserGrid = () => {
   const setIsSpatialAudioEnabled = useGlobalStore(
     (state) => state.setIsSpatialAudioEnabled
   );
+  const reorderClient = useGlobalStore((state) => state.reorderClient);
 
   // Use clients from global store
   const clients = useGlobalStore((state) => state.connectedClients);
@@ -444,6 +446,16 @@ export const UserGrid = () => {
             </div>
           </>
         )}
+        <div className="flex mb-4 justify-end mt-2">
+          <Button
+            className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white transition-colors duration-200 cursor-pointer w-fit disabled:opacity-50 disabled:cursor-not-allowed"
+            size="sm"
+            disabled={!canMutate}
+            onClick={() => reorderClient(userId)}
+          >
+            <ArrowUp className="size-4" /> Move to Top
+          </Button>
+        </div>
       </div>
     </div>
   );

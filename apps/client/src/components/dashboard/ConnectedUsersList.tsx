@@ -146,16 +146,6 @@ export const ConnectedUsersList = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            {/* <div className="flex mb-4 justify-end">
-              <Button
-                className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white transition-colors duration-200 cursor-pointer w-full"
-                size="sm"
-                onClick={() => reorderClient(userId)}
-              >
-                <ArrowUp className="size-4" /> Move to Top
-              </Button>
-            </div> */}
-
             {/* List of connected users - Constrained height */}
             <div className="relative mt-2.5">
               <div className="space-y-1 overflow-y-auto flex-shrink-0 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20 -mx-1">

@@ -1,3 +1,4 @@
+import { PlaybackControlsPermissionsEnum } from "@beatsync/shared";
 import { ServerWebSocket } from "bun";
 import { globalManager, RoomManager } from "../managers";
 import { WSData } from "../utils/websocket";
@@ -37,5 +38,28 @@ export const requireRoomAdmin = (
       `Client ${ws.data.clientId} is not an admin in room ${ws.data.roomId}`
     );
   }
+  return { room };
+};
+
+export const requireCanMutate = (
+  ws: ServerWebSocket<WSData>
+): { room: RoomManager } => {
+  const { room } = requireRoomAdmin(ws);
+  const client = room.getClient(ws.data.clientId);
+  if (!client)
+    throw new Error(
+      `Client ${ws.data.clientId} does not exist in room ${ws.data.roomId}`
+    );
+
+  const canMutate =
+    room.getPlaybackControlsPermissions() ===
+      PlaybackControlsPermissionsEnum.enum.EVERYONE || client.isAdmin;
+
+  if (!canMutate) {
+    throw new Error(
+      `Client ${ws.data.clientId} does not have permission to mutate in room ${ws.data.roomId}`
+    );
+  }
+
   return { room };
 };

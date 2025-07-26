@@ -33,13 +33,8 @@ export const Right = ({ className }: RightProps) => {
               What is this?
             </h5>
             <p className="text-xs leading-relaxed">
-              This grid simulates a spatial audio environment. The headphone
-              icon (🎧) is a listening source. The circles represent other
-              devices in the room.
-            </p>
-            <p className="text-xs leading-relaxed mt-3">
               {
-                "Drag the headphone icon around and hear how the volume changes on each device."
+                "This grid simulates a spatial audio environment. Drag the listening source around and hear how the volume changes on each device. Works best in person."
               }
             </p>
           </div>
