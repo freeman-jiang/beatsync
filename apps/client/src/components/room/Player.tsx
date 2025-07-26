@@ -1,6 +1,6 @@
 import { cn, formatTime } from "@/lib/utils";
 
-import { useGlobalStore, useCanMutate } from "@/store/global";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import {
   Pause,
   Play,
@@ -75,12 +75,15 @@ export const Player = () => {
   }, [isPlaying, getCurrentTrackPosition, isDragging]);
 
   // Handle slider change
-  const handleSliderChange = useCallback((value: number[]) => {
-    if (!canMutate) return;
-    const position = value[0];
-    setIsDragging(true);
-    setSliderPosition(position);
-  }, [canMutate]);
+  const handleSliderChange = useCallback(
+    (value: number[]) => {
+      if (!canMutate) return;
+      const position = value[0];
+      setIsDragging(true);
+      setSliderPosition(position);
+    },
+    [canMutate]
+  );
 
   // Handle slider release - seek to that position
   const handleSliderCommit = useCallback(
@@ -176,7 +179,9 @@ export const Player = () => {
         )
       ) {
         e.preventDefault();
-        handlePlay();
+        if (canMutate) {
+          handlePlay();
+        }
       }
     };
 

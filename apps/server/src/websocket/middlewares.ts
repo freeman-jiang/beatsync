@@ -44,7 +44,7 @@ export const requireRoomAdmin = (
 export const requireCanMutate = (
   ws: ServerWebSocket<WSData>
 ): { room: RoomManager } => {
-  const { room } = requireRoomAdmin(ws);
+  const { room } = requireRoom(ws);
   const client = room.getClient(ws.data.clientId);
   if (!client)
     throw new Error(
