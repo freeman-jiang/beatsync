@@ -136,9 +136,7 @@ export const ConnectedUsersList = () => {
           <Users className="h-3.5 w-3.5" />
           <span>Connected Users</span>
         </h2>
-        <span className="text-xs font-medium text-neutral-400">
-          {clients.length}
-        </span>
+        <Badge variant="outline">{clients.length}</Badge>
       </div>
 
       <div className="px-4 pb-3">

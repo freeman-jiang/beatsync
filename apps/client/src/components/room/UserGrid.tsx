@@ -8,7 +8,6 @@ import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GainMeter } from "../dashboard/GainMeter";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Badge } from "../ui/badge";
 import { Switch } from "../ui/switch";
 import {
   Tooltip,
@@ -336,7 +335,6 @@ export const UserGrid = () => {
           <span>Spatial Audio</span>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline">{clients.length}</Badge>
           <Switch
             checked={isSpatialAudioEnabled}
             onCheckedChange={(checked) => {
