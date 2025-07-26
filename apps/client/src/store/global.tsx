@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { fetchDefaultAudioSources } from "@/lib/api";
+import { getClientId } from "@/lib/clientId";
 import { extractFileNameFromUrl } from "@/lib/utils";
 import {
   NTPMeasurement,
@@ -22,7 +23,6 @@ import {
 import { Mutex } from "async-mutex";
 import { toast } from "sonner";
 import { create } from "zustand";
-import { useRoomStore } from "./room";
 
 export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
@@ -802,9 +802,12 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         set({ listeningSourcePosition: listeningSource });
       }
 
-      // Extract out what this client's gain is:
-      const userId = useRoomStore.getState().userId;
-      const user = gains[userId];
+      const clientId = getClientId();
+      const user = gains[clientId];
+      if (!user) {
+        console.error(`No gain config found for client ${clientId}`);
+        return;
+      }
       const { gain, rampTime } = user;
 
       // Process
@@ -855,9 +858,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     setConnectedClients: (clients) => {
-      const userId = useRoomStore.getState().userId;
-      const currentUser =
-        clients.find((client) => client.clientId === userId) || null;
+      const clientId = getClientId();
+      const currentUser = clients.find(
+        (client) => client.clientId === clientId
+      );
+
+      if (!currentUser) {
+        throw new Error(
+          `Current user not found in connected clients: ${clientId}`
+        );
+      }
+
       set({ connectedClients: clients, currentUser });
     },
 
