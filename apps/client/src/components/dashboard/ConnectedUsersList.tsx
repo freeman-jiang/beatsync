@@ -1,7 +1,7 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
 import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
-import { useRoomStore } from "@/store/room";
 import { ClientType } from "@beatsync/shared";
 import { Crown, MoreVertical, Users } from "lucide-react";
 import { motion } from "motion/react";
@@ -112,7 +112,7 @@ const ConnectedUserItem = memo<ConnectedUserItemProps>(
 ConnectedUserItem.displayName = "ConnectedUserItem";
 
 export const ConnectedUsersList = () => {
-  const userId = useRoomStore((state) => state.userId);
+  const { clientId } = useClientId();
   const clients = useGlobalStore((state) => state.connectedClients);
   // const reorderClient = useGlobalStore((state) => state.reorderClient);
   const setAdminStatus = useGlobalStore((state) => state.setAdminStatus);
@@ -124,10 +124,10 @@ export const ConnectedUsersList = () => {
   // Memoize client data to avoid unnecessary recalculations
   const clientsWithData = useMemo(() => {
     return clients.map((client) => {
-      const isCurrentUser = client.clientId === userId;
+      const isCurrentUser = client.clientId === clientId;
       return { client, isCurrentUser };
     });
-  }, [clients, userId]);
+  }, [clients, clientId]);
 
   return (
     <div className="">

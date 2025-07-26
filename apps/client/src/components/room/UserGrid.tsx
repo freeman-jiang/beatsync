@@ -1,7 +1,7 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
 import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
-import { useRoomStore } from "@/store/room";
 import { ClientType, GRID } from "@beatsync/shared";
 import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
 import { motion } from "motion/react";
@@ -103,7 +103,7 @@ const ClientAvatar = memo<ClientAvatarProps>(
 ClientAvatar.displayName = "ClientAvatar";
 
 export const UserGrid = () => {
-  const userId = useRoomStore((state) => state.userId);
+  const { clientId } = useClientId();
   const canMutate = useCanMutate();
   const listeningSource = useGlobalStore(
     (state) => state.listeningSourcePosition
@@ -327,10 +327,10 @@ export const UserGrid = () => {
   // Memoize client data to avoid unnecessary recalculations
   const clientsWithData = useMemo(() => {
     return clients.map((client) => {
-      const isCurrentUser = client.clientId === userId;
+      const isCurrentUser = client.clientId === clientId;
       return { client, isCurrentUser };
     });
-  }, [clients, userId]);
+  }, [clients, clientId]);
 
   return (
     <div className="flex flex-col overflow-hidden">
@@ -451,7 +451,7 @@ export const UserGrid = () => {
             className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white transition-colors duration-200 cursor-pointer w-fit disabled:opacity-50 disabled:cursor-not-allowed"
             size="sm"
             disabled={!canMutate}
-            onClick={() => reorderClient(userId)}
+            onClick={() => reorderClient(clientId || "")}
           >
             <ArrowUp className="size-4" /> Move to Top
           </Button>

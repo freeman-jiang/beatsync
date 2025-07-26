@@ -1,4 +1,5 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
 import { useRoomStore } from "@/store/room";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
@@ -6,7 +7,7 @@ export const RoomInfo = () => {
   // Get room information directly from the store
   const roomId = useRoomStore((state) => state.roomId);
   const username = useRoomStore((state) => state.username);
-  const userId = useRoomStore((state) => state.userId);
+  const { clientId } = useClientId();
 
   return (
     <Card className="w-full md:w-2/3">
@@ -25,7 +26,7 @@ export const RoomInfo = () => {
           </div>
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">User ID</span>
-            <span className="font-medium truncate">{userId}</span>
+            <span className="font-medium truncate">{clientId}</span>
           </div>
         </div>
       </CardContent>

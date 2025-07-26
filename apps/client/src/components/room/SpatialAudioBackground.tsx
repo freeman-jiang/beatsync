@@ -1,14 +1,16 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
 import { useGlobalStore } from "@/store/global";
-import { useRoomStore } from "@/store/room";
 import { motion } from "motion/react";
 
 export const SpatialAudioBackground = () => {
-  const userId = useRoomStore((state) => state.userId);
+  const { clientId } = useClientId();
   const spatialConfig = useGlobalStore((state) => state.spatialConfig);
 
+  if (!clientId) return null;
+
   // Get the current user's gain value (0 to 1), default to 0 if not found
-  const gain = spatialConfig?.gains[userId]?.gain ?? 0;
+  const gain = spatialConfig?.gains[clientId]?.gain || 0;
 
   // If gain is 0, don't render anything
   if (gain <= 0) return null;
