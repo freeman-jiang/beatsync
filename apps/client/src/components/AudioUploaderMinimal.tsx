@@ -173,7 +173,7 @@ export const AudioUploaderMinimal = () => {
       <input
         id="audio-upload"
         type="file"
-        accept="audio/*"
+        accept="audio/mpeg,audio/mp3,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/webm,audio/flac,.mp3,.wav,.m4a,.aac,.ogg,.webm,.flac"
         onChange={onInputChange}
         disabled={isUploading || isDisabled}
         className="hidden"
