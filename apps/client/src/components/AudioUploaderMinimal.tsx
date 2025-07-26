@@ -123,7 +123,9 @@ export const AudioUploaderMinimal = () => {
       onDragLeave={onDragLeave}
       onDragEnd={onDragLeave}
       onDrop={onDropEvent}
-      title={isDisabled ? "Admin-only mode - only admins can upload" : undefined}
+      title={
+        isDisabled ? "Admin-only mode - only admins can upload" : undefined
+      }
     >
       <label
         htmlFor="audio-upload"
@@ -160,7 +162,7 @@ export const AudioUploaderMinimal = () => {
                 )}
               >
                 {isDisabled
-                  ? "Admin-only mode"
+                  ? "Must be an admin to upload"
                   : "Add music to queue"}
               </div>
             )}
