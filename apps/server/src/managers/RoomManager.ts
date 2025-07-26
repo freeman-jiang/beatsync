@@ -155,6 +155,30 @@ export class RoomManager {
     // Reposition remaining clients if any
     if (this.clients.size > 0) {
       positionClientsInCircle(this.clients);
+
+      // Always check to ensure there is at least one admin
+
+      // Check if any admins remain after removing this client
+      const remainingAdmins = Array.from(this.clients.values()).filter(
+        (client) => client.isAdmin
+      );
+
+      // If no admins remain, randomly select a new admin
+      if (remainingAdmins.length === 0) {
+        const remainingClients = Array.from(this.clients.values());
+        const randomIndex = Math.floor(Math.random() * remainingClients.length);
+        const newAdmin = remainingClients[randomIndex];
+
+        if (newAdmin) {
+          newAdmin.isAdmin = true;
+          this.clients.set(newAdmin.clientId, newAdmin);
+          this.clientCache.set(newAdmin.clientId, { isAdmin: true });
+
+          console.log(
+            `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
+          );
+        }
+      }
     } else {
       // Stop heartbeat checking if no clients remain
       this.stopHeartbeatChecking();
