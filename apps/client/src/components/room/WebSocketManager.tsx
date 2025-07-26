@@ -1,4 +1,5 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
 import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { useGlobalStore } from "@/store/global";
@@ -43,9 +44,11 @@ export const WebSocketManager = ({
   roomId,
   username,
 }: WebSocketManagerProps) => {
+  // Get PostHog client ID
+  const { clientId } = useClientId();
+
   // Room state
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
-  const setUserId = useRoomStore((state) => state.setUserId);
 
   // WebSocket and audio state
   const setSocket = useGlobalStore((state) => state.setSocket);
@@ -96,7 +99,7 @@ export const WebSocketManager = ({
   });
 
   const createConnection = () => {
-    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}&clientId=${clientId}`;
     console.log("Creating new WS connection to", SOCKET_URL);
 
     // Clear previous connection if it exists
@@ -184,8 +187,6 @@ export const WebSocketManager = ({
         } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
           processStopSpatialAudio();
         }
-      } else if (response.type === "SET_CLIENT_ID") {
-        setUserId(response.clientId);
       } else {
         console.log("Unknown response type:", response);
       }
@@ -194,11 +195,10 @@ export const WebSocketManager = ({
     return ws;
   };
 
-  // Once room has been loaded, connect to the websocket
+  // Once room has been loaded and we have clientId, connect to the websocket
   useEffect(() => {
-    // Only run this effect once after room is loaded
-    if (isLoadingRoom || !roomId || !username) return;
-    console.log("Connecting to websocket");
+    // Only run this effect once after room is loaded and clientId is available
+    if (isLoadingRoom || !roomId || !username || !clientId) return;
 
     // Don't create a new connection if we already have one
     if (socket) {
@@ -225,7 +225,7 @@ export const WebSocketManager = ({
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingRoom, roomId, username]);
+  }, [isLoadingRoom, roomId, username, clientId]);
 
   return null; // This is a non-visual component
 };

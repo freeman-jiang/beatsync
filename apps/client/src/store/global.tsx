@@ -250,9 +250,11 @@ export const useCanMutate = () => {
   const playbackControlsPermissions = useGlobalStore(
     (state) => state.playbackControlsPermissions
   );
-  
+
   const isAdmin = currentUser?.isAdmin || false;
-  const isEveryoneMode = playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.EVERYONE;
+  const isEveryoneMode =
+    playbackControlsPermissions ===
+    PlaybackControlsPermissionsEnum.enum.EVERYONE;
   return isAdmin || isEveryoneMode;
 };
 
@@ -395,7 +397,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         const { socket } = getSocket(state);
 
         // Request sync with room if conditions are met
-        console.log("Requesting sync from server for late joiner");
         sendWSRequest({
           ws: socket,
           request: { type: ClientActionEnum.enum.SYNC },

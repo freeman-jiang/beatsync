@@ -26,13 +26,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   console.log(
     `WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`
   );
-  sendUnicast({
-    ws,
-    message: {
-      type: "SET_CLIENT_ID",
-      clientId: ws.data.clientId,
-    },
-  });
+  // Client already knows its ID from PostHog, no need to send SET_CLIENT_ID
 
   const { roomId } = ws.data;
   ws.subscribe(roomId);
