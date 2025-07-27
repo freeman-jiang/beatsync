@@ -17,18 +17,20 @@ import {
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { useGlobalStore } from "@/store/global";
+import { useCanMutate,useGlobalStore } from "@/store/global";
 import { Card } from "./ui/card";
 import { motion, AnimatePresence } from "motion/react";
 import Image from "next/image";
 import { YouTubePlayer } from "./youtube/YouTubePlayer";
 import { extractFileNameFromUrl } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const UnifiedPlayer = () => {
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [livePosition, setLivePosition] = useState(0);
   const [youtubeDuration, setYoutubeDuration] = useState(0);
   const [youtubePosition, setYoutubePosition] = useState(0);
+  const canMutate = useCanMutate();
   
   // Global state
   const currentMode = useGlobalStore((state) => state.currentMode);
@@ -115,11 +117,18 @@ export const UnifiedPlayer = () => {
       selectedAudioId, 
       currentAudio: !!currentAudio,
       isInitingSystem,
-      audioSourcesLength: audioSources.length 
+      audioSourcesLength: audioSources.length,
+      canMutate
     });
     
     if (isInitingSystem) {
       console.log("UnifiedPlayer: System still initializing, cannot play");
+      return;
+    }
+
+    if (!canMutate) {
+      console.log("UnifiedPlayer: User does not have permission to control playback");
+      toast.error("You don't have permission to control playback");
       return;
     }
     
@@ -141,36 +150,61 @@ export const UnifiedPlayer = () => {
         broadcastPlay();
       }
     }
-  }, [currentMode, isPlaying, selectedAudioId, currentAudio, isInitingSystem, audioSources.length, youtubePlayer, isYouTubePlayerReady, broadcastPauseYouTube, broadcastPlayYouTube, broadcastPause, broadcastPlay]);
+  }, [currentMode, isPlaying, selectedAudioId, currentAudio, isInitingSystem, audioSources.length, youtubePlayer, isYouTubePlayerReady, broadcastPauseYouTube, broadcastPlayYouTube, broadcastPause, broadcastPlay, canMutate]);
 
   const handlePrevious = useCallback(() => {
+    if (!canMutate) {
+      toast.error("You don't have permission to control playback");
+      return;
+    }
+    
     if (currentMode === 'youtube') {
       skipToPreviousYouTubeVideo();
     } else if (currentMode === 'library') {
       skipToPreviousTrack();
     }
-  }, [currentMode, skipToPreviousYouTubeVideo, skipToPreviousTrack]);
+  }, [currentMode, skipToPreviousYouTubeVideo, skipToPreviousTrack, canMutate]);
 
   const handleNext = useCallback(() => {
+    if (!canMutate) {
+      toast.error("You don't have permission to control playback");
+      return;
+    }
+    
     if (currentMode === 'youtube') {
       skipToNextYouTubeVideo();
     } else if (currentMode === 'library') {
       skipToNextTrack();
     }
-  }, [currentMode, skipToNextYouTubeVideo, skipToNextTrack]);
+  }, [currentMode, skipToNextYouTubeVideo, skipToNextTrack, canMutate]);
 
   const handleShuffle = useCallback(() => {
+    if (!canMutate) {
+      toast.error("You don't have permission to control playback");
+      return;
+    }
+    
     setIsShuffled(!isShuffled);
-  }, [isShuffled, setIsShuffled]);
+  }, [isShuffled, setIsShuffled, canMutate]);
 
   const handleRepeat = useCallback(() => {
+    if (!canMutate) {
+      toast.error("You don't have permission to control playback");
+      return;
+    }
+    
     const modes = ['none', 'all', 'one'] as const;
     const currentIndex = modes.indexOf(repeatMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setRepeatMode(modes[nextIndex]);
-  }, [repeatMode, setRepeatMode]);
+  }, [repeatMode, setRepeatMode, canMutate]);
 
   const handleProgressChange = (newValue: number[]) => {
+    if (!canMutate) {
+      toast.error("You don't have permission to control playback");
+      return;
+    }
+    
     const percentage = newValue[0];
     
     if (currentMode === 'youtube' && youtubeDuration > 0) {
@@ -196,6 +230,11 @@ export const UnifiedPlayer = () => {
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
+      }
+
+      // Check permissions for all playback controls
+      if (!canMutate) {
+        return; // Silently ignore keyboard shortcuts if user doesn't have permission
       }
 
       switch (event.code) {
@@ -273,7 +312,7 @@ export const UnifiedPlayer = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [handlePlayPause, handleNext, handlePrevious, handleShuffle, handleRepeat, isPlaying]);
+  }, [handlePlayPause, handleNext, handlePrevious, handleShuffle, handleRepeat, isPlaying, canMutate]);
 
   return (
     <Card className="bg-neutral-900/80 backdrop-blur-xl border-neutral-800/50">
@@ -448,6 +487,14 @@ export const UnifiedPlayer = () => {
 
             {/* Controls */}
             <div className="space-y-3">
+              {/* Permission indicator */}
+              {!canMutate && (
+                <div className="flex items-center gap-2 text-amber-400 text-xs bg-amber-400/10 rounded-md px-2 py-1">
+                  <Info className="h-3 w-3 flex-shrink-0" />
+                  <span>Only admins can control playback in this room</span>
+                </div>
+              )}
+
               {/* Progress Bar */}
               {((currentMode === 'library' && currentAudio) || (currentMode === 'youtube' && currentVideo)) && (
                 <div className="space-y-2">
@@ -469,6 +516,7 @@ export const UnifiedPlayer = () => {
                         max={100}
                         step={0.1}
                         className="w-full cursor-pointer"
+                        disabled={!canMutate}
                       />
                     </div>
                     <span className="text-xs text-neutral-400 w-8 sm:w-12 text-right">
@@ -490,6 +538,7 @@ export const UnifiedPlayer = () => {
                     size="sm"
                     className="text-neutral-400 hover:text-white"
                     disabled={
+                      !canMutate ||
                       (currentMode === 'library' && audioSources.length <= 1)
                     }
                   >
@@ -502,6 +551,7 @@ export const UnifiedPlayer = () => {
                     size="sm"
                     className="text-neutral-400 hover:text-white"
                     disabled={
+                      !canMutate ||
                       (currentMode === 'youtube' && youtubeSources.length === 0) ||
                       (currentMode === 'library' && audioSources.length <= 1)
                     }
@@ -513,6 +563,7 @@ export const UnifiedPlayer = () => {
                     onClick={handlePlayPause}
                     className="bg-white text-black hover:bg-neutral-200 w-12 h-12 rounded-full"
                     disabled={
+                      !canMutate ||
                       isInitingSystem ||
                       (currentMode === 'youtube' && (!selectedYouTubeId || !isYouTubePlayerReady)) ||
                       (currentMode === 'library' && (!selectedAudioId || audioSources.length === 0))
@@ -531,6 +582,7 @@ export const UnifiedPlayer = () => {
                     size="sm"
                     className="text-neutral-400 hover:text-white"
                     disabled={
+                      !canMutate ||
                       (currentMode === 'youtube' && youtubeSources.length === 0) ||
                       (currentMode === 'library' && audioSources.length <= 1)
                     }
@@ -543,6 +595,7 @@ export const UnifiedPlayer = () => {
                     variant={repeatMode !== 'none' ? "default" : "ghost"}
                     size="sm"
                     className="text-neutral-400 hover:text-white relative"
+                    disabled={!canMutate}
                   >
                     <Repeat className="h-4 w-4" />
                     {repeatMode === 'one' && (
@@ -567,6 +620,9 @@ export const UnifiedPlayer = () => {
                       <TooltipContent side="top" className="max-w-xs">
                         <div className="text-sm space-y-1">
                           <div className="font-semibold mb-2">Keyboard Shortcuts</div>
+                          {!canMutate && (
+                            <div className="text-amber-400 mb-2">⚠️ Playback controls restricted</div>
+                          )}
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Space</kbd> Play/Pause</div>
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+←</kbd> Previous</div>
                           <div><kbd className="bg-neutral-700 px-1 rounded text-xs">Ctrl+→</kbd> Next</div>

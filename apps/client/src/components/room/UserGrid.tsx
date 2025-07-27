@@ -1,14 +1,14 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
 import { cn } from "@/lib/utils";
-import { useGlobalStore } from "@/store/global";
-import { useRoomStore } from "@/store/room";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { ClientType, GRID } from "@beatsync/shared";
-import { ArrowUp, HeadphonesIcon, Rotate3D } from "lucide-react";
+import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GainMeter } from "../dashboard/GainMeter";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import {
   Tooltip,
@@ -17,21 +17,12 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 
-// Add custom scrollbar styles
-import { Button } from "../ui/button";
-import "./scrollbar.css";
-
 // Define prop types for components
 interface ClientAvatarProps {
   client: ClientType;
   isCurrentUser: boolean;
   animationSyncKey: number;
   isGridEnabled: boolean;
-}
-
-interface ConnectedUserItemProps {
-  client: ClientType;
-  isCurrentUser: boolean;
 }
 
 // Separate Client Avatar component for better performance
@@ -85,12 +76,24 @@ const ClientAvatar = memo<ClientAvatarProps>(
                   )}
                 ></span>
               )}
+              {/* Admin crown indicator */}
+              {client.isAdmin && (
+                <div className="absolute -top-0 -right-0 bg-yellow-500 rounded-full p-0.5">
+                  <Crown
+                    className="h-2.5 w-2.5 text-yellow-900"
+                    fill="currentColor"
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         </TooltipTrigger>
         <TooltipContent side="top">
           <div className="text-xs font-medium">{client.username}</div>
-          <div>{isCurrentUser ? "You" : "Connected"}</div>
+          <div className="text-xs text-muted-foreground">
+            {isCurrentUser ? "You" : "Connected"}
+            {client.isAdmin && " • Admin"}
+          </div>
         </TooltipContent>
       </Tooltip>
     );
@@ -99,53 +102,9 @@ const ClientAvatar = memo<ClientAvatarProps>(
 
 ClientAvatar.displayName = "ClientAvatar";
 
-// Separate connected user list item component
-const ConnectedUserItem = memo<ConnectedUserItemProps>(
-  ({ client, isCurrentUser }) => {
-    return (
-      <motion.div
-        className={cn(
-          "flex items-center gap-2 p-1.5 rounded-md transition-all duration-300 text-sm",
-          isCurrentUser ? "bg-primary-400/10" : "bg-transparent"
-        )}
-        initial={{ opacity: 0.8 }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-        }}
-        transition={{ duration: 0.3 }}
-      >
-        <Avatar className="h-8 w-8">
-          <AvatarImage />
-          <AvatarFallback
-            className={isCurrentUser ? "bg-primary-600" : "bg-neutral-600"}
-          >
-            {client.username.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col min-w-0">
-          <span className="text-xs font-medium truncate">
-            {client.username}
-          </span>
-        </div>
-        <Badge
-          variant={isCurrentUser ? "default" : "outline"}
-          className={cn(
-            "ml-auto text-xs shrink-0 min-w-[60px] text-center py-0 h-5",
-            isCurrentUser ? "bg-primary-600 text-primary-50" : ""
-          )}
-        >
-          {isCurrentUser ? "You" : "Connected"}
-        </Badge>
-      </motion.div>
-    );
-  }
-);
-
-ConnectedUserItem.displayName = "ConnectedUserItem";
-
 export const UserGrid = () => {
-  const userId = useRoomStore((state) => state.userId);
+  const { clientId } = useClientId();
+  const canMutate = useCanMutate();
   const listeningSource = useGlobalStore(
     (state) => state.listeningSourcePosition
   );
@@ -166,6 +125,7 @@ export const UserGrid = () => {
   const setIsSpatialAudioEnabled = useGlobalStore(
     (state) => state.setIsSpatialAudioEnabled
   );
+  const reorderClient = useGlobalStore((state) => state.reorderClient);
 
   // Use clients from global store
   const clients = useGlobalStore((state) => state.connectedClients);
@@ -225,18 +185,20 @@ export const UserGrid = () => {
   // Handlers for dragging the listening source
   const handleSourceMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (!canMutate) return;
       e.stopPropagation(); // Prevent grid click handler from firing
       setIsDraggingListeningSource(true);
     },
-    [setIsDraggingListeningSource]
+    [canMutate, setIsDraggingListeningSource]
   );
 
   const handleSourceTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      if (!canMutate) return;
       e.stopPropagation(); // Prevent grid touch handler from firing
       setIsDraggingListeningSource(true);
     },
-    [setIsDraggingListeningSource]
+    [canMutate, setIsDraggingListeningSource]
   );
 
   const handleSourceMouseUp = useCallback(() => {
@@ -365,25 +327,23 @@ export const UserGrid = () => {
   // Memoize client data to avoid unnecessary recalculations
   const clientsWithData = useMemo(() => {
     return clients.map((client) => {
-      const isCurrentUser = client.clientId === userId;
+      const isCurrentUser = client.clientId === clientId;
       return { client, isCurrentUser };
     });
-  }, [clients, userId]);
-
-  const reorderClient = useGlobalStore((state) => state.reorderClient);
+  }, [clients, clientId]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 font-medium">
           <Rotate3D size={18} />
           <span>Spatial Audio</span>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline">{clients.length}</Badge>
           <Switch
             checked={isSpatialAudioEnabled}
             onCheckedChange={(checked) => {
+              if (!canMutate) return;
               setIsSpatialAudioEnabled(checked);
               if (checked) {
                 // When turning on, send current listening source position
@@ -392,6 +352,8 @@ export const UserGrid = () => {
                 stopSpatialAudio();
               }
             }}
+            disabled={!canMutate}
+            className={cn(!canMutate && "opacity-50")}
           />
         </div>
       </div>
@@ -427,18 +389,21 @@ export const UserGrid = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <motion.div
-                      className="absolute z-40 cursor-move"
+                      className={cn(
+                        "absolute z-40",
+                        canMutate ? "cursor-move" : ""
+                      )}
                       style={{
                         left: `${listeningSource.x}%`,
                         top: `${listeningSource.y}%`,
                         transform: "translate(-50%, -50%)",
-                        opacity: isSpatialAudioEnabled ? 1 : 0.7,
+                        opacity: isSpatialAudioEnabled && canMutate ? 1 : 0.7,
                       }}
                       {...(!isDraggingListeningSource && {
                         animate: {
                           left: `${listeningSource.x}%`,
                           top: `${listeningSource.y}%`,
-                          opacity: isSpatialAudioEnabled ? 1 : 0.7,
+                          opacity: isSpatialAudioEnabled && canMutate ? 1 : 0.7,
                         },
                         transition: {
                           type: "tween",
@@ -476,36 +441,21 @@ export const UserGrid = () => {
             </div>
 
             {/* Gain Meter */}
-            <div className="mb-3 mt-2.5">
+            <div className="mt-2.5">
               <GainMeter />
-            </div>
-
-            {/* Add big move up button for current user only */}
-            <div className="flex mb-4 justify-end">
-              <Button
-                className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white transition-colors duration-200 cursor-pointer"
-                size="sm"
-                onClick={() => reorderClient(userId)}
-              >
-                <ArrowUp className="size-4" /> Move to Top
-              </Button>
-            </div>
-
-            {/* List of connected users - Constrained height */}
-            <div className="relative">
-              <div className="space-y-1 overflow-y-auto flex-shrink-0 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20">
-                {clientsWithData.map(({ client, isCurrentUser }) => (
-                  <ConnectedUserItem
-                    key={client.clientId}
-                    client={client}
-                    isCurrentUser={isCurrentUser}
-                  />
-                ))}
-              </div>
-              {/* <div className="absolute -top-0.5 left-0 right-0 h-2 bg-gradient-to-b from-neutral-900 to-transparent pointer-events-none"></div> */}
             </div>
           </>
         )}
+        <div className="flex mb-4 justify-end mt-2">
+          <Button
+            className="text-xs px-3 py-1 h-auto bg-neutral-700/60 hover:bg-neutral-700 text-white transition-colors duration-200 cursor-pointer w-fit disabled:opacity-50 disabled:cursor-not-allowed"
+            size="sm"
+            disabled={!canMutate}
+            onClick={() => reorderClient(clientId || "")}
+          >
+            <ArrowUp className="size-4" /> Move to Top
+          </Button>
+        </div>
       </div>
     </div>
   );

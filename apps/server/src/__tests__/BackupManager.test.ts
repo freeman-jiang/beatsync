@@ -1,5 +1,4 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { BackupManager } from "../managers/BackupManager";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { globalManager } from "../managers/GlobalManager";
 
 // Mock the r2 module before importing BackupManager
@@ -31,29 +30,27 @@ describe("BackupManager (Simplified Tests)", () => {
       // Create rooms and add data
       const room1 = globalManager.getOrCreateRoom("test-1");
       const room2 = globalManager.getOrCreateRoom("test-2");
-      
+
       room1.addAudioSource({ url: "https://example.com/audio1.mp3" });
       room1.addAudioSource({ url: "https://example.com/audio2.mp3" });
       room2.addAudioSource({ url: "https://example.com/audio3.mp3" });
 
       // Get backup state from rooms
-      const room1Backup = room1.getBackupState();
-      const room2Backup = room2.getBackupState();
+      const room1Backup = room1.createBackup();
+      const room2Backup = room2.createBackup();
 
       // Verify the structure matches what BackupManager expects
       expect(room1Backup).toMatchObject({
         clients: [],
         audioSources: [
           { url: "https://example.com/audio1.mp3" },
-          { url: "https://example.com/audio2.mp3" }
-        ]
+          { url: "https://example.com/audio2.mp3" },
+        ],
       });
 
       expect(room2Backup).toMatchObject({
         clients: [],
-        audioSources: [
-          { url: "https://example.com/audio3.mp3" }
-        ]
+        audioSources: [{ url: "https://example.com/audio3.mp3" }],
       });
     });
 
@@ -62,34 +59,38 @@ describe("BackupManager (Simplified Tests)", () => {
       const room = globalManager.getOrCreateRoom("restore-test");
       room.addAudioSource({ url: "https://example.com/restore1.mp3" });
       room.addAudioSource({ url: "https://example.com/restore2.mp3" });
-      
+
       // Get the backup state
-      const backupState = room.getBackupState();
-      
+      const backupState = room.createBackup();
+
       // Clear the room
       await globalManager.deleteRoom("restore-test");
       expect(globalManager.hasRoom("restore-test")).toBe(false);
-      
+
       // Manually restore (simulating what BackupManager.restoreState does)
       const restoredRoom = globalManager.getOrCreateRoom("restore-test");
-      backupState.audioSources.forEach(source => {
+      backupState.audioSources.forEach((source) => {
         restoredRoom.addAudioSource(source);
       });
-      
+
       // Verify restoration
       const restoredState = restoredRoom.getState();
       expect(restoredState.audioSources).toHaveLength(2);
-      expect(restoredState.audioSources[0].url).toBe("https://example.com/restore1.mp3");
-      expect(restoredState.audioSources[1].url).toBe("https://example.com/restore2.mp3");
+      expect(restoredState.audioSources[0].url).toBe(
+        "https://example.com/restore1.mp3"
+      );
+      expect(restoredState.audioSources[1].url).toBe(
+        "https://example.com/restore2.mp3"
+      );
     });
 
     it("should handle empty rooms correctly", async () => {
       const emptyRoom = globalManager.getOrCreateRoom("empty-room");
-      const backupState = emptyRoom.getBackupState();
-      
+      const backupState = emptyRoom.createBackup();
+
       expect(backupState).toMatchObject({
         clients: [],
-        audioSources: []
+        audioSources: [],
       });
     });
   });
@@ -99,17 +100,17 @@ describe("BackupManager (Simplified Tests)", () => {
       // Create a room with data
       const room = globalManager.getOrCreateRoom("validation-test");
       room.addAudioSource({ url: "https://example.com/test.mp3" });
-      
-      const backupState = room.getBackupState();
-      
+
+      const backupState = room.createBackup();
+
       // Verify the structure matches our schema expectations
       expect(backupState).toHaveProperty("clients");
       expect(backupState).toHaveProperty("audioSources");
       expect(Array.isArray(backupState.clients)).toBe(true);
       expect(Array.isArray(backupState.audioSources)).toBe(true);
-      
+
       // Each audio source should have a url property
-      backupState.audioSources.forEach(source => {
+      backupState.audioSources.forEach((source) => {
         expect(source).toHaveProperty("url");
         expect(typeof source.url).toBe("string");
       });
@@ -122,20 +123,20 @@ describe("BackupManager (Simplified Tests)", () => {
       const rooms = {
         "room-a": globalManager.getOrCreateRoom("room-a"),
         "room-b": globalManager.getOrCreateRoom("room-b"),
-        "room-c": globalManager.getOrCreateRoom("room-c")
+        "room-c": globalManager.getOrCreateRoom("room-c"),
       };
-      
+
       // Add different data to each room
       rooms["room-a"].addAudioSource({ url: "https://example.com/a.mp3" });
       rooms["room-b"].addAudioSource({ url: "https://example.com/b.mp3" });
       // room-c is left empty
-      
+
       // Collect backup states (like BackupManager does)
       const backupData: Record<string, any> = {};
       globalManager.forEachRoom((room, roomId) => {
-        backupData[roomId] = room.getBackupState();
+        backupData[roomId] = room.createBackup();
       });
-      
+
       // Verify all rooms are captured
       expect(Object.keys(backupData)).toHaveLength(3);
       expect(backupData["room-a"].audioSources).toHaveLength(1);

@@ -16,7 +16,9 @@ interface DashboardProps {
 export const Dashboard = ({ roomId }: DashboardProps) => {
   const isSynced = useGlobalStore((state) => state.isSynced);
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
-  const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
+  const hasUserStartedSystem = useGlobalStore(
+    (state) => state.hasUserStartedSystem
+  );
 
   const isReady = isSynced && !isLoadingAudio;
 
@@ -32,14 +34,12 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col text-white bg-neutral-950">
+    <div className="w-full h-dvh flex flex-col text-white bg-neutral-950">
       {/* Top bar: Fixed height */}
       <TopBar roomId={roomId} />
 
       {/* Show SyncProgress during reconnection (when user has already started but lost sync) */}
-      {!isSynced && hasUserStartedSystem && !isLoadingAudio && (
-        <SyncProgress />
-      )}
+      {!isSynced && hasUserStartedSystem && !isLoadingAudio && <SyncProgress />}
 
       {isReady && (
         <motion.div
@@ -52,7 +52,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden min-h-0">
             <Left className="flex" />
             <Main />
-            <Right className="flex lg:w-80 lg:flex-shrink-0" />
+            <Right className="flex lg:flex-shrink-0" />
           </div>
 
           {/* --- MOBILE LAYOUT (< lg) --- */}
@@ -67,7 +67,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                   value="library"
                   className="flex-1 data-[state=active]:bg-white/5 data-[state=active]:shadow-none rounded-none text-xs h-full gap-1 text-neutral-400 data-[state=active]:text-white transition-all duration-200"
                 >
-                  <Library size={16} /> Library
+                  <Library size={16} /> Session
                 </TabsTrigger>
                 <TabsTrigger
                   value="queue"

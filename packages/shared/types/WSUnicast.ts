@@ -10,14 +10,8 @@ const NTPResponseMessageSchema = z.object({
 });
 export type NTPResponseMessageType = z.infer<typeof NTPResponseMessageSchema>;
 
-const SetClientID = z.object({
-  type: z.literal("SET_CLIENT_ID"),
-  clientId: z.string(),
-});
-
 export const WSUnicastSchema = z.discriminatedUnion("type", [
   NTPResponseMessageSchema,
-  SetClientID,
   ScheduledActionSchema,
 ]);
 export type WSUnicastType = z.infer<typeof WSUnicastSchema>;

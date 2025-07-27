@@ -75,7 +75,7 @@ console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
 
 // Restore state from backup on startup
 BackupManager.restoreState().catch((error) => {
-  console.error("Failed to restore state on startup:", error);
+  console.warn("⚠️ Failed to restore state on startup (this is normal in development without R2/S3):", error);
 });
 
 // Simple graceful shutdown
@@ -83,7 +83,12 @@ const shutdown = async () => {
   console.log("\n⚠️ Shutting down...");
 
   server.stop(); // Stop accepting new connections
-  await BackupManager.backupState(); // Save state
+  
+  try {
+    await BackupManager.backupState(); // Save state
+  } catch (error) {
+    console.warn("⚠️ Backup on shutdown failed (this is normal in development):", error);
+  }
 
   process.exit(0);
 };

@@ -1,6 +1,6 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { globalManager } from "../managers/GlobalManager";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { BackupManager } from "../managers/BackupManager";
+import { globalManager } from "../managers/GlobalManager";
 
 // Mock the R2 operations
 mock.module("../lib/r2", () => ({
@@ -14,7 +14,9 @@ mock.module("../lib/r2", () => ({
         rooms: {
           "test-room-1": {
             clients: [{ clientId: "ghost-1", username: "user1" }],
-            audioSources: [{ id: "audio-1", url: "test.mp3", name: "Test Audio" }],
+            audioSources: [
+              { id: "audio-1", url: "test.mp3", name: "Test Audio" },
+            ],
           },
           "test-room-2": {
             clients: [],
@@ -49,8 +51,12 @@ describe("Restore Cleanup", () => {
     let cleanupRoomId = "";
 
     // Spy on room cleanup scheduling
-    const originalScheduleCleanup = globalManager.getOrCreateRoom("test").scheduleCleanup;
-    globalManager.getOrCreateRoom("test").scheduleCleanup = function(callback, delay) {
+    const originalScheduleCleanup =
+      globalManager.getOrCreateRoom("test").scheduleCleanup;
+    globalManager.getOrCreateRoom("test").scheduleCleanup = function (
+      callback,
+      delay
+    ) {
       cleanupScheduled = true;
       cleanupRoomId = this.getRoomId();
       // Don't actually schedule the timer in tests
@@ -80,11 +86,11 @@ describe("Restore Cleanup", () => {
     await BackupManager.restoreState();
 
     const room = globalManager.getRoom("test-room-1")!;
-    
+
     // Room should exist but have no active connections
     expect(room).toBeDefined();
     expect(room.hasActiveConnections()).toBe(false);
-    
+
     // Even though the backup had a client, it's just a ghost
     expect(room.getClients().length).toBe(0);
   });
@@ -92,7 +98,7 @@ describe("Restore Cleanup", () => {
   it("should cancel cleanup when a real client connects to restored room", async () => {
     // Restore state
     await BackupManager.restoreState();
-    
+
     const room = globalManager.getRoom("test-room-1")!;
     let cleanupCalled = false;
 
@@ -112,15 +118,15 @@ describe("Restore Cleanup", () => {
       subscribe: mock(() => {}),
       send: mock(() => {}),
     };
-    
+
     room.addClient(mockWs as any);
 
     // Wait to ensure cleanup would have fired if not cancelled
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Cleanup should not have been called
     expect(cleanupCalled).toBe(false);
-    
+
     // Room should now have an active connection
     expect(room.hasActiveConnections()).toBe(true);
   });
@@ -128,7 +134,7 @@ describe("Restore Cleanup", () => {
   it("should execute cleanup for abandoned restored rooms", async () => {
     // Restore state
     await BackupManager.restoreState();
-    
+
     const room = globalManager.getRoom("test-room-1")!;
     let cleanupCalled = false;
 
@@ -140,11 +146,11 @@ describe("Restore Cleanup", () => {
     }, 100);
 
     // Wait for cleanup to execute
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Cleanup should have been called
     expect(cleanupCalled).toBe(true);
-    
+
     // Room should be deleted
     expect(globalManager.hasRoom("test-room-1")).toBe(false);
   });
@@ -152,7 +158,7 @@ describe("Restore Cleanup", () => {
   it("should handle ghost clients correctly", async () => {
     // Create a room with a ghost client (no WebSocket)
     const room = globalManager.getOrCreateRoom("ghost-room");
-    
+
     // Add a client without a valid WebSocket
     const ghostClient = {
       username: "ghost",
@@ -161,13 +167,13 @@ describe("Restore Cleanup", () => {
       rtt: 0,
       position: { x: 0, y: 0 },
     };
-    
+
     // Manually add ghost to clients map
     (room as any).clients.set("ghost-1", ghostClient);
-    
+
     // Room should not be empty (has a ghost)
     expect(room.isEmpty()).toBe(false);
-    
+
     // But should have no active connections
     expect(room.hasActiveConnections()).toBe(false);
   });

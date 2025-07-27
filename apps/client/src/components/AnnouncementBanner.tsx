@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { X } from "lucide-react";
+import { useState } from "react";
 
 export const AnnouncementBanner = () => {
   const [showBanner, setShowBanner] = useState(true);
@@ -13,8 +13,8 @@ export const AnnouncementBanner = () => {
       <div className="relative">
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
-            <span className="font-semibold">{"Jul 17, 2025: "}</span> Late
-            joiners automatically sync with room audio and playlist.
+            <span className="font-semibold">{"Jul 26, 2025: "}</span> New
+            dashboard layout with configurable playback permissions.
             {/* <a
               href="#"
               className="ml-3 inline-flex items-center text-white underline hover:no-underline font-semibold"

@@ -1,11 +1,11 @@
 import { PostHogProvider } from "@/components/PostHogProvider";
+import TQProvider from "@/components/TQProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import TQProvider from "@/components/TQProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,7 +46,7 @@ export default function RootLayout({
         <PostHogProvider>
           <TQProvider>
             {children}
-            <Toaster />
+            <Toaster richColors={true} />
             <Analytics />
           </TQProvider>
         </PostHogProvider>

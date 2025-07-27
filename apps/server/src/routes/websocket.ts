@@ -1,5 +1,4 @@
 import { Server } from "bun";
-import { nanoid } from "nanoid";
 import { errorResponse } from "../utils/responses";
 import { WSData } from "../utils/websocket";
 
@@ -7,13 +6,15 @@ export const handleWebSocketUpgrade = (req: Request, server: Server) => {
   const url = new URL(req.url);
   const roomId = url.searchParams.get("roomId");
   const username = url.searchParams.get("username");
+  const clientId = url.searchParams.get("clientId");
 
-  if (!roomId || !username) {
+  if (!roomId || !username || !clientId) {
     // Check which parameters are missing and log them
     const missingParams = [];
 
     if (!roomId) missingParams.push("roomId");
     if (!username) missingParams.push("username");
+    if (!clientId) missingParams.push("clientId");
 
     console.log(
       `WebSocket connection attempt missing parameters: ${missingParams.join(
@@ -21,11 +22,10 @@ export const handleWebSocketUpgrade = (req: Request, server: Server) => {
       )}`
     );
 
-    return errorResponse("roomId and userId are required");
+    return errorResponse("roomId, username and clientId are required");
   }
 
-  const clientId = nanoid();
-  console.log(`User ${username} joined room ${roomId} with userId ${clientId}`);
+  console.log(`User ${username} joined room ${roomId} with clientId ${clientId}`);
 
   const data: WSData = {
     roomId,
