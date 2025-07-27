@@ -8,7 +8,6 @@ export const ClientSchema = z.object({
 export const ClientActionEnum = z.enum([
   "PLAY",
   "PAUSE",
-  "CLIENT_CHANGE",
   "NTP_REQUEST",
   "START_SPATIAL_AUDIO",
   "STOP_SPATIAL_AUDIO",
@@ -24,11 +23,14 @@ export const ClientActionEnum = z.enum([
   "REMOVE_YOUTUBE_SOURCE",
   "SET_SELECTED_AUDIO",
   "SET_SELECTED_YOUTUBE",
+  "SET_ADMIN", // Set admin status
+  "SET_PLAYBACK_CONTROLS", // Set playback controls
 ]);
 
 export const NTPRequestPacketSchema = z.object({
   type: z.literal(ClientActionEnum.enum.NTP_REQUEST),
   t0: z.number(), // Client send timestamp
+  t1: z.number().optional(), // Server receive timestamp (will be set by the server)
 });
 
 export const PlayActionSchema = z.object({
@@ -118,6 +120,25 @@ const SetSelectedYouTubeActionSchema = z.object({
   videoId: z.string(),
 });
 
+const SetAdminSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_ADMIN),
+  clientId: z.string(), // The client to set admin status for
+  isAdmin: z.boolean(), // The new admin status
+});
+
+export const PlaybackControlsPermissionsEnum = z.enum([
+  "ADMIN_ONLY",
+  "EVERYONE",
+]);
+export type PlaybackControlsPermissionsType = z.infer<
+  typeof PlaybackControlsPermissionsEnum
+>;
+
+export const SetPlaybackControlsSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_PLAYBACK_CONTROLS),
+  permissions: PlaybackControlsPermissionsEnum,
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -136,6 +157,8 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   RemoveYouTubeSourceActionSchema,
   SetSelectedAudioActionSchema,
   SetSelectedYouTubeActionSchema,
+  SetAdminSchema,
+  SetPlaybackControlsSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
@@ -152,3 +175,8 @@ export type AddYouTubeSourceActionType = z.infer<typeof AddYouTubeSourceActionSc
 export type RemoveYouTubeSourceActionType = z.infer<typeof RemoveYouTubeSourceActionSchema>;
 export type SetSelectedAudioActionType = z.infer<typeof SetSelectedAudioActionSchema>;
 export type SetSelectedYouTubeActionType = z.infer<typeof SetSelectedYouTubeActionSchema>;
+
+// Mapped type to access request types by their type field
+export type ExtractWSRequestFrom = {
+  [K in WSRequestType["type"]]: Extract<WSRequestType, { type: K }>;
+};

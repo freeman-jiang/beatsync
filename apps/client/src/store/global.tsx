@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { fetchDefaultAudioSources } from "@/lib/api";
+import { getClientId } from "@/lib/clientId";
+import { extractFileNameFromUrl } from "@/lib/utils";
 import {
   NTPMeasurement,
   _sendNTPRequest,
@@ -12,16 +14,16 @@ import {
   ClientActionEnum,
   ClientType,
   GRID,
+  NTP_CONSTANTS,
+  PlaybackControlsPermissionsEnum,
+  PlaybackControlsPermissionsType,
   PositionType,
   SpatialConfigType,
-  NTP_CONSTANTS,
   YouTubeSourceType,
 } from "@beatsync/shared";
+import { Mutex } from "async-mutex";
 import { toast } from "sonner";
 import { create } from "zustand";
-import { useRoomStore } from "./room";
-import { Mutex } from "async-mutex";
-import { extractFileNameFromUrl } from "@/lib/utils";
 
 export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
@@ -76,6 +78,7 @@ interface GlobalStateValues {
 
   // Connected clients
   connectedClients: ClientType[];
+  currentUser: ClientType | null;
 
   // NTP
   ntpMeasurements: NTPMeasurement[];
@@ -101,6 +104,9 @@ interface GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   };
+
+  // Playback controls
+  playbackControlsPermissions: PlaybackControlsPermissionsType;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -110,6 +116,7 @@ interface GlobalState extends GlobalStateValues {
 
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
+  setAdminStatus: (clientId: string, isAdmin: boolean) => void;
   setSelectedAudioUrl: (url: string) => boolean;
   findAudioIndexByUrl: (url: string) => number | null;
   schedulePlay: (data: {
@@ -182,6 +189,9 @@ interface GlobalState extends GlobalStateValues {
     currentAttempt: number;
     maxAttempts: number;
   }) => void;
+  setPlaybackControlsPermissions: (
+    permissions: PlaybackControlsPermissionsType
+  ) => void;
 }
 
 // Define initial state values
@@ -216,6 +226,7 @@ const initialState: GlobalStateValues = {
   socket: null,
   lastMessageReceivedTime: null,
   connectedClients: [],
+  currentUser: null,
 
   // NTP state
   ntpMeasurements: [],
@@ -235,6 +246,9 @@ const initialState: GlobalStateValues = {
     currentAttempt: 0,
     maxAttempts: 0,
   },
+
+  // Playback controls
+  playbackControlsPermissions: PlaybackControlsPermissionsEnum.enum.EVERYONE,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -285,6 +299,20 @@ const initializeAudioContext = () => {
 };
 
 const initializationMutex = new Mutex();
+
+// Selector for canMutate
+export const useCanMutate = () => {
+  const currentUser = useGlobalStore((state) => state.currentUser);
+  const playbackControlsPermissions = useGlobalStore(
+    (state) => state.playbackControlsPermissions
+  );
+
+  const isAdmin = currentUser?.isAdmin || false;
+  const isEveryoneMode =
+    playbackControlsPermissions ===
+    PlaybackControlsPermissionsEnum.enum.EVERYONE;
+  return isAdmin || isEveryoneMode;
+};
 
 export const useGlobalStore = create<GlobalState>((set, get) => {
   const processNewAudioSource = async ({ url }: AudioSourceType) => {
@@ -374,6 +402,20 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
     },
 
+    setAdminStatus: (clientId, isAdmin) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_ADMIN,
+          clientId,
+          isAdmin,
+        },
+      });
+    },
+
     setSpatialConfig: (spatialConfig) => set({ spatialConfig }),
 
     updateListeningSource: ({ x, y }) => {
@@ -411,7 +453,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         const { socket } = getSocket(state);
 
         // Request sync with room if conditions are met
-        console.log("Requesting sync from server for late joiner");
         sendWSRequest({
           ws: socket,
           request: { type: ClientActionEnum.enum.SYNC },
@@ -492,6 +533,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Find the index of the audio to play
       const audioIndex = state.findAudioIndexByUrl(data.audioSource);
       if (audioIndex === null) {
+        // Pause current track to prevent interference
+        if (state.isPlaying) {
+          state.pauseAudio({ when: 0 });
+        }
+
         console.error(
           `Cannot play audio: No index found: ${data.audioSource} ${data.trackTimeSeconds}`
         );
@@ -812,9 +858,12 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         set({ listeningSourcePosition: listeningSource });
       }
 
-      // Extract out what this client's gain is:
-      const userId = useRoomStore.getState().userId;
-      const user = gains[userId];
+      const clientId = getClientId();
+      const user = gains[clientId];
+      if (!user) {
+        console.error(`No gain config found for client ${clientId}`);
+        return;
+      }
       const { gain, rampTime } = user;
 
       // Process
@@ -864,7 +913,20 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ isDraggingListeningSource: isDragging });
     },
 
-    setConnectedClients: (clients) => set({ connectedClients: clients }),
+    setConnectedClients: (clients) => {
+      const clientId = getClientId();
+      const currentUser = clients.find(
+        (client) => client.clientId === clientId
+      );
+
+      if (!currentUser) {
+        throw new Error(
+          `Current user not found in connected clients: ${clientId}`
+        );
+      }
+
+      set({ connectedClients: clients, currentUser });
+    },
 
     skipToNextTrack: (isAutoplay = false) => {
       // Accept optional isAutoplay flag
@@ -1325,5 +1387,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setRepeatMode: (mode) => set({ repeatMode: mode }),
 
     setIsShuffled: (shuffled) => set({ isShuffled: shuffled }),
+    setPlaybackControlsPermissions: (permissions) =>
+      set({ playbackControlsPermissions: permissions }),
   };
 });

@@ -67,7 +67,9 @@ export async function generatePresignedUploadUrl(
  * Get the public URL for an audio file (if public access is enabled)
  */
 export function getPublicAudioUrl(roomId: string, fileName: string): string {
-  return `${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${fileName}`;
+  // URL encode the filename to handle special characters like #, ?, &, etc.
+  const encodedFileName = encodeURIComponent(fileName);
+  return `${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${encodedFileName}`;
 }
 
 /**
@@ -80,9 +82,15 @@ export async function validateAudioFileExists(
 ): Promise<boolean> {
   try {
     // Extract the key from the public URL
-    // URL format: ${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${fileName}
+    // URL format: ${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${encodedFileName}
     const urlPath = audioUrl.replace(S3_CONFIG.PUBLIC_URL, "");
-    const key = urlPath.startsWith("/") ? urlPath.substring(1) : urlPath;
+    let key = urlPath.startsWith("/") ? urlPath.substring(1) : urlPath;
+    
+    // Decode the URL-encoded parts of the key
+    // Split by '/' to decode each part separately (roomId and fileName)
+    const keyParts = key.split('/');
+    const decodedKeyParts = keyParts.map(part => decodeURIComponent(part));
+    key = decodedKeyParts.join('/');
 
     // Perform HEAD request to check if object exists
     const command = new HeadObjectCommand({
@@ -90,7 +98,7 @@ export async function validateAudioFileExists(
       Key: key,
     });
 
-    const response = await r2Client.send(command);
+    await r2Client.send(command);
     return true; // File exists
   } catch (error) {
     console.error(`Error validating audio file ${audioUrl}:`);

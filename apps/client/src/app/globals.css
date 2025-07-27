@@ -121,6 +121,21 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+/* Dynamic viewport height class */
+.h-dvh {
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* Modern browsers auto-adjust for browser chrome */
+}
+
+/* Safe area padding utilities */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pb-safe-plus-4 {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

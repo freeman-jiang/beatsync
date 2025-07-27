@@ -1,27 +1,29 @@
 import {
+  AudioSourceType,
   ClientType,
   epochNow,
-  AudioSourceType,
   YouTubeSourceType,
   PositionType,
   WSBroadcastType,
   NTP_CONSTANTS,
-  RoomType,
-  PlayActionType,
   PauseActionType,
   PlayYouTubeActionType,
   PauseYouTubeActionType,
   SeekYouTubeActionType,
+  PlayActionType,
+  PlaybackControlsPermissionsEnum,
+  PlaybackControlsPermissionsType,
+  RoomType,
 } from "@beatsync/shared";
-import { GRID } from "@beatsync/shared/types/basic";
+import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import { Server, ServerWebSocket } from "bun";
+import { z } from "zod";
 import { SCHEDULE_TIME_MS } from "../config";
 import { deleteObjectsWithPrefix } from "../lib/r2";
 import { calculateGainFromDistanceToSource } from "../spatial";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { positionClientsInCircle } from "../utils/spatial";
 import { WSData } from "../utils/websocket";
-import { z } from "zod";
 
 interface RoomData {
   audioSources: AudioSourceType[];
@@ -33,7 +35,35 @@ interface RoomData {
   roomId: string;
   intervalId?: NodeJS.Timeout;
   listeningSource: PositionType;
+  playbackControlsPermissions: PlaybackControlsPermissionsType;
 }
+
+// Define Zod schemas for backup validation
+const BackupClientSchema = z.object({
+  clientId: z.string(),
+  username: z.string(),
+  isAdmin: z.boolean(),
+});
+
+export const ClientCacheBackupSchema = z.record(
+  z.string(),
+  z.object({ isAdmin: z.boolean() })
+);
+
+const RoomBackupSchema = z.object({
+  clients: z.array(BackupClientSchema),
+  audioSources: z.array(AudioSourceSchema),
+  clientCache: ClientCacheBackupSchema.optional(),
+});
+export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
+
+export const ServerBackupSchema = z.object({
+  timestamp: z.number(),
+  data: z.object({
+    rooms: z.record(z.string(), RoomBackupSchema),
+  }),
+});
+export type ServerBackupType = z.infer<typeof ServerBackupSchema>;
 
 const RoomPlaybackStateSchema = z.object({
   type: z.enum(["playing", "paused"]),
@@ -49,12 +79,16 @@ type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
  */
 export class RoomManager {
   private clients = new Map<string, ClientType>();
+  private clientCache = new Map<string, Pick<ClientType, "isAdmin">>(); // user id -> isAdmin
   private audioSources: AudioSourceType[] = [];
   private youtubeSources: YouTubeSourceType[] = [];
   private currentMode: "library" | "youtube" = "library";
   private selectedAudioUrl: string = "";
   private selectedYouTubeId: string = "";
-  private listeningSource: PositionType;
+  private listeningSource: PositionType = {
+    x: GRID.ORIGIN_X,
+    y: GRID.ORIGIN_Y,
+  };
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
   private heartbeatCheckInterval?: NodeJS.Timeout;
@@ -65,12 +99,13 @@ export class RoomManager {
     serverTimeToExecute: 0,
     trackPositionSeconds: 0,
   };
+  private playbackControlsPermissions: PlaybackControlsPermissionsType =
+    "EVERYONE";
 
   constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
   ) {
-    this.listeningSource = { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y };
     this.onClientCountChange = onClientCountChange;
   }
 
@@ -79,6 +114,10 @@ export class RoomManager {
    */
   getRoomId(): string {
     return this.roomId;
+  }
+
+  getPlaybackControlsPermissions(): PlaybackControlsPermissionsType {
+    return this.playbackControlsPermissions;
   }
 
   /**
@@ -90,11 +129,21 @@ export class RoomManager {
 
     const { username, clientId } = ws.data;
 
+    // Check if this username has cached admin status
+    const cachedClient = this.clientCache.get(clientId);
+
+    // The first client to join a room will always be an admin, otherwise they are an admin if they were an admin in the past
+    const isAdmin = cachedClient?.isAdmin || this.clients.size === 0;
+
+    // Update the client cache
+    this.clientCache.set(clientId, { isAdmin });
+
     // Add the new client
     this.clients.set(clientId, {
       username,
       clientId,
       ws,
+      isAdmin,
       rtt: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
@@ -118,6 +167,30 @@ export class RoomManager {
     // Reposition remaining clients if any
     if (this.clients.size > 0) {
       positionClientsInCircle(this.clients);
+
+      // Always check to ensure there is at least one admin
+
+      // Check if any admins remain after removing this client
+      const remainingAdmins = Array.from(this.clients.values()).filter(
+        (client) => client.isAdmin
+      );
+
+      // If no admins remain, randomly select a new admin
+      if (remainingAdmins.length === 0) {
+        const remainingClients = Array.from(this.clients.values());
+        const randomIndex = Math.floor(Math.random() * remainingClients.length);
+        const newAdmin = remainingClients[randomIndex];
+
+        if (newAdmin) {
+          newAdmin.isAdmin = true;
+          this.clients.set(newAdmin.clientId, newAdmin);
+          this.clientCache.set(newAdmin.clientId, { isAdmin: true });
+
+          console.log(
+            `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
+          );
+        }
+      }
     } else {
       // Stop heartbeat checking if no clients remain
       this.stopHeartbeatChecking();
@@ -125,6 +198,28 @@ export class RoomManager {
 
     // Notify that client count changed
     this.onClientCountChange?.();
+  }
+
+  setAdmin({
+    targetClientId,
+    isAdmin,
+  }: {
+    targetClientId: string;
+    isAdmin: boolean;
+  }): void {
+    const client = this.clients.get(targetClientId);
+    if (!client) return;
+    client.isAdmin = isAdmin;
+    this.clients.set(targetClientId, client);
+
+    // Update the client cache to remember this admin status
+    this.clientCache.set(client.clientId, { isAdmin });
+  }
+
+  setPlaybackControls(
+    permissions: z.infer<typeof PlaybackControlsPermissionsEnum>
+  ): void {
+    this.playbackControlsPermissions = permissions;
   }
 
   /**
@@ -139,6 +234,11 @@ export class RoomManager {
   setAudioSources(sources: AudioSourceType[]): AudioSourceType[] {
     this.audioSources = sources;
     return this.audioSources;
+  }
+
+  // Restore client cache from backup
+  restoreClientCache(cache: z.infer<typeof ClientCacheBackupSchema>): void {
+    this.clientCache = new Map(Object.entries(cache));
   }
 
   /**
@@ -186,6 +286,7 @@ export class RoomManager {
       roomId: this.roomId,
       intervalId: this.intervalId,
       listeningSource: this.listeningSource,
+      playbackControlsPermissions: this.playbackControlsPermissions,
     };
   }
 
@@ -416,16 +517,25 @@ export class RoomManager {
     });
   }
 
+  getClient(clientId: string): ClientType | undefined {
+    return this.clients.get(clientId);
+  }
+
   /**
    * Get the backup state for this room
    */
-  getBackupState() {
+  createBackup(): RoomBackupType {
+    // Convert clientCache Map to object for serialization
+    const clientCacheObject = Object.fromEntries(this.clientCache);
+
     return {
       clients: this.getClients().map((client) => ({
         clientId: client.clientId,
         username: client.username,
+        isAdmin: client.isAdmin,
       })),
       audioSources: this.audioSources,
+      clientCache: clientCacheObject,
     };
   }
 

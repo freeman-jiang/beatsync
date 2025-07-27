@@ -1,7 +1,9 @@
 "use client";
+import { useClientId } from "@/hooks/useClientId";
+import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
+import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { NTPMeasurement } from "@/utils/ntp";
 import {
   epochNow,
@@ -10,7 +12,6 @@ import {
   ClientType,
 } from "@beatsync/shared";
 import { useEffect, useRef } from "react";
-import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { toast } from "sonner";
 
 // Helper function for NTP response handling
@@ -48,10 +49,11 @@ export const WebSocketManager = ({
   // Track previous clients to detect new connections
   const previousClientsRef = useRef<ClientType[]>([]);
   
+  // Get PostHog client ID
+  const { clientId } = useClientId();
+
   // Room state
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
-  const setUserId = useRoomStore((state) => state.setUserId);
-  const userId = useRoomStore((state) => state.userId);
 
   // WebSocket and audio state
   const setSocket = useGlobalStore((state) => state.setSocket);
@@ -88,6 +90,9 @@ export const WebSocketManager = ({
   const schedulePlayYouTube = useGlobalStore((state) => state.schedulePlayYouTube);
   const schedulePauseYouTube = useGlobalStore((state) => state.schedulePauseYouTube);
   const scheduleSeekYouTube = useGlobalStore((state) => state.scheduleSeekYouTube);
+  const setPlaybackControlsPermissions = useGlobalStore(
+    (state) => state.setPlaybackControlsPermissions
+  );
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
@@ -118,7 +123,7 @@ export const WebSocketManager = ({
       // Find new clients by comparing client IDs
       const previousClientIds = new Set(previousClients.map(client => client.clientId));
       const newUsers = newClients.filter(client => 
-        !previousClientIds.has(client.clientId) && client.clientId !== userId
+        !previousClientIds.has(client.clientId) && client.clientId !== clientId
       );
       
       // Show toast for each new user
@@ -138,7 +143,7 @@ export const WebSocketManager = ({
   };
 
   const createConnection = () => {
-    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}`;
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}&clientId=${clientId}`;
     console.log("Creating new WS connection to", SOCKET_URL);
 
     // Clear previous connection if it exists
@@ -179,6 +184,7 @@ export const WebSocketManager = ({
       scheduleReconnection();
     };
 
+    // TODO: Refactor into exhaustive handler registry
     ws.onmessage = async (msg) => {
       // Update last message received time for connection health
       useGlobalStore.setState({ lastMessageReceivedTime: Date.now() });
@@ -207,6 +213,8 @@ export const WebSocketManager = ({
           setSelectedAudioUrl(event.audioUrl);
         } else if (event.type === "SET_SELECTED_YOUTUBE") {
           setSelectedYouTubeId(event.videoId);
+        } else if (event.type === "SET_PLAYBACK_CONTROLS") {
+          setPlaybackControlsPermissions(event.permissions);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
@@ -247,8 +255,6 @@ export const WebSocketManager = ({
         } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
           processStopSpatialAudio();
         }
-      } else if (response.type === "SET_CLIENT_ID") {
-        setUserId(response.clientId);
       } else {
         console.log("Unknown response type:", response);
       }
@@ -257,11 +263,10 @@ export const WebSocketManager = ({
     return ws;
   };
 
-  // Once room has been loaded, connect to the websocket
+  // Once room has been loaded and we have clientId, connect to the websocket
   useEffect(() => {
-    // Only run this effect once after room is loaded
-    if (isLoadingRoom || !roomId || !username) return;
-    console.log("Connecting to websocket");
+    // Only run this effect once after room is loaded and clientId is available
+    if (isLoadingRoom || !roomId || !username || !clientId) return;
 
     // Don't create a new connection if we already have one
     if (socket) {
@@ -288,7 +293,7 @@ export const WebSocketManager = ({
     };
     // Not including socket in the dependency array because it will trigger the close when it's set
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingRoom, roomId, username]);
+  }, [isLoadingRoom, roomId, username, clientId]);
 
   return null; // This is a non-visual component
 };

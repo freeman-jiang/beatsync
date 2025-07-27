@@ -5,14 +5,12 @@ import { create } from "zustand";
 interface RoomStateValues {
   roomId: string;
   username: string;
-  userId: string;
   isLoadingRoom: boolean;
 }
 
 interface RoomState extends RoomStateValues {
   setRoomId: (roomId: string) => void;
   setUsername: (username: string) => void;
-  setUserId: (userId: string) => void;
   setIsLoading: (isLoading: boolean) => void;
   reset: () => void;
 }
@@ -21,7 +19,6 @@ interface RoomState extends RoomStateValues {
 const initialState: RoomStateValues = {
   roomId: "",
   username: "",
-  userId: "",
   isLoadingRoom: false,
 };
 
@@ -32,7 +29,6 @@ export const useRoomStore = create<RoomState>()((set) => ({
   // Actions
   setRoomId: (roomId) => set({ roomId }),
   setUsername: (username) => set({ username }),
-  setUserId: (userId) => set({ userId }),
   setIsLoading: (isLoading) => set({ isLoadingRoom: isLoading }),
 
   // Reset to initial state

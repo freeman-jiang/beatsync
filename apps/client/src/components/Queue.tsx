@@ -5,11 +5,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
-import { useGlobalStore } from "@/store/global";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { AudioSourceType } from "@beatsync/shared";
 import { MoreHorizontal, Pause, Play, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
+import { Button } from "./ui/button";
 
 export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const posthog = usePostHog();
@@ -23,8 +24,10 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
   const isPlaying = useGlobalStore((state) => state.isPlaying);
   const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
+  const canMutate = useCanMutate();
 
   const handleItemClick = (source: AudioSourceType) => {
+    if (!canMutate) return;
     if (source.url === selectedAudioId) {
       if (isPlaying) {
         broadcastPause();
@@ -70,20 +73,21 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     "flex items-center pl-2 pr-4 py-3 rounded-md group transition-colors select-none",
                     isSelected
                       ? "text-white hover:bg-neutral-700/20"
-                      : "text-neutral-300 hover:bg-neutral-700/20"
+                      : "text-neutral-300 hover:bg-neutral-700/20",
+                    !canMutate && "text-white/50"
                   )}
                   onClick={() => handleItemClick(source)}
                 >
                   {/* Track number / Play icon */}
                   <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center relative cursor-default select-none">
                     {/* Play/Pause button (shown on hover) */}
-                    <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
+                    <Button variant={"ghost"} className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
                       {isSelected && isPlaying ? (
                         <Pause className="fill-current size-3.5 stroke-1" />
                       ) : (
                         <Play className="fill-current size-3.5" />
                       )}
-                    </button>
+                    </Button>
 
                     {/* Playing indicator or track number (hidden on hover) */}
                     <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
@@ -130,9 +134,9 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         asChild
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button className="p-1 rounded-full text-neutral-500 hover:text-white transition-colors hover:scale-110 duration-150 focus:outline-none focus:text-white focus:scale-110">
+                        <Button variant={"ghost"} className="p-1 rounded-full text-neutral-500 hover:text-white transition-colors hover:scale-110 duration-150 focus:outline-none focus:text-white focus:scale-110">
                           <MoreHorizontal className="size-4" />
-                        </button>
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         side="top"

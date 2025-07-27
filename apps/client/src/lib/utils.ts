@@ -29,7 +29,10 @@ export const extractFileNameFromUrl = (url: string) => {
   // Get everything after the last slash
   const parts = url.split("/");
   if (parts.length > 1) {
-    const fullFileName = parts[parts.length - 1];
+    const encodedFileName = parts[parts.length - 1];
+    
+    // Decode the URL-encoded filename to get the original characters
+    const fullFileName = decodeURIComponent(encodedFileName);
 
     // Extract the original filename by splitting on the delimiter
     // Format: originalName___timestamp.extension
