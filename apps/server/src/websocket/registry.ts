@@ -1,12 +1,20 @@
 import { ClientActionEnum } from "@beatsync/shared";
+import { handleAddYouTubeSource } from "./handlers/addYouTubeSource";
 import { handleSetAdmin } from "./handlers/handleSetAdmin";
 import { handleSetPlaybackControls } from "./handlers/handleSetPlaybackControls";
 import { handleMoveClient } from "./handlers/moveClient";
 import { handleNTPRequest } from "./handlers/ntpRequest";
 import { handlePause } from "./handlers/pause";
+import { handlePauseYouTube } from "./handlers/pauseYouTube";
 import { handlePlay } from "./handlers/play";
+import { handlePlayYouTube } from "./handlers/playYouTube";
+import { handleRemoveYouTubeSource } from "./handlers/removeYouTubeSource";
 import { handleReorderClient } from "./handlers/reorderClient";
+import { handleSeekYouTube } from "./handlers/seekYouTube";
 import { handleSetListeningSource } from "./handlers/setListeningSource";
+import { handleSetMode } from "./handlers/setMode";
+import { handleSetSelectedAudio } from "./handlers/setSelectedAudio";
+import { handleSetSelectedYouTube } from "./handlers/setSelectedYouTube";
 import { handleStartSpatialAudio } from "./handlers/startSpatialAudio";
 import { handleStopSpatialAudio } from "./handlers/stopSpatialAudio";
 import { handleSync } from "./handlers/sync";
@@ -25,6 +33,46 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.PAUSE]: {
     handle: handlePause,
     description: "Schedule pause action for synchronized playback",
+  },
+
+  [ClientActionEnum.enum.PLAY_YOUTUBE]: {
+    handle: handlePlayYouTube,
+    description: "Schedule YouTube play action for synchronized playback",
+  },
+
+  [ClientActionEnum.enum.PAUSE_YOUTUBE]: {
+    handle: handlePauseYouTube,
+    description: "Schedule YouTube pause action for synchronized playback",
+  },
+
+  [ClientActionEnum.enum.SEEK_YOUTUBE]: {
+    handle: handleSeekYouTube,
+    description: "Schedule YouTube seek action for synchronized playback",
+  },
+
+  [ClientActionEnum.enum.SET_MODE]: {
+    handle: handleSetMode,
+    description: "Set the current mode (library or youtube)",
+  },
+
+  [ClientActionEnum.enum.ADD_YOUTUBE_SOURCE]: {
+    handle: handleAddYouTubeSource,
+    description: "Add a YouTube source to the room",
+  },
+
+  [ClientActionEnum.enum.REMOVE_YOUTUBE_SOURCE]: {
+    handle: handleRemoveYouTubeSource,
+    description: "Remove a YouTube source from the room",
+  },
+
+  [ClientActionEnum.enum.SET_SELECTED_AUDIO]: {
+    handle: handleSetSelectedAudio,
+    description: "Set the selected audio source",
+  },
+
+  [ClientActionEnum.enum.SET_SELECTED_YOUTUBE]: {
+    handle: handleSetSelectedYouTube,
+    description: "Set the selected YouTube source",
   },
 
   [ClientActionEnum.enum.START_SPATIAL_AUDIO]: {

@@ -46,7 +46,7 @@ export default function RootLayout({
         <PostHogProvider>
           <TQProvider>
             {children}
-            <Toaster />
+            <Toaster richColors={true} />
             <Analytics />
           </TQProvider>
         </PostHogProvider>

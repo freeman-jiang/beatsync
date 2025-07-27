@@ -1,0 +1,88 @@
+services:
+  # MinIO - S3 compatible object storage
+  minio:
+    image: minio/minio:latest
+    container_name: beatsync-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_DOMAIN: localhost
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - beatsync
+
+  # MinIO Client to create bucket automatically
+  minio-create-bucket:
+    image: minio/mc:latest
+    container_name: beatsync-minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set beatsync http://minio:9000 minioadmin minioadmin123;
+      /usr/bin/mc mb beatsync/beatsync-audio --ignore-existing;
+      /usr/bin/mc anonymous set download beatsync/beatsync-audio;
+      exit 0;
+      "
+    networks:
+      - beatsync
+
+  server:
+    build:
+      context: .
+      dockerfile: ./DockerfileServer
+    container_name: beatsync-server
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - S3_BUCKET_NAME=beatsync-audio
+      - S3_PUBLIC_URL=http://minio:9000/beatsync-audio
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY_ID=minioadmin
+      - S3_SECRET_ACCESS_KEY=minioadmin123
+    depends_on:
+      - minio
+      - minio-create-bucket
+    networks:
+      - beatsync
+
+  client:
+    build:
+      context: .
+      dockerfile: ./DockerfileClient
+    container_name: beatsync-client
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_WS_URL=ws://localhost:3001
+      - NEXT_PUBLIC_NEXT_URL=http://localhost:3000
+      - NEXT_PUBLIC_YOUTUBE_API_KEY=${NEXT_PUBLIC_YOUTUBE_API_KEY:-}
+      - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
+    depends_on:
+      - minio
+      - minio-create-bucket
+    networks:
+      - beatsync
+
+networks:
+  beatsync:
+    driver: bridge
+
+volumes:
+  minio_data:
+    driver: local

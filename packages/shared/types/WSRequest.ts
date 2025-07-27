@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PositionSchema } from "./basic";
+import { PositionSchema, YouTubeSourceSchema } from "./basic";
 export const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
@@ -15,6 +15,14 @@ export const ClientActionEnum = z.enum([
   "SET_LISTENING_SOURCE",
   "MOVE_CLIENT",
   "SYNC", // Client joins late, requests sync
+  "PLAY_YOUTUBE",
+  "PAUSE_YOUTUBE",
+  "SEEK_YOUTUBE",
+  "SET_MODE",
+  "ADD_YOUTUBE_SOURCE",
+  "REMOVE_YOUTUBE_SOURCE",
+  "SET_SELECTED_AUDIO",
+  "SET_SELECTED_YOUTUBE",
   "SET_ADMIN", // Set admin status
   "SET_PLAYBACK_CONTROLS", // Set playback controls
 ]);
@@ -68,6 +76,50 @@ const ClientRequestSyncSchema = z.object({
 });
 export type ClientRequestSyncType = z.infer<typeof ClientRequestSyncSchema>;
 
+// YouTube action schemas
+export const PlayYouTubeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.PLAY_YOUTUBE),
+  trackTimeSeconds: z.number(),
+  videoId: z.string(),
+});
+
+export const PauseYouTubeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.PAUSE_YOUTUBE),
+  videoId: z.string(),
+  trackTimeSeconds: z.number(),
+});
+
+export const SeekYouTubeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SEEK_YOUTUBE),
+  videoId: z.string(),
+  trackTimeSeconds: z.number(),
+});
+
+const SetModeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_MODE),
+  mode: z.enum(["library", "youtube"]),
+});
+
+const AddYouTubeSourceActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.ADD_YOUTUBE_SOURCE),
+  source: YouTubeSourceSchema,
+});
+
+const RemoveYouTubeSourceActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REMOVE_YOUTUBE_SOURCE),
+  videoId: z.string(),
+});
+
+const SetSelectedAudioActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SELECTED_AUDIO),
+  audioUrl: z.string(),
+});
+
+const SetSelectedYouTubeActionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SELECTED_YOUTUBE),
+  videoId: z.string(),
+});
+
 const SetAdminSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_ADMIN),
   clientId: z.string(), // The client to set admin status for
@@ -97,6 +149,14 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetListeningSourceSchema,
   MoveClientSchema,
   ClientRequestSyncSchema,
+  PlayYouTubeActionSchema,
+  PauseYouTubeActionSchema,
+  SeekYouTubeActionSchema,
+  SetModeActionSchema,
+  AddYouTubeSourceActionSchema,
+  RemoveYouTubeSourceActionSchema,
+  SetSelectedAudioActionSchema,
+  SetSelectedYouTubeActionSchema,
   SetAdminSchema,
   SetPlaybackControlsSchema,
 ]);
@@ -105,6 +165,16 @@ export type PlayActionType = z.infer<typeof PlayActionSchema>;
 export type PauseActionType = z.infer<typeof PauseActionSchema>;
 export type ReorderClientType = z.infer<typeof ReorderClientSchema>;
 export type SetListeningSourceType = z.infer<typeof SetListeningSourceSchema>;
+
+// Export YouTube action types
+export type PlayYouTubeActionType = z.infer<typeof PlayYouTubeActionSchema>;
+export type PauseYouTubeActionType = z.infer<typeof PauseYouTubeActionSchema>;
+export type SeekYouTubeActionType = z.infer<typeof SeekYouTubeActionSchema>;
+export type SetModeActionType = z.infer<typeof SetModeActionSchema>;
+export type AddYouTubeSourceActionType = z.infer<typeof AddYouTubeSourceActionSchema>;
+export type RemoveYouTubeSourceActionType = z.infer<typeof RemoveYouTubeSourceActionSchema>;
+export type SetSelectedAudioActionType = z.infer<typeof SetSelectedAudioActionSchema>;
+export type SetSelectedYouTubeActionType = z.infer<typeof SetSelectedYouTubeActionSchema>;
 
 // Mapped type to access request types by their type field
 export type ExtractWSRequestFrom = {

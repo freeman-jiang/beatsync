@@ -1,11 +1,12 @@
 "use client";
 import { SOCIAL_LINKS } from "@/constants";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
-import { Crown, Hash, Users } from "lucide-react";
+import { Crown, Hash, Users, Copy } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { FaDiscord, FaGithub } from "react-icons/fa";
 import { SyncProgress } from "../ui/SyncProgress";
+import { toast } from "sonner";
 
 interface TopBarProps {
   roomId: string;
@@ -22,6 +23,22 @@ export const TopBar = ({ roomId }: TopBarProps) => {
   // Get current user from global store to check admin status
   const currentUser = useGlobalStore((state) => state.currentUser);
   const isAdmin = currentUser?.isAdmin || false;
+
+  // Handle room ID click to copy shareable message
+  const handleRoomIdClick = async () => {
+    const currentUrl = window.location.origin;
+    const roomUrl = `${currentUrl}/room/${roomId}`;
+    const shareableMessage = `🎵 Join my Beatsync room!\n\nRoom ID: ${roomId}\nDirect link: ${roomUrl}\n\nConnect using the room ID or click the link to sync music together!`;
+
+    try {
+      await navigator.clipboard.writeText(shareableMessage);
+      toast.success("Room invite copied to clipboard!");
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      console.error("Failed to copy to clipboard:", err);
+      toast.error("Failed to copy to clipboard");
+    }
+  };
 
   // Show minimal nav bar when synced and not loading
   if (!isLoadingAudio && isSynced) {
@@ -85,7 +102,14 @@ export const TopBar = ({ roomId }: TopBarProps) => {
           </div>
           <div className="flex items-center">
             <Hash size={12} className="mr-1" />
-            <span className="flex items-center">{roomId}</span>
+            <button
+              onClick={handleRoomIdClick}
+              className="flex items-center hover:text-white transition-colors cursor-pointer group"
+              title="Click to copy room invite to clipboard"
+            >
+              <span className="mr-1">{roomId}</span>
+              <Copy size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
           </div>
           <div className="flex items-center">
             <Users size={12} className="mr-1" />
@@ -109,23 +133,23 @@ export const TopBar = ({ roomId }: TopBarProps) => {
 
         <div className="flex items-center justify-center gap-2.5">
           {/* Discord icon */}
-          <a
+          <Link
             href={SOCIAL_LINKS.discord}
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-400 hover:text-white transition-colors"
           >
             <FaDiscord className="size-[17px]" />
-          </a>
+          </Link>
           {/* GitHub icon in the top right */}
-          <a
+          <Link
             href={SOCIAL_LINKS.github}
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-400 hover:text-white transition-colors"
           >
             <FaGithub className="size-4" />
-          </a>
+          </Link>
         </div>
       </div>
     );

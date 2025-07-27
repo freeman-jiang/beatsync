@@ -17,3 +17,13 @@ export const AudioSourceSchema = z.object({
   url: z.string(),
 });
 export type AudioSourceType = z.infer<typeof AudioSourceSchema>;
+
+export const YouTubeSourceSchema = z.object({
+  videoId: z.string(),
+  title: z.string(),
+  channel: z.string().optional(),
+  duration: z.string().optional(),
+  thumbnail: z.string().optional(),
+  addedBy: z.string().optional(),
+});
+export type YouTubeSourceType = z.infer<typeof YouTubeSourceSchema>;

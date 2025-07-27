@@ -5,6 +5,7 @@ import {
   WSRequestSchema,
 } from "@beatsync/shared";
 import { Server, ServerWebSocket } from "bun";
+import { SCHEDULE_TIME_MS } from "../config";
 import { globalManager } from "../managers";
 import { sendBroadcast } from "../utils/responses";
 import { WSData } from "../utils/websocket";
@@ -35,10 +36,10 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
   room.addClient(ws);
 
   // Send audio sources to the newly joined client if any exist
-  const { audioSources } = room.getState();
-  if (audioSources.length > 0) {
+  const roomState = room.getState();
+  if (roomState.audioSources.length > 0) {
     console.log(
-      `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
+      `Sending ${roomState.audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
     );
 
     // TODO: this is not ideal:
@@ -49,12 +50,60 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
       type: "ROOM_EVENT",
       event: {
         type: "SET_AUDIO_SOURCES",
-        sources: audioSources,
+        sources: roomState.audioSources,
       },
     };
 
     // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
     ws.send(JSON.stringify(audioSourcesMessage));
+  }
+
+  // Send YouTube sources to the newly joined client if any exist
+  if (roomState.youtubeSources.length > 0) {
+    console.log(
+      `Sending ${roomState.youtubeSources.length} YouTube source(s) to newly joined client ${ws.data.username}`
+    );
+    const youtubeSourcesMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_YOUTUBE_SOURCES",
+        sources: roomState.youtubeSources,
+      },
+    };
+    ws.send(JSON.stringify(youtubeSourcesMessage));
+  }
+
+  // Send current mode to newly joined client
+  const currentModeMessage: WSBroadcastType = {
+    type: "ROOM_EVENT",
+    event: {
+      type: "SET_CURRENT_MODE",
+      mode: roomState.currentMode,
+    },
+  };
+  ws.send(JSON.stringify(currentModeMessage));
+
+  // Send current selections to newly joined client
+  if (roomState.selectedAudioUrl) {
+    const selectedAudioMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_SELECTED_AUDIO",
+        audioUrl: roomState.selectedAudioUrl,
+      },
+    };
+    ws.send(JSON.stringify(selectedAudioMessage));
+  }
+
+  if (roomState.selectedYouTubeId) {
+    const selectedYouTubeMessage: WSBroadcastType = {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_SELECTED_YOUTUBE",
+        videoId: roomState.selectedYouTubeId,
+      },
+    };
+    ws.send(JSON.stringify(selectedYouTubeMessage));
   }
 
   // Always send the current playback controls
@@ -92,12 +141,13 @@ export const handleMessage = async (
     }
 
     if (parsedMessage.type === ClientActionEnum.enum.NTP_REQUEST) {
-      // Manually mutate the message to include the t1 timestamp
+     // Manually mutate the message to include the t1 timestamp
       parsedMessage.t1 = t1;
     }
 
     // Delegate to type-safe dispatcher
     await dispatchMessage({ ws, message: parsedMessage, server });
+
   } catch (error) {
     console.error("Invalid message format:", error);
     ws.send(

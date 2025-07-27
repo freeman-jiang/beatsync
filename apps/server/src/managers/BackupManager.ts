@@ -130,6 +130,11 @@ export class BackupManager {
       // Clean up old backups after successful backup
       await this.cleanupOldBackups();
     } catch (error) {
+      // Check if this is a connection error (likely R2 not available in development)
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'FailedToOpenSocket') {
+        console.warn("⚠️ State backup skipped - R2/S3 storage not available (this is normal in development without MinIO)");
+        return;
+      }
       console.error("❌ State backup failed:", error);
       throw error;
     }
@@ -149,7 +154,11 @@ export class BackupManager {
         console.log("📭 No backups found");
 
         // Still clean up orphaned rooms even if no backup exists
-        await this.cleanupOrphanedRooms();
+        try {
+          await this.cleanupOrphanedRooms();
+        } catch (cleanupError) {
+          console.warn("⚠️ Orphaned room cleanup failed (likely R2 not available):", cleanupError);
+        }
 
         return false;
       }
@@ -235,6 +244,11 @@ export class BackupManager {
 
       return true;
     } catch (error) {
+      // Check if this is a connection error (likely R2 not available in development)
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'FailedToOpenSocket') {
+        console.warn("⚠️ State restore skipped - R2/S3 storage not available (this is normal in development without MinIO)");
+        return false;
+      }
       console.error("❌ State restore failed:", error);
       return false;
     }
