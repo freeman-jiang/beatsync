@@ -58,12 +58,12 @@ export function Search() {
     <>
       <Button
         variant="outline"
-        className="w-full justify-start text-muted-foreground bg-neutral-800/50 border-neutral-700 hover:bg-neutral-800"
+        className="w-full justify-start text-neutral-400 bg-neutral-800/30 border-neutral-700/50 hover:bg-neutral-800/50 hover:border-neutral-600 transition-all duration-200 rounded-lg h-9 px-3 cursor-pointer"
         onClick={() => setOpen(true)}
       >
-        <SearchIcon className="mr-2 h-4 w-4" />
-        Search for music...
-        <kbd className="ml-auto pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-neutral-600 bg-neutral-700 px-1.5 font-mono text-[10px] font-medium text-neutral-300">
+        <SearchIcon className="h-3.5 w-3.5 text-neutral-500" />
+        <span className="text-sm font-normal">Search for music...</span>
+        <kbd className="ml-auto pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-1.5 font-mono text-xs font-medium text-neutral-400">
           <span className="text-xs">⌘</span>K
         </kbd>
       </Button>
