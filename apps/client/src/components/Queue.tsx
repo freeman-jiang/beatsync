@@ -7,7 +7,7 @@ import {
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { AudioSourceType } from "@beatsync/shared";
-import { MoreHorizontal, Pause, Play, UploadCloud } from "lucide-react";
+import { MoreHorizontal, Pause, Play } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
 
@@ -143,8 +143,8 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-sm">
-                          <UploadCloud className="size-3.5 text-neutral-400" />
-                          <span>Reupload to room</span>
+                          {/* <UploadCloud className="size-3.5 text-neutral-400" /> */}
+                          <span>Nothing to see here!</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
