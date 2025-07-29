@@ -1,6 +1,7 @@
-import { countryCodeEmoji } from "@/lib/countryCode";
+import { countryCodeEmoji } from "@/lib/country/countryCode";
 import { LocationSchema } from "@beatsync/shared";
 import { z } from "zod";
+import { getCountryName } from "./country/codeToName";
 
 type RequiredResponse = Pick<
   z.infer<typeof LocationSchema>,
@@ -27,6 +28,7 @@ export const getUserLocation = async (): Promise<
       );
       return {
         ...response,
+        country: getCountryName(response.countryCode) || response.country,
         flagEmoji: getFlagEmojiFromCountryCode(response.countryCode),
         flagSvgURL: getFlagSvgURLFromCountryCode(response.countryCode),
       };
