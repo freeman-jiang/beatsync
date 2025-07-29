@@ -1,15 +1,10 @@
 "use client";
 
-import {
-  Calculator,
-  Calendar,
-  CreditCard,
-  Settings,
-  Smile,
-  User,
-} from "lucide-react";
+import { Search as SearchIcon } from "lucide-react";
 import * as React from "react";
+import { useForm } from "react-hook-form";
 
+import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
   CommandEmpty,
@@ -17,16 +12,25 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
-  CommandShortcut,
 } from "@/components/ui/command";
+
+interface SearchFormData {
+  query: string;
+}
 
 export function Search() {
   const [open, setOpen] = React.useState(false);
+  const { register, handleSubmit, watch, reset } = useForm<SearchFormData>({
+    defaultValues: {
+      query: "",
+    },
+  });
+
+  const query = watch("query");
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((open) => !open);
       }
@@ -36,55 +40,65 @@ export function Search() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  const onSubmit = (data: SearchFormData) => {
+    console.log("Search query:", data.query);
+    // Handle search logic here
+    setOpen(false);
+    reset();
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      reset();
+    }
+  };
+
   return (
     <>
-      <p className="text-muted-foreground text-sm">
-        Press{" "}
-        <kbd className="bg-muted text-muted-foreground pointer-events-none inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 select-none">
-          <span className="text-xs">⌘</span>J
-        </kbd>
-      </p>
-      <CommandDialog
-        open={open}
-        onOpenChange={setOpen}
-        className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border duration-200 sm:max-w-xl rounded-xl border-none bg-clip-padding p-2 pb-11 shadow-2xl ring-4 ring-neutral-200/80 dark:ring-neutral-800"
+      <Button
+        variant="outline"
+        className="w-full justify-start text-muted-foreground bg-neutral-800/50 border-neutral-700 hover:bg-neutral-800"
+        onClick={() => setOpen(true)}
       >
-        <CommandInput placeholder="Search for music..." className="" />
-        <CommandList className="">
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Suggestions">
-            <CommandItem>
-              <Calendar />
-              <span>Calendar</span>
-            </CommandItem>
-            <CommandItem>
-              <Smile />
-              <span>Search Emoji</span>
-            </CommandItem>
-            <CommandItem>
-              <Calculator />
-              <span>Calculator</span>
-            </CommandItem>
-          </CommandGroup>
-          <CommandSeparator />
-          <CommandGroup heading="Settings">
-            <CommandItem>
-              <User />
-              <span>Profile</span>
-              <CommandShortcut>⌘P</CommandShortcut>
-            </CommandItem>
-            <CommandItem>
-              <CreditCard />
-              <span>Billing</span>
-              <CommandShortcut>⌘B</CommandShortcut>
-            </CommandItem>
-            <CommandItem>
-              <Settings />
-              <span>Settings</span>
-              <CommandShortcut>⌘S</CommandShortcut>
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
+        <SearchIcon className="mr-2 h-4 w-4" />
+        Search for music...
+        <kbd className="ml-auto pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-neutral-600 bg-neutral-700 px-1.5 font-mono text-[10px] font-medium text-neutral-300">
+          <span className="text-xs">⌘</span>K
+        </kbd>
+      </Button>
+      <CommandDialog open={open} onOpenChange={handleOpenChange}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CommandInput
+            placeholder="Search for music..."
+            {...register("query")}
+          />
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            {query && (
+              <CommandGroup heading="Search Results">
+                <CommandItem onSelect={() => handleSubmit(onSubmit)()}>
+                  <SearchIcon className="mr-2 h-4 w-4" />
+                  <span>Search for &quot;{query}&quot;</span>
+                </CommandItem>
+              </CommandGroup>
+            )}
+            <CommandGroup heading="Recent Searches">
+              <CommandItem>
+                <SearchIcon className="mr-2 h-4 w-4" />
+                <span>Electronic music</span>
+              </CommandItem>
+              <CommandItem>
+                <SearchIcon className="mr-2 h-4 w-4" />
+                <span>Jazz classics</span>
+              </CommandItem>
+              <CommandItem>
+                <SearchIcon className="mr-2 h-4 w-4" />
+                <span>Lo-fi beats</span>
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </form>
       </CommandDialog>
     </>
   );
