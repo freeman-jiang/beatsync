@@ -1,0 +1,8 @@
+node_modules
+.git
+.next
+.turbo
+dist
+*.md
+.env*
+apps/client/public/*.mp3
