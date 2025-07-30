@@ -13,7 +13,7 @@ mock.module("../lib/r2", () => ({
       data: {
         rooms: {
           "test-room-1": {
-            clients: [{ clientId: "ghost-1", username: "user1" }],
+            clients: [{ clientId: "ghost-1", username: "user1", isAdmin: false }],
             audioSources: [
               { id: "audio-1", url: "test.mp3", name: "Test Audio" },
             ],

@@ -10,7 +10,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { R2_AUDIO_FILE_NAME_DELIMITER } from "@beatsync/shared";
 import { config } from "dotenv";
-import sanitize = require("sanitize-filename");
+import sanitize from "sanitize-filename";
 
 config();
 
