@@ -160,6 +160,7 @@ export function validateR2Config(): { isValid: boolean; errors: string[] } {
 
 /**
  * List all objects with a given prefix
+ * Filters out folder objects (0-byte objects ending with '/')
  */
 export async function listObjectsWithPrefix(prefix: string) {
   try {
@@ -169,7 +170,11 @@ export async function listObjectsWithPrefix(prefix: string) {
     });
 
     const listResponse = await r2Client.send(listCommand);
-    return listResponse.Contents;
+    
+    // Filter out folder objects (GCS creates these, R2 doesn't)
+    return listResponse.Contents?.filter(obj => 
+      obj.Key && !obj.Key.endsWith('/') && obj.Size && obj.Size > 0
+    );
   } catch (error) {
     console.error(`Failed to list objects with prefix "${prefix}":`, error);
     throw error;
