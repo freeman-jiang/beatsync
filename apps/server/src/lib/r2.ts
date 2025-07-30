@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -85,12 +86,12 @@ export async function validateAudioFileExists(
     // URL format: ${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${encodedFileName}
     const urlPath = audioUrl.replace(S3_CONFIG.PUBLIC_URL, "");
     let key = urlPath.startsWith("/") ? urlPath.substring(1) : urlPath;
-    
+
     // Decode the URL-encoded parts of the key
     // Split by '/' to decode each part separately (roomId and fileName)
-    const keyParts = key.split('/');
-    const decodedKeyParts = keyParts.map(part => decodeURIComponent(part));
-    key = decodedKeyParts.join('/');
+    const keyParts = key.split("/");
+    const decodedKeyParts = keyParts.map((part) => decodeURIComponent(part));
+    key = decodedKeyParts.join("/");
 
     // Perform HEAD request to check if object exists
     const command = new HeadObjectCommand({
@@ -160,9 +161,11 @@ export function validateR2Config(): { isValid: boolean; errors: string[] } {
 
 /**
  * List all objects with a given prefix
- * Filters out folder objects (0-byte objects ending with '/')
+ * @param prefix The prefix to search for
+ * @param options Configuration options
+ * @param options.includeFolders Whether to include folder objects (0-byte objects ending with '/') - default false
  */
-export async function listObjectsWithPrefix(prefix: string) {
+export async function listObjectsWithPrefix(prefix: string, options: { includeFolders?: boolean } = {}) {
   try {
     const listCommand = new ListObjectsV2Command({
       Bucket: S3_CONFIG.BUCKET_NAME,
@@ -170,11 +173,16 @@ export async function listObjectsWithPrefix(prefix: string) {
     });
 
     const listResponse = await r2Client.send(listCommand);
-    
-    // Filter out folder objects (GCS creates these, R2 doesn't)
-    return listResponse.Contents?.filter(obj => 
-      obj.Key && !obj.Key.endsWith('/') && obj.Size && obj.Size > 0
-    );
+
+    if (options.includeFolders) {
+      // Return all objects including folders
+      return listResponse.Contents?.filter(obj => obj.Key);
+    } else {
+      // Filter out folder objects (GCS creates these, R2 doesn't)
+      return listResponse.Contents?.filter(
+        (obj) => obj.Key && !obj.Key.endsWith("/") && obj.Size && obj.Size > 0
+      );
+    }
   } catch (error) {
     console.error(`Failed to list objects with prefix "${prefix}":`, error);
     throw error;
@@ -182,56 +190,130 @@ export async function listObjectsWithPrefix(prefix: string) {
 }
 
 /**
+ * Delete objects using batch delete API (faster for R2, not supported by GCS)
+ */
+async function deleteBatchObjects(
+  objects: { Key: string }[]
+): Promise<{ deletedCount: number; errors: string[] }> {
+  let deletedCount = 0;
+  const errors: string[] = [];
+
+  // Delete objects in batches (R2/S3 supports up to 1000 objects per batch)
+  const batchSize = 1000;
+  for (let i = 0; i < objects.length; i += batchSize) {
+    const batch = objects.slice(i, i + batchSize);
+
+    const deleteCommand = new DeleteObjectsCommand({
+      Bucket: S3_CONFIG.BUCKET_NAME,
+      Delete: {
+        Objects: batch,
+        Quiet: true, // Only return errors, not successful deletions
+      },
+    });
+
+    const deleteResponse = await r2Client.send(deleteCommand);
+
+    // Count successful deletions
+    const batchDeletedCount =
+      batch.length - (deleteResponse.Errors?.length || 0);
+    deletedCount += batchDeletedCount;
+
+    // Collect errors instead of throwing immediately
+    if (deleteResponse.Errors && deleteResponse.Errors.length > 0) {
+      deleteResponse.Errors.forEach((error) => {
+        errors.push(`Failed to delete ${error.Key}: ${error.Message}`);
+      });
+    }
+  }
+
+  return { deletedCount, errors };
+}
+
+/**
+ * Delete objects individually (slower but compatible with GCS)
+ */
+async function deleteIndividualObjects(
+  objects: { Key: string }[]
+): Promise<{ deletedCount: number; errors: string[] }> {
+  let deletedCount = 0;
+  const errors: string[] = [];
+
+  for (const obj of objects) {
+    try {
+      await deleteObject(obj.Key);
+      deletedCount++;
+    } catch (error) {
+      errors.push(`Failed to delete ${obj.Key}: ${error}`);
+    }
+  }
+
+  return { deletedCount, errors };
+}
+
+/**
  * Delete all objects with a given prefix
+ * Tries batch delete first, falls back to individual deletes for GCS compatibility
  */
 export async function deleteObjectsWithPrefix(
   prefix: string = ""
 ): Promise<{ deletedCount: number }> {
-  let deletedCount = 0;
-
   try {
-    const objects = await listObjectsWithPrefix(prefix);
+    const objects = await listObjectsWithPrefix(prefix, { includeFolders: true }); // Include folders for deletion
 
     if (!objects || objects.length === 0) {
       console.log(`No objects found with prefix "${prefix}"`);
       return { deletedCount: 0 };
     }
 
-    // Prepare objects for batch deletion
+    // Prepare objects for deletion
     const objectsToDelete = objects.map((obj) => ({
       Key: obj.Key!,
     }));
 
-    // Delete objects in batches (R2/S3 supports up to 1000 objects per batch)
-    const batchSize = 1000;
-    for (let i = 0; i < objectsToDelete.length; i += batchSize) {
-      const batch = objectsToDelete.slice(i, i + batchSize);
+    try {
+      // Try batch delete first (faster for R2)
+      const batchResult = await deleteBatchObjects(objectsToDelete);
 
-      const deleteCommand = new DeleteObjectsCommand({
-        Bucket: S3_CONFIG.BUCKET_NAME,
-        Delete: {
-          Objects: batch,
-          Quiet: true, // Only return errors, not successful deletions
-        },
-      });
-
-      const deleteResponse = await r2Client.send(deleteCommand);
-
-      // Count successful deletions
-      const batchDeletedCount =
-        batch.length - (deleteResponse.Errors?.length || 0);
-      deletedCount += batchDeletedCount;
-
-      // Throw on first error
-      if (deleteResponse.Errors && deleteResponse.Errors.length > 0) {
-        const firstError = deleteResponse.Errors[0];
-        throw new Error(
-          `Failed to delete ${firstError.Key}: ${firstError.Message}`
-        );
+      // If there were no errors, return success
+      if (batchResult.errors.length === 0) {
+        return { deletedCount: batchResult.deletedCount };
       }
-    }
 
-    return { deletedCount };
+      // If there were errors but some succeeded, log and return partial success
+      if (batchResult.deletedCount > 0) {
+        console.warn(
+          `Batch delete partially succeeded: ${batchResult.deletedCount} deleted, ${batchResult.errors.length} errors`
+        );
+        batchResult.errors.forEach((error) => console.warn(error));
+        return { deletedCount: batchResult.deletedCount };
+      }
+
+      // If batch failed completely, throw to trigger fallback
+      throw new Error(`Batch delete failed: ${batchResult.errors[0]}`);
+    } catch (error) {
+      // Check if this is a GCS "NotImplemented" error
+      if (
+        (error instanceof Error && error.message.includes("NotImplemented")) ||
+        (error && typeof error === "object" && "Code" in error && error.Code === "NotImplemented")
+      ) {
+        console.log(
+          `Batch delete not supported, falling back to individual deletes...`
+        );
+        const individualResult = await deleteIndividualObjects(objectsToDelete);
+
+        if (individualResult.errors.length > 0) {
+          console.warn(
+            `Individual delete had ${individualResult.errors.length} errors:`
+          );
+          individualResult.errors.forEach((error) => console.warn(error));
+        }
+
+        return { deletedCount: individualResult.deletedCount };
+      }
+
+      // Re-throw other errors
+      throw error;
+    }
   } catch (error) {
     const errorMessage = `Failed to delete objects with prefix "${prefix}": ${error}`;
     console.error(errorMessage);
@@ -307,12 +389,9 @@ export async function getLatestFileWithPrefix(
  * Delete a single object from R2
  */
 export async function deleteObject(key: string): Promise<void> {
-  const command = new DeleteObjectsCommand({
+  const command = new DeleteObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
-    Delete: {
-      Objects: [{ Key: key }],
-      Quiet: true,
-    },
+    Key: key,
   });
 
   await r2Client.send(command);
