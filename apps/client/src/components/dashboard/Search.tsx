@@ -2,7 +2,8 @@
 
 import { Search as SearchIcon } from "lucide-react";
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { useGlobalStore } from "@/store/global";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,19 +15,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-interface SearchFormData {
-  query: string;
-}
-
 export function Search() {
   const [open, setOpen] = React.useState(false);
-  const { register, handleSubmit, watch, reset } = useForm<SearchFormData>({
-    defaultValues: {
-      query: "",
-    },
-  });
-
-  const query = watch("query");
+  const [query, setQuery] = React.useState("");
+  const downloadAudio = useGlobalStore((state) => state.downloadAudio);
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -40,17 +32,23 @@ export function Search() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const onSubmit = (data: SearchFormData) => {
-    console.log("Search query:", data.query);
-    // Handle search logic here
+  const handleDownload = (searchQuery: string) => {
+    console.log("Search query:", searchQuery);
+    
+    // Try to download as audio (works for YouTube URLs and others)
+    if (searchQuery.trim()) {
+      downloadAudio(searchQuery.trim());
+      toast("Starting download...");
+    }
+    
     setOpen(false);
-    reset();
+    setQuery("");
   };
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
-      reset();
+      setQuery("");
     }
   };
 
@@ -67,38 +65,47 @@ export function Search() {
           <span className="text-xs">⌘</span>K
         </kbd>
       </Button>
-      <CommandDialog open={open} onOpenChange={handleOpenChange}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CommandInput
-            placeholder="Search for music..."
-            {...register("query")}
-          />
-          <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
-            {query && (
-              <CommandGroup heading="Search Results">
-                <CommandItem onSelect={() => handleSubmit(onSubmit)()}>
-                  <SearchIcon className="mr-2 h-4 w-4" />
-                  <span>Search for &quot;{query}&quot;</span>
-                </CommandItem>
-              </CommandGroup>
-            )}
-            <CommandGroup heading="Recent Searches">
-              <CommandItem>
+      <CommandDialog 
+        open={open} 
+        onOpenChange={handleOpenChange}
+      >
+        <CommandInput
+          placeholder="Search for music..."
+          value={query}
+          onValueChange={setQuery}
+          onKeyDown={(e) => {
+            // Handle Enter key to trigger download when there's text
+            if (e.key === 'Enter' && query.trim()) {
+              e.preventDefault();
+              handleDownload(query);
+            }
+          }}
+        />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          {query && (
+            <CommandGroup heading="Search Results">
+              <CommandItem onSelect={() => handleDownload(query)}>
                 <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Electronic music</span>
-              </CommandItem>
-              <CommandItem>
-                <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Jazz classics</span>
-              </CommandItem>
-              <CommandItem>
-                <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Lo-fi beats</span>
+                <span>Search for &quot;{query}&quot;</span>
               </CommandItem>
             </CommandGroup>
-          </CommandList>
-        </form>
+          )}
+          <CommandGroup heading="Recent Searches">
+            <CommandItem>
+              <SearchIcon className="mr-2 h-4 w-4" />
+              <span>Electronic music</span>
+            </CommandItem>
+            <CommandItem>
+              <SearchIcon className="mr-2 h-4 w-4" />
+              <span>Jazz classics</span>
+            </CommandItem>
+            <CommandItem>
+              <SearchIcon className="mr-2 h-4 w-4" />
+              <span>Lo-fi beats</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
       </CommandDialog>
     </>
   );

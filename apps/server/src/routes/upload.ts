@@ -6,6 +6,7 @@ import {
 } from "@beatsync/shared";
 import { Server } from "bun";
 import {
+  createKey,
   generateAudioFileName,
   generatePresignedUploadUrl,
   getPublicAudioUrl,
@@ -51,7 +52,7 @@ export const handleGetPresignedURL = async (req: Request) => {
 
     // Generate unique filename
     const uniqueFileName = generateAudioFileName(fileName);
-    const r2Key = `room-${roomId}/${uniqueFileName}`;
+    const r2Key = createKey(roomId, uniqueFileName);
 
     // Generate presigned URL for upload
     const uploadUrl = await generatePresignedUploadUrl(

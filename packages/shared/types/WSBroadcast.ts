@@ -57,6 +57,22 @@ const StopSpatialAudioSchema = z.object({
 });
 export type StopSpatialAudioType = z.infer<typeof StopSpatialAudioSchema>;
 
+// YouTube download progress
+const YouTubeDownloadProgressSchema = z.object({
+  type: z.literal("YOUTUBE_DOWNLOAD_PROGRESS"),
+  jobId: z.string(),
+  progress: z.object({
+    status: z.enum(["downloading", "uploading", "completed", "error"]),
+    progress: z.number().optional(),
+    message: z.string().optional(),
+    error: z.string().optional(),
+    audioUrl: z.string().optional(),
+    title: z.string().optional(),
+    duration: z.number().optional(),
+  }),
+});
+export type YouTubeDownloadProgressType = z.infer<typeof YouTubeDownloadProgressSchema>;
+
 export const ScheduledActionSchema = z.object({
   type: z.literal("SCHEDULED_ACTION"),
   serverTimeToExecute: z.number(),
@@ -72,5 +88,6 @@ export const ScheduledActionSchema = z.object({
 export const WSBroadcastSchema = z.discriminatedUnion("type", [
   ScheduledActionSchema,
   RoomEventSchema,
+  YouTubeDownloadProgressSchema,
 ]);
 export type WSBroadcastType = z.infer<typeof WSBroadcastSchema>;

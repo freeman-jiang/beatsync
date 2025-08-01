@@ -6,7 +6,12 @@
     "dev": "turbo run dev",
     "start": "turbo run start",
     "server": "turbo start --filter=server",
-    "client": "turbo start --filter=client"
+    "client": "turbo start --filter=client",
+    "docker:build": "docker build -t beatsync .",
+    "docker:run": "docker rm -f beatsync-server 2>/dev/null || true && docker run --name beatsync-server -p 8080:8080 --env-file apps/server/.env beatsync",
+    "docker:prod": "bun run docker:build && bun run docker:run",
+    "docker:stop": "docker stop beatsync-server",
+    "docker:clean": "docker rm -f beatsync-server 2>/dev/null || true && docker system prune -f"
   },
   "workspaces": [
     "apps/*",

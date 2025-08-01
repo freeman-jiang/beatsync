@@ -2,6 +2,7 @@ import { ClientActionEnum } from "@beatsync/shared";
 import { handleSendIp } from "./handlers/handleSendIp";
 import { handleSetAdmin } from "./handlers/handleSetAdmin";
 import { handleSetPlaybackControls } from "./handlers/handleSetPlaybackControls";
+import { handleYouTubeDownload } from "./handlers/handleYouTubeDownload";
 import { handleMoveClient } from "./handlers/moveClient";
 import { handleNTPRequest } from "./handlers/ntpRequest";
 import { handlePause } from "./handlers/pause";
@@ -71,5 +72,10 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SEND_IP]: {
     handle: handleSendIp,
     description: "Send IP to server",
+  },
+
+  [ClientActionEnum.enum.YOUTUBE_DOWNLOAD]: {
+    handle: handleYouTubeDownload,
+    description: "Download audio from YouTube URL",
   },
 };

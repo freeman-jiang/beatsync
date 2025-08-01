@@ -41,6 +41,13 @@ export interface AudioFileMetadata {
 }
 
 /**
+ * Create a consistent key for R2 storage
+ */
+export function createKey(roomId: string, fileName: string): string {
+  return `room-${roomId}/${fileName}`;
+}
+
+/**
  * Generate a presigned URL for uploading audio files to R2
  */
 export async function generatePresignedUploadUrl(
@@ -49,7 +56,7 @@ export async function generatePresignedUploadUrl(
   contentType: string,
   expiresIn: number = 3600 // 1 hour
 ): Promise<string> {
-  const key = `room-${roomId}/${fileName}`;
+  const key = createKey(roomId, fileName);
 
   const command = new PutObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
@@ -165,7 +172,10 @@ export function validateR2Config(): { isValid: boolean; errors: string[] } {
  * @param options Configuration options
  * @param options.includeFolders Whether to include folder objects (0-byte objects ending with '/') - default false
  */
-export async function listObjectsWithPrefix(prefix: string, options: { includeFolders?: boolean } = {}) {
+export async function listObjectsWithPrefix(
+  prefix: string,
+  options: { includeFolders?: boolean } = {}
+) {
   try {
     const listCommand = new ListObjectsV2Command({
       Bucket: S3_CONFIG.BUCKET_NAME,
@@ -176,7 +186,7 @@ export async function listObjectsWithPrefix(prefix: string, options: { includeFo
 
     if (options.includeFolders) {
       // Return all objects including folders
-      return listResponse.Contents?.filter(obj => obj.Key);
+      return listResponse.Contents?.filter((obj) => obj.Key);
     } else {
       // Filter out folder objects (GCS creates these, R2 doesn't)
       return listResponse.Contents?.filter(
@@ -258,7 +268,9 @@ export async function deleteObjectsWithPrefix(
   prefix: string = ""
 ): Promise<{ deletedCount: number }> {
   try {
-    const objects = await listObjectsWithPrefix(prefix, { includeFolders: true }); // Include folders for deletion
+    const objects = await listObjectsWithPrefix(prefix, {
+      includeFolders: true,
+    }); // Include folders for deletion
 
     if (!objects || objects.length === 0) {
       console.log(`No objects found with prefix "${prefix}"`);
@@ -294,7 +306,10 @@ export async function deleteObjectsWithPrefix(
       // Check if this is a GCS "NotImplemented" error
       if (
         (error instanceof Error && error.message.includes("NotImplemented")) ||
-        (error && typeof error === "object" && "Code" in error && error.Code === "NotImplemented")
+        (error &&
+          typeof error === "object" &&
+          "Code" in error &&
+          error.Code === "NotImplemented")
       ) {
         console.log(
           `Batch delete not supported, falling back to individual deletes...`
@@ -319,6 +334,34 @@ export async function deleteObjectsWithPrefix(
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
+}
+
+/**
+ * Upload a file to R2
+ */
+export async function uploadFile(
+  filePath: string,
+  roomId: string,
+  fileName: string
+): Promise<string> {
+  const key = createKey(roomId, fileName);
+
+  // Read file with Bun - it automatically detects content type
+  const file = Bun.file(filePath);
+  const buffer = await file.arrayBuffer();
+
+  // Upload to R2
+  const command = new PutObjectCommand({
+    Bucket: S3_CONFIG.BUCKET_NAME,
+    Key: key,
+    Body: new Uint8Array(buffer),
+    ContentType: file.type || "audio/mpeg", // Fallback if detection fails
+  });
+
+  await r2Client.send(command);
+
+  // Return public URL
+  return getPublicAudioUrl(roomId, fileName);
 }
 
 /**
