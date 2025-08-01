@@ -174,7 +174,8 @@ export async function downloadYouTubeAudio(
     console.log(`📝 Output pattern: ${tempFilePattern}`);
 
     try {
-      await $`yt-dlp --extract-audio --audio-quality 0 --output ${tempFilePattern} --verbose ${safeUrl}`;
+      // Use cookies and additional headers to avoid bot detection
+      await $`yt-dlp --extract-audio --audio-quality 0 --output ${tempFilePattern} --cookies-from-browser chrome --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" --extractor-args "youtube:player_client=web" ${safeUrl}`;
       console.log(`✅ yt-dlp download completed successfully`);
     } catch (error) {
       console.error(`❌ yt-dlp failed:`, error);
