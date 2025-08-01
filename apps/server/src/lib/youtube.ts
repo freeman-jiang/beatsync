@@ -45,16 +45,16 @@ export function getYouTubeVideoId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/,
     /youtube\.com\/embed\/([\w-]{11})/,
-    /youtube\.com\/v\/([\w-]{11})/
+    /youtube\.com\/v\/([\w-]{11})/,
   ];
-  
+
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match) {
       return match[1];
     }
   }
-  
+
   return null;
 }
 
@@ -110,6 +110,7 @@ export async function getYouTubeVideoInfo(
         })) || [],
     };
   } catch (error) {
+    console.error("Error getting video info:", error);
     throw new Error(
       `Failed to get video info: ${
         error instanceof Error ? error.message : "Unknown error"
@@ -162,7 +163,7 @@ export async function downloadYouTubeAudio(
     console.log(`🔄 Starting yt-dlp download for: ${safeUrl}`);
     console.log(`📁 Temp directory: ${tempDir}`);
     console.log(`📝 Output pattern: ${tempFilePattern}`);
-    
+
     try {
       await $`yt-dlp --extract-audio --audio-quality 0 --output ${tempFilePattern} --verbose ${safeUrl}`;
       console.log(`✅ yt-dlp download completed successfully`);
@@ -254,7 +255,9 @@ export class YouTubeDownloadManager {
   ): Promise<string> {
     // Check concurrency limit
     if (this.activeDownloads.size >= MAX_CONCURRENT_DOWNLOADS) {
-      throw new Error(`Maximum concurrent downloads reached (${MAX_CONCURRENT_DOWNLOADS}). Please try again later.`);
+      throw new Error(
+        `Maximum concurrent downloads reached (${MAX_CONCURRENT_DOWNLOADS}). Please try again later.`
+      );
     }
 
     const jobId = nanoid();
