@@ -90,6 +90,15 @@ export async function getYouTubeVideoInfo(
   const safeUrl = createSafeYouTubeUrl(videoId);
 
   try {
+    // First check if yt-dlp is available
+    try {
+      await $`which yt-dlp`;
+    } catch {
+      throw new Error(
+        "yt-dlp is not installed or not in PATH. Please install yt-dlp on the server."
+      );
+    }
+
     const result =
       await $`yt-dlp --print-json --no-download --no-warnings ${safeUrl}`.text();
 
