@@ -159,7 +159,24 @@ export async function downloadYouTubeAudio(
 
     // Download audio using yt-dlp with Bun's $ template - best quality available
     // Use the sanitized URL to prevent command injection
-    await $`yt-dlp --extract-audio --audio-quality 0 --output ${tempFilePattern} --no-warnings ${safeUrl}`;
+    console.log(`🔄 Starting yt-dlp download for: ${safeUrl}`);
+    console.log(`📁 Temp directory: ${tempDir}`);
+    console.log(`📝 Output pattern: ${tempFilePattern}`);
+    
+    try {
+      await $`yt-dlp --extract-audio --audio-quality 0 --output ${tempFilePattern} --verbose ${safeUrl}`;
+      console.log(`✅ yt-dlp download completed successfully`);
+    } catch (error) {
+      console.error(`❌ yt-dlp failed:`, error);
+      // Try a simpler version test first
+      try {
+        const versionCheck = await $`yt-dlp --version`.text();
+        console.log(`ℹ️ yt-dlp version: ${versionCheck}`);
+      } catch (versionError) {
+        console.error(`❌ yt-dlp version check failed:`, versionError);
+      }
+      throw error;
+    }
 
     // Find the downloaded file (yt-dlp will have created it with the actual extension)
     const downloadedFiles = await readdir(tempDir);
