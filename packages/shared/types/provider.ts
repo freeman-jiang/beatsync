@@ -67,6 +67,7 @@ export const TrackSchema = z.object({
   parental_warning: z.boolean(),
   id: z.number(),
 });
+export type TrackType = z.infer<typeof TrackSchema>;
 
 export const SearchResponseSchema = z.object({
   data: z.object({

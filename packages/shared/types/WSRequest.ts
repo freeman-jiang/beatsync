@@ -109,6 +109,7 @@ export const SearchMusicSchema = z.object({
 export const StreamMusicSchema = z.object({
   type: z.literal(ClientActionEnum.enum.STREAM_MUSIC),
   trackId: z.number(),
+  trackName: z.string().optional(),
 });
 
 export const WSRequestSchema = z.discriminatedUnion("type", [

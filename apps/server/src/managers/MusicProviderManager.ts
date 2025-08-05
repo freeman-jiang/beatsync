@@ -49,7 +49,7 @@ export class MusicProviderManager {
     try {
       const { id } = TrackParamsSchema.parse({ id: trackId });
 
-      const streamUrl = new URL("/track", this.providerUrl);
+      const streamUrl = new URL("/api/track", this.providerUrl);
       streamUrl.searchParams.set("id", id.toString());
 
       const response = await fetch(streamUrl.toString());
@@ -59,6 +59,7 @@ export class MusicProviderManager {
       }
 
       const data = await response.json();
+
       return StreamResponseSchema.parse(data);
     } catch (error) {
       throw new Error(

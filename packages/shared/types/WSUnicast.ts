@@ -21,6 +21,7 @@ export const MusicStreamResponseSchema = z.object({
   type: z.literal("STREAM_RESPONSE"),
   response: StreamResponseSchema,
   trackId: z.number(),
+  trackName: z.string().optional(),
 });
 export type MusicStreamResponseType = z.infer<typeof MusicStreamResponseSchema>;
 

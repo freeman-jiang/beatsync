@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
-import { ClientActionEnum } from "@beatsync/shared";
+import { ClientActionEnum, TrackType } from "@beatsync/shared";
 import { Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
@@ -19,23 +19,51 @@ export function SearchResults({ className }: SearchResultsProps) {
   const searchQuery = useGlobalStore((state) => state.searchQuery);
   const socket = useGlobalStore((state) => state.socket);
 
-  const handleAddTrack = async (track: { id: number; title: string }) => {
+  // Helper function to format track name as "Artist 1, Artist 2 - Title"
+  const formatTrackName = (track: TrackType) => {
+    const artists: string[] = [];
+
+    // Add main performer
+    if (track.performer?.name) {
+      artists.push(track.performer.name);
+    }
+
+    // Add album artists if different from performer
+    if (track.album?.artists) {
+      track.album.artists.forEach((artist) => {
+        if (artist.name && !artists.includes(artist.name)) {
+          artists.push(artist.name);
+        }
+      });
+    }
+
+    const artistStr =
+      artists.length > 0 ? artists.join(", ") : "Unknown Artist";
+    const title = track.title || "Unknown Title";
+
+    return `${artistStr} - ${title}`;
+  };
+
+  const handleAddTrack = async (track: TrackType) => {
     if (!socket) {
       toast.error("Not connected to server");
       return;
     }
 
     try {
+      const formattedTrackName = formatTrackName(track);
+
       // Request stream URL for this track
       sendWSRequest({
         ws: socket,
         request: {
           type: ClientActionEnum.enum.STREAM_MUSIC,
           trackId: track.id,
+          trackName: formattedTrackName,
         },
       });
 
-      toast.success(`Adding "${track.title}" to queue...`);
+      // toast.success(`Adding "${formattedTrackName}" to queue...`);
     } catch (error) {
       console.error("Failed to add track:", error);
       toast.error("Failed to add track to queue");
