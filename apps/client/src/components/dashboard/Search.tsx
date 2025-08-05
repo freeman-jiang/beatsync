@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -98,38 +97,22 @@ export function Search() {
             }
           }}
         />
-        <CommandList>
+        <CommandList className="max-h-[50vh] overflow-y-auto scrollbar-extra-thin">
           {/* Search Results Component */}
-          <div className="px-1">
-            <SearchResults />
-          </div>
+          <SearchResults />
 
-          {/* Show search prompt or recent searches when no results */}
-          <div className="border-t border-neutral-700/30 mt-2">
-            <CommandEmpty>No results found.</CommandEmpty>
-            {query && (
-              <CommandGroup heading="Search for Music">
-                <CommandItem onSelect={() => handleSearch(query)}>
-                  <SearchIcon className="mr-2 h-4 w-4" />
-                  <span>Search for &quot;{query}&quot;</span>
-                </CommandItem>
-              </CommandGroup>
-            )}
-            <CommandGroup heading="Recent Searches">
-              <CommandItem onSelect={() => handleSearch("Electronic music")}>
-                <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Electronic music</span>
-              </CommandItem>
-              <CommandItem onSelect={() => handleSearch("Jazz classics")}>
-                <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Jazz classics</span>
-              </CommandItem>
-              <CommandItem onSelect={() => handleSearch("Lo-fi beats")}>
-                <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Lo-fi beats</span>
-              </CommandItem>
-            </CommandGroup>
-          </div>
+          {/* Show search prompt when typing */}
+          {query && (
+            <CommandItem
+              onSelect={() => handleSearch(query)}
+              className="border-t border-neutral-700/30 mt-2"
+            >
+              <SearchIcon className="mr-2 h-4 w-4" />
+              <span>Search for &quot;{query}&quot;</span>
+            </CommandItem>
+          )}
+
+          <CommandEmpty>Start typing to search for music...</CommandEmpty>
         </CommandList>
       </CommandDialog>
     </>

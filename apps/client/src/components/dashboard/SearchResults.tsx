@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
-import { Clock, Play, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import * as React from "react";
 import { toast } from "sonner";
 
 interface SearchResultsProps {
@@ -35,7 +34,7 @@ export function SearchResults({ className }: SearchResultsProps) {
           trackId: track.id,
         },
       });
-      
+
       toast.success(`Adding "${track.title}" to queue...`);
     } catch (error) {
       console.error("Failed to add track:", error);
@@ -95,123 +94,69 @@ export function SearchResults({ className }: SearchResultsProps) {
       animate={{ opacity: 1 }}
       className={className}
     >
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white mb-1">
-          Search Results
-        </h3>
-        <p className="text-sm text-neutral-400">
-          Found {searchResults.data.tracks.total} tracks for &quot;{searchQuery}&quot;
-        </p>
-      </div>
-
       <AnimatePresence>
-        <div className="space-y-2">
+        <div className="space-y-1">
           {tracks.map((track, index) => (
             <motion.div
               key={track.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ 
-                duration: 0.3, 
-                delay: index * 0.05,
-                ease: "easeOut" 
+              exit={{ opacity: 0, y: -10 }}
+              transition={{
+                duration: 0.2,
+                delay: index * 0.02,
+                ease: "easeOut",
               }}
-              className="group bg-neutral-900/50 hover:bg-neutral-800/50 border border-neutral-700/50 hover:border-neutral-600/50 rounded-lg p-4 transition-all duration-200 cursor-pointer"
+              className="group hover:bg-neutral-800/30 px-3 py-2 transition-all duration-200 cursor-pointer flex items-center gap-3"
+              onClick={() => handleAddTrack(track)}
             >
-              <div className="flex items-center space-x-4">
-                {/* Album Art */}
-                <div className="relative flex-shrink-0">
-                  <Image
-                    src={track.album.image.thumbnail || track.album.image.small}
-                    alt={track.album.title}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-md object-cover bg-neutral-800"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23404040'/%3E%3Ctext x='50' y='50' text-anchor='middle' dy='.3em' fill='%23888' font-size='14'%3E♪%3C/text%3E%3C/svg%3E";
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-md transition-opacity duration-200">
-                    <Play className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-
-                {/* Track Info */}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-white truncate group-hover:text-white transition-colors">
-                    {track.title}
-                    {track.version && (
-                      <span className="text-neutral-400 font-normal ml-1">
-                        ({track.version})
-                      </span>
-                    )}
-                  </h4>
-                  <p className="text-sm text-neutral-400 truncate">
-                    {track.performer.name}
-                    {track.composer && track.composer.name !== track.performer.name && (
-                      <span className="ml-1">• {track.composer.name}</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-neutral-500 truncate">
-                    {track.album.title}
-                    {track.album.released_at && (
-                      <span className="ml-1">
-                        • {new Date(track.album.released_at * 1000).getFullYear()}
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                {/* Track Duration */}
-                <div className="flex items-center space-x-3 text-neutral-400">
-                  <div className="flex items-center space-x-1 text-xs">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatTime(track.duration)}</span>
-                  </div>
-                  
-                  {/* Add Button */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddTrack(track);
-                    }}
-                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:bg-neutral-700/50 hover:text-white transition-all duration-200"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+              {/* Album Art */}
+              <div className="relative flex-shrink-0">
+                <Image
+                  src={track.album.image.thumbnail || track.album.image.small}
+                  alt={track.album.title}
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 rounded object-cover bg-neutral-800"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23404040'/%3E%3Ctext x='50' y='50' text-anchor='middle' dy='.3em' fill='%23888' font-size='14'%3E♪%3C/text%3E%3C/svg%3E";
+                  }}
+                />
               </div>
 
-              {/* Additional metadata on hover */}
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ 
-                  height: "auto", 
-                  opacity: 1,
-                  transition: { duration: 0.2 }
+              {/* Track Info */}
+              <div className="flex-1 min-w-0">
+                <h4 className="font-normal text-white truncate text-sm">
+                  {track.title}
+                  {track.version && (
+                    <span className="text-neutral-500 ml-1">
+                      ({track.version})
+                    </span>
+                  )}
+                </h4>
+                <p className="text-xs text-neutral-400 truncate">
+                  {track.performer.name}
+                </p>
+              </div>
+
+              {/* Duration */}
+              <div className="text-xs text-neutral-500 group-hover:text-neutral-400 transition-colors">
+                {formatTime(track.duration)}
+              </div>
+
+              {/* Add Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddTrack(track);
                 }}
-                className="mt-3 pt-3 border-t border-neutral-700/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-neutral-700/50 hover:text-white transition-all duration-200"
               >
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <div className="flex items-center space-x-4">
-                    {track.album.genre && (
-                      <span className="px-2 py-1 bg-neutral-800/50 rounded-full">
-                        {track.album.genre.name}
-                      </span>
-                    )}
-                    <span>Track #{track.track_number}</span>
-                    {track.parental_warning && (
-                      <span className="text-yellow-500">Explicit</span>
-                    )}
-                  </div>
-                  <span className="text-xs text-neutral-600">
-                    ID: {track.id}
-                  </span>
-                </div>
-              </motion.div>
+                <Plus className="h-3 w-3" />
+              </Button>
             </motion.div>
           ))}
         </div>
@@ -223,13 +168,13 @@ export function SearchResults({ className }: SearchResultsProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mt-6 text-center"
+          className="mt-4 px-3"
         >
           <Button
-            variant="outline"
-            className="bg-neutral-800/30 border-neutral-700/50 hover:bg-neutral-800/50 hover:border-neutral-600"
+            variant="ghost"
+            className="text-xs text-neutral-400 hover:text-white transition-colors"
           >
-            Load More Results
+            Show more results
           </Button>
         </motion.div>
       )}

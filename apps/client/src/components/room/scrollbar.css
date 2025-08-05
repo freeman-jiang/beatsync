@@ -46,3 +46,30 @@
 .hover\:scrollbar-thumb-muted-foreground\/20:hover {
   scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
 }
+
+/* Extra thin scrollbar for search dialog */
+.scrollbar-extra-thin::-webkit-scrollbar {
+  width: 3px;
+}
+
+.scrollbar-extra-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-extra-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.08);
+  border-radius: 9999px;
+}
+
+.scrollbar-extra-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.15);
+}
+
+.scrollbar-extra-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.08) transparent;
+}
+
+.scrollbar-extra-thin:hover {
+  scrollbar-color: rgba(156, 163, 175, 0.15) transparent;
+}
