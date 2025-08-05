@@ -288,11 +288,11 @@ export function SearchResults({ className }: SearchResultsProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mt-4 px-3"
+          className="my-2 px-3"
         >
           <Button
             variant="ghost"
-            className="text-xs text-neutral-400 hover:text-white transition-colors"
+            className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/20 transition-all duration-200 h-8 text-xs font-normal cursor-pointer"
           >
             Show more results
           </Button>
