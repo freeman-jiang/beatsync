@@ -85,6 +85,7 @@ export function Search() {
       <CommandDialog open={open} onOpenChange={handleOpenChange}>
         <CommandInput
           placeholder="Search for music..."
+          onBlur={() => setOpen(false)}
           value={query}
           onValueChange={setQuery}
           onKeyDown={(e) => {
