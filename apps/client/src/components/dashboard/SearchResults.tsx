@@ -53,16 +53,65 @@ export function SearchResults({ className }: SearchResultsProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex items-center justify-center py-12"
+        className="flex flex-col items-center justify-center py-16"
       >
-        <div className="flex items-center space-x-3 text-neutral-400">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="h-5 w-5 border-2 border-neutral-600 border-t-white rounded-full"
-          />
-          <span>Searching for music...</span>
+        <div className="size-6 mb-4 relative">
+          <svg className="w-full h-full" viewBox="0 0 100 100">
+            {/* Background circle */}
+            <circle
+              cx="50"
+              cy="50"
+              r="42"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="6"
+              className="text-neutral-800"
+            />
+
+            {/* Animated progress circle */}
+            <motion.circle
+              cx="50"
+              cy="50"
+              r="42"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="6"
+              strokeLinecap="round"
+              className="text-white"
+              strokeDasharray={2 * Math.PI * 42}
+              animate={{
+                strokeDashoffset: [2 * Math.PI * 42, 0],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              style={{
+                transformOrigin: "center",
+                transform: "rotate(-90deg)",
+              }}
+            />
+          </svg>
         </div>
+
+        <motion.h3
+          className="text-base font-medium tracking-tight mb-1 text-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          Searching for music...
+        </motion.h3>
+
+        <motion.p
+          className="text-neutral-400 text-center text-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+        >
+          Finding tracks that match your query
+        </motion.p>
       </motion.div>
     );
   }
@@ -71,19 +120,64 @@ export function SearchResults({ className }: SearchResultsProps) {
     if (searchQuery) {
       return (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-12 text-neutral-400"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center py-16"
         >
-          <div className="mb-4 text-4xl">🎵</div>
-          <h3 className="text-lg font-medium mb-2">No results found</h3>
-          <p className="text-sm">
+          <div className="size-6 mb-4 relative">
+            <svg className="w-full h-full" viewBox="0 0 100 100">
+              {/* Background circle */}
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="6"
+                className="text-neutral-800"
+              />
+              
+              {/* Static circle (no animation for no results) */}
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="6"
+                strokeLinecap="round"
+                className="text-neutral-600"
+                strokeDasharray={2 * Math.PI * 42}
+                strokeDashoffset={2 * Math.PI * 42 * 0.75}
+                style={{
+                  transformOrigin: "center",
+                  transform: "rotate(-90deg)",
+                }}
+              />
+            </svg>
+          </div>
+
+          <motion.h3
+            className="text-base font-medium tracking-tight mb-1 text-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            No results found
+          </motion.h3>
+
+          <motion.p
+            className="text-neutral-400 text-center text-xs"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+          >
             Try searching for a different artist, song, or album
-          </p>
+          </motion.p>
         </motion.div>
       );
     }
-    
+
     // Show initial state when no search has been performed
     return (
       <motion.div
