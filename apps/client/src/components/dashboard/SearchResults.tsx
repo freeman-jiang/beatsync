@@ -83,7 +83,24 @@ export function SearchResults({ className }: SearchResultsProps) {
         </motion.div>
       );
     }
-    return null;
+    
+    // Show initial state when no search has been performed
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center py-16 text-neutral-400"
+      >
+        <div className="text-center">
+          <h3 className="text-lg font-medium mb-2 text-neutral-300">
+            Start typing to search for music...
+          </h3>
+          <p className="text-sm text-neutral-500">
+            Find your favorite tracks, artists, and albums
+          </p>
+        </div>
+      </motion.div>
+    );
   }
 
   const tracks = searchResults.data.tracks.items;

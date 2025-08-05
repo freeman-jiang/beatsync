@@ -9,9 +9,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
-  CommandEmpty,
   CommandInput,
-  CommandItem,
   CommandList,
 } from "@/components/ui/command";
 import { SearchResults } from "./SearchResults";
@@ -100,19 +98,6 @@ export function Search() {
         <CommandList className="max-h-[50vh] overflow-y-auto scrollbar-extra-thin">
           {/* Search Results Component */}
           <SearchResults />
-
-          {/* Show search prompt when typing */}
-          {query && (
-            <CommandItem
-              onSelect={() => handleSearch(query)}
-              className="border-t border-neutral-700/30 mt-2"
-            >
-              <SearchIcon className="mr-2 h-4 w-4" />
-              <span>Search for &quot;{query}&quot;</span>
-            </CommandItem>
-          )}
-
-          <CommandEmpty>Start typing to search for music...</CommandEmpty>
         </CommandList>
       </CommandDialog>
     </>
