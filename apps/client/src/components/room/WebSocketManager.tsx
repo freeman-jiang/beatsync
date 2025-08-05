@@ -14,7 +14,6 @@ import {
   WSResponseSchema,
 } from "@beatsync/shared";
 import { useEffect } from "react";
-import { toast } from "sonner";
 
 // Helper function for NTP response handling
 const handleNTPResponse = (response: NTPResponseMessageType) => {
@@ -206,32 +205,6 @@ export const WebSocketManager = ({
           }
         } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
           processStopSpatialAudio();
-        }
-      } else if (response.type === "YOUTUBE_DOWNLOAD_RESPONSE") {
-        // Handle immediate response from YouTube download request
-        if (response.success) {
-          toast.success("Download started successfully");
-        } else {
-          toast.error(response.error || "Download failed");
-        }
-      } else if (response.type === "YOUTUBE_DOWNLOAD_PROGRESS") {
-        // Handle progress updates broadcasted to all room clients
-        const { progress } = response;
-        
-        if (progress.status === "downloading") {
-          if (progress.title) {
-            toast(`Downloading: ${progress.title}`, {
-              description: progress.message,
-            });
-          } else {
-            toast(progress.message || "Downloading...");
-          }
-        } else if (progress.status === "uploading") {
-          toast("Uploading to cloud storage...");
-        } else if (progress.status === "completed") {
-          toast.success(`✅ ${progress.title || "Audio"} ready for playback!`);
-        } else if (progress.status === "error") {
-          toast.error(progress.error || "Download failed");
         }
       } else {
         console.log("Unknown response type:", response);

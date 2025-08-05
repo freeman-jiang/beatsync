@@ -143,7 +143,6 @@ interface GlobalState extends GlobalStateValues {
   setPlaybackControlsPermissions: (
     permissions: PlaybackControlsPermissionsType
   ) => void;
-  downloadAudio: (url: string) => void;
 }
 
 // Define initial state values
@@ -1030,20 +1029,5 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setPlaybackControlsPermissions: (permissions) =>
       set({ playbackControlsPermissions: permissions }),
     
-    downloadAudio: (url) => {
-      const state = get();
-      if (!state.socket) {
-        console.error("No WebSocket connection available");
-        return;
-      }
-      
-      sendWSRequest({
-        ws: state.socket,
-        request: {
-          type: ClientActionEnum.enum.YOUTUBE_DOWNLOAD,
-          url,
-        },
-      });
-    },
   };
 });

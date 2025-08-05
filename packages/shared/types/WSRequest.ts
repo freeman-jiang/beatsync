@@ -24,7 +24,6 @@ export const ClientActionEnum = z.enum([
   "SET_ADMIN", // Set admin status
   "SET_PLAYBACK_CONTROLS", // Set playback controls
   "SEND_IP", // Send IP to server
-  "YOUTUBE_DOWNLOAD", // Download YouTube audio
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -100,11 +99,6 @@ export const SendLocationSchema = z.object({
   location: LocationSchema,
 });
 
-const YouTubeDownloadSchema = z.object({
-  type: z.literal(ClientActionEnum.enum.YOUTUBE_DOWNLOAD),
-  url: z.string().url(),
-});
-export type YouTubeDownloadType = z.infer<typeof YouTubeDownloadSchema>;
 
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
@@ -119,7 +113,6 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetAdminSchema,
   SetPlaybackControlsSchema,
   SendLocationSchema,
-  YouTubeDownloadSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

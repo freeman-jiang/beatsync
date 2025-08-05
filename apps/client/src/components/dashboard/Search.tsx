@@ -2,8 +2,6 @@
 
 import { Search as SearchIcon } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
-import { useGlobalStore } from "@/store/global";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +16,6 @@ import {
 export function Search() {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
-  const downloadAudio = useGlobalStore((state) => state.downloadAudio);
-
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -32,14 +28,8 @@ export function Search() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const handleDownload = (searchQuery: string) => {
+  const handleSearch = (searchQuery: string) => {
     console.log("Search query:", searchQuery);
-    
-    // Try to download as audio (works for YouTube URLs and others)
-    if (searchQuery.trim()) {
-      downloadAudio(searchQuery.trim());
-      toast("Starting download...");
-    }
     
     setOpen(false);
     setQuery("");
@@ -74,10 +64,10 @@ export function Search() {
           value={query}
           onValueChange={setQuery}
           onKeyDown={(e) => {
-            // Handle Enter key to trigger download when there's text
+            // Handle Enter key to trigger search when there's text
             if (e.key === 'Enter' && query.trim()) {
               e.preventDefault();
-              handleDownload(query);
+              handleSearch(query);
             }
           }}
         />
@@ -85,7 +75,7 @@ export function Search() {
           <CommandEmpty>No results found.</CommandEmpty>
           {query && (
             <CommandGroup heading="Search Results">
-              <CommandItem onSelect={() => handleDownload(query)}>
+              <CommandItem onSelect={() => handleSearch(query)}>
                 <SearchIcon className="mr-2 h-4 w-4" />
                 <span>Search for &quot;{query}&quot;</span>
               </CommandItem>
