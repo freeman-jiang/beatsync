@@ -47,7 +47,7 @@ export const AlbumSchema = z.object({
 
 export const TrackSchema = z.object({
   isrc: z.string().nullable().optional(),
-  copyright: z.string().optional(),
+  copyright: z.string().nullable().optional(),
   performer: z.object({
     name: z.string(),
     id: z.number(),

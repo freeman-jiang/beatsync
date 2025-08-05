@@ -57,7 +57,7 @@ export function Search() {
 
     // Don't close the dialog - keep it open to show results
     // setOpen(false);
-    setQuery("");
+    // setQuery("");
   };
 
   const handleOpenChange = (newOpen: boolean) => {
