@@ -181,18 +181,27 @@ export function SearchResults({ className }: SearchResultsProps) {
     // Show initial state when no search has been performed
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-8 text-neutral-400"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center py-8"
       >
-        <div className="text-center">
-          <h3 className="text-lg font-medium mb-2 text-neutral-300">
-            Start typing to search for music...
-          </h3>
-          <p className="text-sm text-neutral-500">
-            Find your favorite tracks, artists, and albums
-          </p>
-        </div>
+        <motion.h3
+          className="text-base font-medium tracking-tight mb-1 text-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          Start typing to search for music...
+        </motion.h3>
+
+        <motion.p
+          className="text-neutral-400 text-center text-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+        >
+          Experimental. Free while in beta.
+        </motion.p>
       </motion.div>
     );
   }
