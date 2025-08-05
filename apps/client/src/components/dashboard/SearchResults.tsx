@@ -53,7 +53,7 @@ export function SearchResults({ className }: SearchResultsProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-col items-center justify-center py-16"
+        className="flex flex-col items-center justify-center py-8"
       >
         <div className="size-6 mb-4 relative">
           <svg className="w-full h-full" viewBox="0 0 100 100">
@@ -122,7 +122,7 @@ export function SearchResults({ className }: SearchResultsProps) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-16"
+          className="flex flex-col items-center justify-center py-8"
         >
           <div className="size-6 mb-4 relative">
             <svg className="w-full h-full" viewBox="0 0 100 100">
@@ -136,7 +136,7 @@ export function SearchResults({ className }: SearchResultsProps) {
                 strokeWidth="6"
                 className="text-neutral-800"
               />
-              
+
               {/* Static circle (no animation for no results) */}
               <circle
                 cx="50"
@@ -183,7 +183,7 @@ export function SearchResults({ className }: SearchResultsProps) {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-16 text-neutral-400"
+        className="flex flex-col items-center justify-center py-8 text-neutral-400"
       >
         <div className="text-center">
           <h3 className="text-lg font-medium mb-2 text-neutral-300">
