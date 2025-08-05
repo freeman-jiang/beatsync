@@ -1,8 +1,5 @@
 import { ExtractWSRequestFrom } from "@beatsync/shared";
-import { unlink, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
-import { generateAudioFileName, uploadFile } from "../../lib/r2";
+import { generateAudioFileName, uploadBytes } from "../../lib/r2";
 import { MUSIC_PROVIDER_MANAGER } from "../../managers/MusicProviderManager";
 import { sendUnicast } from "../../utils/responses";
 import { HandlerFunction } from "../types";
@@ -27,7 +24,7 @@ export const handleStreamMusic: HandlerFunction<
     // Generate a unique filename for R2
     const fileName = generateAudioFileName(`${originalName}.mp3`);
 
-    // Download the audio file to a temporary location
+    // Download the audio file
     console.log(`Downloading audio from: ${streamUrl}`);
     const response = await fetch(streamUrl);
 
@@ -35,39 +32,31 @@ export const handleStreamMusic: HandlerFunction<
       throw new Error(`Failed to download audio: ${response.status}`);
     }
 
-    // Create temporary file
-    const tempFilePath = join(tmpdir(), `temp-${Date.now()}-${fileName}`);
+    // Get audio bytes
     const arrayBuffer = await response.arrayBuffer();
-    await writeFile(tempFilePath, new Uint8Array(arrayBuffer));
+    
+    // Get content type from response headers, fallback to audio/mpeg
+    const contentType = response.headers.get('content-type') || 'audio/mpeg';
 
-    try {
-      // Upload to R2
-      console.log(`Uploading to R2: room-${roomId}/${fileName}`);
-      const r2Url = await uploadFile(tempFilePath, roomId, fileName);
+    // Upload directly to R2
+    console.log(`Uploading to R2: room-${roomId}/${fileName}`);
+    const r2Url = await uploadBytes(arrayBuffer, roomId, fileName, contentType);
 
-      // Send success response with R2 URL
-      sendUnicast({
-        ws,
-        message: {
-          type: "STREAM_RESPONSE",
-          response: {
-            success: true,
-            data: { url: r2Url },
-          },
-          trackId: message.trackId,
-          trackName: message.trackName,
+    // Send success response with R2 URL
+    sendUnicast({
+      ws,
+      message: {
+        type: "STREAM_RESPONSE",
+        response: {
+          success: true,
+          data: { url: r2Url },
         },
-      });
+        trackId: message.trackId,
+        trackName: message.trackName,
+      },
+    });
 
-      console.log(`Successfully uploaded track to R2: ${r2Url}`);
-    } finally {
-      // Clean up temporary file
-      try {
-        await unlink(tempFilePath);
-      } catch (error) {
-        console.warn(`Failed to delete temporary file: ${tempFilePath}`, error);
-      }
-    }
+    console.log(`Successfully uploaded track to R2: ${r2Url}`);
   } catch (error) {
     console.error("Error in handleStreamMusic:", error);
 

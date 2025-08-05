@@ -365,6 +365,34 @@ export async function uploadFile(
 }
 
 /**
+ * Upload bytes directly to R2 without creating a temporary file
+ */
+export async function uploadBytes(
+  bytes: Uint8Array | ArrayBuffer,
+  roomId: string,
+  fileName: string,
+  contentType: string = "audio/mpeg"
+): Promise<string> {
+  const key = createKey(roomId, fileName);
+
+  // Convert ArrayBuffer to Uint8Array if needed
+  const body = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+
+  // Upload to R2
+  const command = new PutObjectCommand({
+    Bucket: S3_CONFIG.BUCKET_NAME,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  });
+
+  await r2Client.send(command);
+
+  // Return public URL
+  return getPublicAudioUrl(roomId, fileName);
+}
+
+/**
  * Upload JSON data to R2
  */
 export async function uploadJSON(key: string, data: object): Promise<void> {
