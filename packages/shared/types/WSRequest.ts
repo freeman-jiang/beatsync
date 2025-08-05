@@ -24,6 +24,8 @@ export const ClientActionEnum = z.enum([
   "SET_ADMIN", // Set admin status
   "SET_PLAYBACK_CONTROLS", // Set playback controls
   "SEND_IP", // Send IP to server
+  "SEARCH_MUSIC", // Search for music
+  "STREAM_MUSIC", // Stream music
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -99,6 +101,15 @@ export const SendLocationSchema = z.object({
   location: LocationSchema,
 });
 
+export const SearchMusicSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SEARCH_MUSIC),
+  query: z.string(),
+});
+
+export const StreamMusicSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.STREAM_MUSIC),
+  trackId: z.number(),
+});
 
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
@@ -113,6 +124,8 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetAdminSchema,
   SetPlaybackControlsSchema,
   SendLocationSchema,
+  SearchMusicSchema,
+  StreamMusicSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

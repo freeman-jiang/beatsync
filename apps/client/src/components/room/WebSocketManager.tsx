@@ -206,6 +206,8 @@ export const WebSocketManager = ({
         } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
           processStopSpatialAudio();
         }
+      } else if (response.type === "SEARCH_RESPONSE") {
+        console.log("Received search response:", response);
       } else {
         console.log("Unknown response type:", response);
       }

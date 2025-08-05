@@ -1,5 +1,8 @@
 "use client";
 
+import { useGlobalStore } from "@/store/global";
+import { sendWSRequest } from "@/utils/ws";
+import { ClientActionEnum } from "@beatsync/shared";
 import { Search as SearchIcon } from "lucide-react";
 import * as React from "react";
 
@@ -16,6 +19,7 @@ import {
 export function Search() {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const socket = useGlobalStore((state) => state.socket);
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -29,8 +33,21 @@ export function Search() {
   }, []);
 
   const handleSearch = (searchQuery: string) => {
-    console.log("Search query:", searchQuery);
-    
+    if (!socket) {
+      console.error("WebSocket not connected");
+      return;
+    }
+
+    console.log("Sending search request", searchQuery);
+
+    sendWSRequest({
+      ws: socket,
+      request: {
+        type: ClientActionEnum.enum.SEARCH_MUSIC,
+        query: searchQuery,
+      },
+    });
+
     setOpen(false);
     setQuery("");
   };
@@ -55,17 +72,14 @@ export function Search() {
           <span className="text-xs">⌘</span>K
         </kbd>
       </Button>
-      <CommandDialog 
-        open={open} 
-        onOpenChange={handleOpenChange}
-      >
+      <CommandDialog open={open} onOpenChange={handleOpenChange}>
         <CommandInput
           placeholder="Search for music..."
           value={query}
           onValueChange={setQuery}
           onKeyDown={(e) => {
             // Handle Enter key to trigger search when there's text
-            if (e.key === 'Enter' && query.trim()) {
+            if (e.key === "Enter" && query.trim()) {
               e.preventDefault();
               handleSearch(query);
             }

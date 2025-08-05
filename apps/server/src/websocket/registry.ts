@@ -1,7 +1,9 @@
 import { ClientActionEnum } from "@beatsync/shared";
+import { handleSearchMusic } from "./handlers/handleSearchMusic";
 import { handleSendIp } from "./handlers/handleSendIp";
 import { handleSetAdmin } from "./handlers/handleSetAdmin";
 import { handleSetPlaybackControls } from "./handlers/handleSetPlaybackControls";
+import { handleStreamMusic } from "./handlers/handleStreamMusic";
 import { handleMoveClient } from "./handlers/moveClient";
 import { handleNTPRequest } from "./handlers/ntpRequest";
 import { handlePause } from "./handlers/pause";
@@ -73,4 +75,13 @@ export const WS_REGISTRY: WebsocketRegistry = {
     description: "Send IP to server",
   },
 
+  [ClientActionEnum.enum.SEARCH_MUSIC]: {
+    handle: handleSearchMusic,
+    description: "Search for music",
+  },
+
+  [ClientActionEnum.enum.STREAM_MUSIC]: {
+    handle: handleStreamMusic,
+    description: "Stream music",
+  },
 };
