@@ -15,11 +15,17 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { SearchResults } from "./SearchResults";
 
 export function Search() {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const socket = useGlobalStore((state) => state.socket);
+  const setIsSearching = useGlobalStore((state) => state.setIsSearching);
+  const setSearchQuery = useGlobalStore((state) => state.setSearchQuery);
+  const clearSearchResults = useGlobalStore(
+    (state) => state.clearSearchResults
+  );
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -40,6 +46,10 @@ export function Search() {
 
     console.log("Sending search request", searchQuery);
 
+    // Set loading state and store query
+    setIsSearching(true);
+    setSearchQuery(searchQuery);
+
     sendWSRequest({
       ws: socket,
       request: {
@@ -48,7 +58,8 @@ export function Search() {
       },
     });
 
-    setOpen(false);
+    // Don't close the dialog - keep it open to show results
+    // setOpen(false);
     setQuery("");
   };
 
@@ -56,6 +67,8 @@ export function Search() {
     setOpen(newOpen);
     if (!newOpen) {
       setQuery("");
+      // Clear search results when dialog closes
+      clearSearchResults();
     }
   };
 
@@ -86,29 +99,37 @@ export function Search() {
           }}
         />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {query && (
-            <CommandGroup heading="Search Results">
-              <CommandItem onSelect={() => handleSearch(query)}>
+          {/* Search Results Component */}
+          <div className="px-1">
+            <SearchResults />
+          </div>
+
+          {/* Show search prompt or recent searches when no results */}
+          <div className="border-t border-neutral-700/30 mt-2">
+            <CommandEmpty>No results found.</CommandEmpty>
+            {query && (
+              <CommandGroup heading="Search for Music">
+                <CommandItem onSelect={() => handleSearch(query)}>
+                  <SearchIcon className="mr-2 h-4 w-4" />
+                  <span>Search for &quot;{query}&quot;</span>
+                </CommandItem>
+              </CommandGroup>
+            )}
+            <CommandGroup heading="Recent Searches">
+              <CommandItem onSelect={() => handleSearch("Electronic music")}>
                 <SearchIcon className="mr-2 h-4 w-4" />
-                <span>Search for &quot;{query}&quot;</span>
+                <span>Electronic music</span>
+              </CommandItem>
+              <CommandItem onSelect={() => handleSearch("Jazz classics")}>
+                <SearchIcon className="mr-2 h-4 w-4" />
+                <span>Jazz classics</span>
+              </CommandItem>
+              <CommandItem onSelect={() => handleSearch("Lo-fi beats")}>
+                <SearchIcon className="mr-2 h-4 w-4" />
+                <span>Lo-fi beats</span>
               </CommandItem>
             </CommandGroup>
-          )}
-          <CommandGroup heading="Recent Searches">
-            <CommandItem>
-              <SearchIcon className="mr-2 h-4 w-4" />
-              <span>Electronic music</span>
-            </CommandItem>
-            <CommandItem>
-              <SearchIcon className="mr-2 h-4 w-4" />
-              <span>Jazz classics</span>
-            </CommandItem>
-            <CommandItem>
-              <SearchIcon className="mr-2 h-4 w-4" />
-              <span>Lo-fi beats</span>
-            </CommandItem>
-          </CommandGroup>
+          </div>
         </CommandList>
       </CommandDialog>
     </>

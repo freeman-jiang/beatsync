@@ -19,6 +19,7 @@ import {
   PlaybackControlsPermissionsType,
   PositionType,
   SpatialConfigType,
+  SearchResponseType,
 } from "@beatsync/shared";
 import { Mutex } from "async-mutex";
 import { toast } from "sonner";
@@ -88,6 +89,11 @@ interface GlobalStateValues {
 
   // Playback controls
   playbackControlsPermissions: PlaybackControlsPermissionsType;
+
+  // Search results
+  searchResults: SearchResponseType | null;
+  isSearching: boolean;
+  searchQuery: string;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -143,6 +149,12 @@ interface GlobalState extends GlobalStateValues {
   setPlaybackControlsPermissions: (
     permissions: PlaybackControlsPermissionsType
   ) => void;
+
+  // Search methods
+  setSearchResults: (results: SearchResponseType | null) => void;
+  setIsSearching: (isSearching: boolean) => void;
+  setSearchQuery: (query: string) => void;
+  clearSearchResults: () => void;
 }
 
 // Define initial state values
@@ -193,6 +205,11 @@ const initialState: GlobalStateValues = {
 
   // Playback controls
   playbackControlsPermissions: PlaybackControlsPermissionsEnum.enum.EVERYONE,
+
+  // Search results
+  searchResults: null,
+  isSearching: false,
+  searchQuery: "",
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -1028,6 +1045,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setReconnectionInfo: (info) => set({ reconnectionInfo: info }),
     setPlaybackControlsPermissions: (permissions) =>
       set({ playbackControlsPermissions: permissions }),
+
+    // Search methods
+    setSearchResults: (results) => set({ searchResults: results }),
+    setIsSearching: (isSearching) => set({ isSearching }),
+    setSearchQuery: (query) => set({ searchQuery: query }),
+    clearSearchResults: () => 
+      set({ searchResults: null, isSearching: false, searchQuery: "" }),
     
   };
 });
