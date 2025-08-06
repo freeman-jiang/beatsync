@@ -387,8 +387,8 @@ export function SearchResults({
             className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all duration-200 h-8 text-xs font-normal cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoadingMoreResults ? (
-              <div className="flex items-center gap-2">
-                <div className="size-3 relative">
+              <div className="flex items-center justify-center gap-2">
+                <div className="size-3 relative flex items-center justify-center">
                   <svg className="w-full h-full" viewBox="0 0 100 100">
                     <motion.circle
                       cx="50"
@@ -414,7 +414,7 @@ export function SearchResults({
                     />
                   </svg>
                 </div>
-                Loading more...
+                <span>Loading more...</span>
               </div>
             ) : (
               "Show more results"
