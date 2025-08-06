@@ -302,13 +302,22 @@ export function SearchResults({
           {tracks.map((track, index) => (
             <motion.div
               key={track.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{
+                opacity: 0,
+                filter: "blur(8px)",
+              }}
+              animate={{
+                opacity: 1,
+                filter: "blur(0px)",
+              }}
+              exit={{
+                opacity: 0,
+                filter: "blur(4px)",
+              }}
               transition={{
-                duration: 0.2,
-                delay: index * 0.02,
-                ease: "easeOut",
+                duration: 0.3,
+                delay: index * 0.06,
+                ease: "easeInOut",
               }}
               className="group hover:bg-neutral-800 px-3 py-2 transition-all duration-200 cursor-pointer flex items-center gap-3 rounded-md"
               onMouseDown={() => handleAddTrack(track)}
