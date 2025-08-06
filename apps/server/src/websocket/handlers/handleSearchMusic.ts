@@ -6,13 +6,30 @@ import { HandlerFunction } from "../types";
 export const handleSearchMusic: HandlerFunction<
   ExtractWSRequestFrom["SEARCH_MUSIC"]
 > = async ({ ws, message }) => {
-  const response = await MUSIC_PROVIDER_MANAGER.search(message.query);
+  try {
+    const data = await MUSIC_PROVIDER_MANAGER.search(message.query);
 
-  sendUnicast({
-    ws,
-    message: {
-      type: "SEARCH_RESPONSE",
-      response,
-    },
-  });
+    sendUnicast({
+      ws,
+      message: {
+        type: "SEARCH_RESPONSE",
+        response: {
+          type: "success",
+          response: data,
+        },
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    sendUnicast({
+      ws,
+      message: {
+        type: "SEARCH_RESPONSE",
+        response: {
+          type: "error",
+          message: "An error occurred while searching",
+        },
+      },
+    });
+  }
 };

@@ -1,9 +1,10 @@
 import {
+  RawSearchResponseSchema,
   SearchParamsSchema,
-  SearchResponseSchema,
   StreamResponseSchema,
   TrackParamsSchema,
 } from "@beatsync/shared/";
+import { z } from "zod";
 
 export class MusicProviderManager {
   private providerUrl: string;
@@ -16,7 +17,10 @@ export class MusicProviderManager {
     this.providerUrl = url;
   }
 
-  async search(query: string, offset: number = 0) {
+  async search(
+    query: string,
+    offset: number = 0
+  ): Promise<z.infer<typeof RawSearchResponseSchema>> {
     try {
       const { q, offset: validOffset } = SearchParamsSchema.parse({
         q: query,
@@ -35,7 +39,7 @@ export class MusicProviderManager {
 
       const data = await response.json();
 
-      return SearchResponseSchema.parse(data);
+      return RawSearchResponseSchema.parse(data);
     } catch (error) {
       throw new Error(
         `Search failed: ${

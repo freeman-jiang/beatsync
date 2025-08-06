@@ -69,7 +69,7 @@ export const TrackSchema = z.object({
 });
 export type TrackType = z.infer<typeof TrackSchema>;
 
-export const SearchResponseSchema = z.object({
+export const RawSearchResponseSchema = z.object({
   data: z.object({
     tracks: z.object({
       limit: z.number(),
@@ -79,6 +79,21 @@ export const SearchResponseSchema = z.object({
     }),
   }),
 });
+
+const SearchSuccessResponseSchema = z.object({
+  type: z.literal("success"),
+  response: RawSearchResponseSchema,
+});
+
+const SearchErrorResponseSchema = z.object({
+  type: z.literal("error"),
+  message: z.string(),
+});
+
+export const SearchResponseSchema = z.discriminatedUnion("type", [
+  SearchSuccessResponseSchema,
+  SearchErrorResponseSchema,
+]);
 export type SearchResponseType = z.infer<typeof SearchResponseSchema>;
 
 export const StreamResponseSchema = z.object({

@@ -151,7 +151,40 @@ export function SearchResults({
     );
   }
 
-  if (!searchResults || !searchResults.data.tracks.items.length) {
+  // Handle error state
+  if (searchResults && searchResults.type === "error") {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center py-8"
+      >
+        <motion.h3
+          className="text-base font-medium tracking-tight mb-1"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          💀
+        </motion.h3>
+
+        <motion.p
+          className="text-neutral-400 text-center text-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+        >
+          {searchResults.message}
+        </motion.p>
+      </motion.div>
+    );
+  }
+
+  if (
+    !searchResults ||
+    (searchResults.type === "success" &&
+      !searchResults.response.data.tracks.items.length)
+  ) {
     if (searchQuery) {
       return (
         <motion.div
@@ -241,7 +274,10 @@ export function SearchResults({
     );
   }
 
-  const tracks = searchResults.data.tracks.items;
+  const tracks =
+    searchResults.type === "success"
+      ? searchResults.response.data.tracks.items
+      : [];
 
   return (
     <motion.div
@@ -318,21 +354,22 @@ export function SearchResults({
       </AnimatePresence>
 
       {/* Load More (if there are more results) */}
-      {searchResults.data.tracks.total > tracks.length && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="my-2 px-3"
-        >
-          <Button
-            variant="ghost"
-            className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all duration-200 h-8 text-xs font-normal cursor-pointer"
+      {searchResults.type === "success" &&
+        searchResults.response.data.tracks.total > tracks.length && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="my-2 px-3"
           >
-            Show more results
-          </Button>
-        </motion.div>
-      )}
+            <Button
+              variant="ghost"
+              className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all duration-200 h-8 text-xs font-normal cursor-pointer"
+            >
+              Show more results
+            </Button>
+          </motion.div>
+        )}
     </motion.div>
   );
 }
