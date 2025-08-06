@@ -15,6 +15,7 @@ interface SearchForm {
 
 export function InlineSearch() {
   const [showResults, setShowResults] = React.useState(false);
+  const [isFocused, setIsFocused] = React.useState(false);
   const socket = useGlobalStore((state) => state.socket);
   const setIsSearching = useGlobalStore((state) => state.setIsSearching);
   const setSearchQuery = useGlobalStore((state) => state.setSearchQuery);
@@ -26,18 +27,26 @@ export function InlineSearch() {
 
   const watchedQuery = watch("query");
 
-  // Add keyboard shortcut for ⌘K to focus input
+  // Add keyboard shortcut for ⌘K to toggle focus
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setFocus("query");
+        
+        if (isFocused) {
+          // Blur the currently focused element and hide results
+          (document.activeElement as HTMLElement)?.blur();
+          setShowResults(false);
+        } else {
+          // Focus the input using RHF's setFocus
+          setFocus("query");
+        }
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [setFocus]);
+  }, [setFocus, isFocused]);
 
   // Dismiss search results when input becomes empty
   React.useEffect(() => {
@@ -77,8 +86,13 @@ export function InlineSearch() {
     setShowResults(false);
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
   const handleBlur = () => {
-    // Dismiss search results when input loses focus
+    // Update focus state and dismiss search results when input loses focus
+    setIsFocused(false);
     setShowResults(false);
   };
 
@@ -92,6 +106,7 @@ export function InlineSearch() {
             {...register("query")}
             type="text"
             placeholder="What do you want to play?"
+            onFocus={handleFocus}
             onBlur={handleBlur}
             className="w-full h-10 pl-10 pr-16 bg-white/10 hover:bg-white/15 focus:bg-white/15 border border-neutral-600/30 focus:ring-2 focus:ring-white/80 rounded-lg text-white placeholder:text-neutral-400 text-sm font-normal transition-all duration-200 focus:outline-none"
           />
