@@ -11,9 +11,13 @@ import { toast } from "sonner";
 
 interface SearchResultsProps {
   className?: string;
+  onTrackSelect?: () => void;
 }
 
-export function SearchResults({ className }: SearchResultsProps) {
+export function SearchResults({
+  className,
+  onTrackSelect,
+}: SearchResultsProps) {
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
   const searchQuery = useGlobalStore((state) => state.searchQuery);
@@ -62,6 +66,9 @@ export function SearchResults({ className }: SearchResultsProps) {
           trackName: formattedTrackName,
         },
       });
+
+      // Call the callback to handle UI dismissal
+      onTrackSelect?.();
 
       // toast.success(`Adding "${formattedTrackName}" to queue...`);
     } catch (error) {
@@ -255,7 +262,7 @@ export function SearchResults({ className }: SearchResultsProps) {
                 delay: index * 0.02,
                 ease: "easeOut",
               }}
-              className="group hover:bg-neutral-800/30 px-3 py-2 transition-all duration-200 cursor-pointer flex items-center gap-3"
+              className="group hover:bg-neutral-800 px-3 py-2 transition-all duration-200 cursor-pointer flex items-center gap-3 rounded-md"
               onClick={() => handleAddTrack(track)}
             >
               {/* Album Art */}

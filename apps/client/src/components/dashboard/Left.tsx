@@ -8,7 +8,6 @@ import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Separator } from "../ui/separator";
 import { ConnectedUsersList } from "./ConnectedUsersList";
 import { PlaybackPermissions } from "./PlaybackPermissions";
-import { Search } from "./Search";
 
 interface LeftProps {
   className?: string;
@@ -53,8 +52,6 @@ export const Left = ({ className }: LeftProps) => {
           <Hash size={18} />
           <span>Room {roomId}</span>
         </div>
-
-        <Search />
       </motion.div>
 
       <Separator className="bg-neutral-800/50" />
