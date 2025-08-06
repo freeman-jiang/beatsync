@@ -1,6 +1,6 @@
 "use client";
 
-import { useGlobalStore } from "@/store/global";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
 import { Search as SearchIcon, ZapIcon } from "lucide-react";
@@ -16,6 +16,7 @@ interface SearchForm {
 export function InlineSearch() {
   const [showResults, setShowResults] = React.useState(false);
   const [isFocused, setIsFocused] = React.useState(false);
+  const canMutate = useCanMutate();
   const socket = useGlobalStore((state) => state.socket);
   const setIsSearching = useGlobalStore((state) => state.setIsSearching);
   const setSearchQuery = useGlobalStore((state) => state.setSearchQuery);
@@ -27,12 +28,16 @@ export function InlineSearch() {
 
   const watchedQuery = watch("query");
 
-  // Add keyboard shortcut for ⌘K to toggle focus
+  // Add keyboard shortcut for ⌘K to toggle focus (only when user can mutate)
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        
+
+        if (!canMutate) {
+          return;
+        }
+
         if (isFocused) {
           // Blur the currently focused element and hide results
           (document.activeElement as HTMLElement)?.blur();
@@ -46,7 +51,7 @@ export function InlineSearch() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [setFocus, isFocused]);
+  }, [setFocus, isFocused, canMutate]);
 
   // Dismiss search results when input becomes empty
   React.useEffect(() => {
@@ -56,6 +61,10 @@ export function InlineSearch() {
   }, [watchedQuery]);
 
   const onSubmit = (data: SearchForm) => {
+    if (!canMutate) {
+      return;
+    }
+
     if (!socket) {
       console.error("WebSocket not connected");
       return;
@@ -87,6 +96,7 @@ export function InlineSearch() {
   };
 
   const handleFocus = () => {
+    if (!canMutate) return;
     setIsFocused(true);
   };
 
@@ -101,16 +111,35 @@ export function InlineSearch() {
       {/* Search Input */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="relative group">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 size-5 text-neutral-400 group-focus-within:text-white/80 transition-colors duration-200" />
+          <SearchIcon
+            className={`absolute left-3 top-1/2 transform -translate-y-1/2 size-5 transition-colors duration-200 ${
+              canMutate
+                ? "text-neutral-400 group-focus-within:text-white/80"
+                : "text-neutral-600"
+            }`}
+          />
           <input
             {...register("query")}
             type="text"
-            placeholder="What do you want to play?"
+            placeholder={
+              canMutate
+                ? "What do you want to play?"
+                : "Search requires admin permissions"
+            }
             onFocus={handleFocus}
             onBlur={handleBlur}
-            className="w-full h-10 pl-10 pr-16 bg-white/10 hover:bg-white/15 focus:bg-white/15 border border-neutral-600/30 focus:ring-2 focus:ring-white/80 rounded-lg text-white placeholder:text-neutral-400 text-sm font-normal transition-all duration-200 focus:outline-none"
+            disabled={!canMutate}
+            className={`w-full h-10 pl-10 pr-16 border border-neutral-600/30 rounded-lg text-sm font-normal transition-all duration-200 focus:outline-none ${
+              canMutate
+                ? "bg-white/10 hover:bg-white/15 focus:bg-white/15 focus:ring-2 focus:ring-white/80 text-white placeholder:text-neutral-400"
+                : "bg-neutral-800/50 text-neutral-500 placeholder:text-neutral-600 cursor-not-allowed"
+            }`}
           />
-          <kbd className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none inline-flex h-6 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-2 font-mono text-xs font-medium text-neutral-400">
+          <kbd
+            className={`absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none inline-flex h-6 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-2 font-mono text-xs font-medium transition-colors duration-200 ${
+              canMutate ? "text-neutral-400" : "text-neutral-600 opacity-50"
+            }`}
+          >
             <span className="text-xs">⌘</span>K
           </kbd>
         </div>
@@ -124,7 +153,7 @@ export function InlineSearch() {
 
       {/* Search Results Dropdown */}
       <AnimatePresence>
-        {showResults && (
+        {showResults && canMutate && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
