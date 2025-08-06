@@ -1,7 +1,7 @@
 // 1:1 Private WS Responses
 import { z } from "zod";
 import { ScheduledActionSchema } from "./WSBroadcast";
-import { SearchResponseSchema, StreamResponseSchema } from "./provider";
+import { SearchResponseSchema } from "./provider";
 
 const NTPResponseMessageSchema = z.object({
   type: z.literal("NTP_RESPONSE"),
@@ -17,18 +17,9 @@ export const MusicSearchResponseSchema = z.object({
 });
 export type MusicSearchResponseType = z.infer<typeof MusicSearchResponseSchema>;
 
-export const MusicStreamResponseSchema = z.object({
-  type: z.literal("STREAM_RESPONSE"),
-  response: StreamResponseSchema,
-  trackId: z.number(),
-  trackName: z.string().optional(),
-});
-export type MusicStreamResponseType = z.infer<typeof MusicStreamResponseSchema>;
-
 export const WSUnicastSchema = z.discriminatedUnion("type", [
   NTPResponseMessageSchema,
   ScheduledActionSchema,
   MusicSearchResponseSchema,
-  MusicStreamResponseSchema,
 ]);
 export type WSUnicastType = z.infer<typeof WSUnicastSchema>;

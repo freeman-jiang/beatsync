@@ -211,14 +211,6 @@ export const WebSocketManager = ({
         const { setSearchResults, setIsSearching } = useGlobalStore.getState();
         setSearchResults(response.response);
         setIsSearching(false);
-      } else if (response.type === "STREAM_RESPONSE") {
-        console.log("Received stream response:", response);
-        const { handleSetAudioSources } = useGlobalStore.getState();
-        if (response.response.success) {
-          handleSetAudioSources({
-            sources: [{ url: response.response.data.url }],
-          });
-        }
       } else {
         console.log("Unknown response type:", response);
       }
