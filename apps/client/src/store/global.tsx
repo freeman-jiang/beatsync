@@ -94,6 +94,9 @@ interface GlobalStateValues {
   searchResults: SearchResponseType | null;
   isSearching: boolean;
   searchQuery: string;
+  
+  // Stream job tracking
+  activeStreamJobs: number;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -155,6 +158,9 @@ interface GlobalState extends GlobalStateValues {
   setIsSearching: (isSearching: boolean) => void;
   setSearchQuery: (query: string) => void;
   clearSearchResults: () => void;
+  
+  // Stream job methods
+  setActiveStreamJobs: (count: number) => void;
 }
 
 // Define initial state values
@@ -210,6 +216,9 @@ const initialState: GlobalStateValues = {
   searchResults: null,
   isSearching: false,
   searchQuery: "",
+  
+  // Stream job tracking
+  activeStreamJobs: 0,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -1052,6 +1061,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setSearchQuery: (query) => set({ searchQuery: query }),
     clearSearchResults: () => 
       set({ searchResults: null, isSearching: false, searchQuery: "" }),
+    
+    // Stream job methods
+    setActiveStreamJobs: (count) => set({ activeStreamJobs: count }),
     
   };
 });

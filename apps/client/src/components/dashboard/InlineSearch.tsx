@@ -22,7 +22,8 @@ export function InlineSearch() {
   const setSearchQuery = useGlobalStore((state) => state.setSearchQuery);
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
-  const { register, handleSubmit, setFocus, watch } = useForm<SearchForm>({
+  const activeStreamJobs = useGlobalStore((state) => state.activeStreamJobs);
+  const { register, handleSubmit, setFocus, watch, reset } = useForm<SearchForm>({
     defaultValues: { query: "" },
   });
 
@@ -91,8 +92,9 @@ export function InlineSearch() {
   };
 
   const handleTrackSelection = () => {
-    // Dismiss search results immediately
+    // Dismiss search results immediately and clear input
     setShowResults(false);
+    reset(); // Clear the form input
   };
 
   const handleFocus = () => {
@@ -129,19 +131,43 @@ export function InlineSearch() {
             onFocus={handleFocus}
             onBlur={handleBlur}
             disabled={!canMutate}
-            className={`w-full h-10 pl-10 pr-16 border border-neutral-600/30 rounded-lg text-sm font-normal transition-all duration-200 focus:outline-none ${
+            className={`w-full h-10 pl-10 pr-22 border border-neutral-600/30 rounded-lg text-sm font-normal transition-all duration-200 focus:outline-none ${
               canMutate
                 ? "bg-white/10 hover:bg-white/15 focus:bg-white/15 focus:ring-2 focus:ring-white/80 text-white placeholder:text-neutral-400"
                 : "bg-neutral-800/50 text-neutral-500 placeholder:text-neutral-600 cursor-not-allowed"
             }`}
           />
-          <kbd
-            className={`absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none inline-flex h-6 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-2 font-mono text-xs font-medium transition-colors duration-200 ${
-              canMutate ? "text-neutral-400" : "text-neutral-600 opacity-50"
-            }`}
-          >
-            <span className="text-xs">⌘</span>K
-          </kbd>
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none inline-flex items-center gap-1.5">
+            {/* Stream job indicator */}
+            <AnimatePresence>
+              {activeStreamJobs > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="inline-flex items-center gap-1 mr-2"
+                >
+                  <div className="relative">
+                    <div className="size-2 bg-green-500 rounded-full animate-pulse" />
+                    <div className="absolute inset-0 size-2 bg-green-500/30 rounded-full animate-ping" />
+                  </div>
+                  <span className="text-xs font-mono text-green-400 font-medium">
+                    {activeStreamJobs}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Command K shortcut */}
+            <kbd
+              className={`inline-flex h-6 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-2 font-mono text-xs font-medium transition-colors duration-200 ${
+                canMutate ? "text-neutral-400" : "text-neutral-600 opacity-50"
+              }`}
+            >
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </div>
         </div>
       </form>
 

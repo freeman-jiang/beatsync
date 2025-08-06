@@ -23,7 +23,7 @@ export function SearchResults({
   const searchQuery = useGlobalStore((state) => state.searchQuery);
   const socket = useGlobalStore((state) => state.socket);
 
-  // Helper function to format track name as "Artist 1, Artist 2 - Title"
+  // Helper function to format track name as "Artist 1, Artist 2 - Title (Version)"
   const formatTrackName = (track: TrackType) => {
     const artists: string[] = [];
 
@@ -43,9 +43,14 @@ export function SearchResults({
 
     const artistStr =
       artists.length > 0 ? artists.join(", ") : "Unknown Artist";
-    const title = track.title || "Unknown Title";
+    
+    // Trim whitespace from title and include version if present
+    const title = (track.title || "Unknown Title").trim();
+    const version = track.version?.trim();
+    
+    const fullTitle = version ? `${title} (${version})` : title;
 
-    return `${artistStr} - ${title}`;
+    return `${artistStr} - ${fullTitle}`;
   };
 
   const handleAddTrack = async (track: TrackType) => {

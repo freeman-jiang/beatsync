@@ -90,6 +90,7 @@ export class RoomManager {
   };
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "ADMIN_ONLY";
+  private activeStreamJobs = new Map<string, { trackId: string; status: string }>();
 
   constructor(
     private readonly roomId: string,
@@ -291,6 +292,21 @@ export class RoomManager {
 
   getNumClients(): number {
     return this.clients.size;
+  }
+
+  /**
+   * Stream job management methods
+   */
+  addStreamJob(jobId: string, trackId: string): void {
+    this.activeStreamJobs.set(jobId, { trackId, status: 'active' });
+  }
+
+  removeStreamJob(jobId: string): void {
+    this.activeStreamJobs.delete(jobId);
+  }
+
+  getActiveStreamJobCount(): number {
+    return this.activeStreamJobs.size;
   }
 
   /**

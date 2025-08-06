@@ -80,6 +80,9 @@ export const WebSocketManager = ({
   const setPlaybackControlsPermissions = useGlobalStore(
     (state) => state.setPlaybackControlsPermissions
   );
+  const setActiveStreamJobs = useGlobalStore(
+    (state) => state.setActiveStreamJobs
+  );
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
@@ -211,6 +214,9 @@ export const WebSocketManager = ({
         const { setSearchResults, setIsSearching } = useGlobalStore.getState();
         setSearchResults(response.response);
         setIsSearching(false);
+      } else if (response.type === "STREAM_JOB_UPDATE") {
+        console.log("Received stream job update:", response.activeJobCount);
+        setActiveStreamJobs(response.activeJobCount);
       } else {
         console.log("Unknown response type:", response);
       }

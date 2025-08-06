@@ -57,6 +57,12 @@ const StopSpatialAudioSchema = z.object({
 });
 export type StopSpatialAudioType = z.infer<typeof StopSpatialAudioSchema>;
 
+const StreamJobUpdateSchema = z.object({
+  type: z.literal("STREAM_JOB_UPDATE"),
+  activeJobCount: z.number().nonnegative(),
+});
+export type StreamJobUpdateType = z.infer<typeof StreamJobUpdateSchema>;
+
 
 export const ScheduledActionSchema = z.object({
   type: z.literal("SCHEDULED_ACTION"),
@@ -73,5 +79,6 @@ export const ScheduledActionSchema = z.object({
 export const WSBroadcastSchema = z.discriminatedUnion("type", [
   ScheduledActionSchema,
   RoomEventSchema,
+  StreamJobUpdateSchema,
 ]);
 export type WSBroadcastType = z.infer<typeof WSBroadcastSchema>;

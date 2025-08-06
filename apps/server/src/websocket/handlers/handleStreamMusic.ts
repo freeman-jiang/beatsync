@@ -17,6 +17,20 @@ export const handleStreamMusic: HandlerFunction<
     return;
   }
 
+  // Generate unique job ID for tracking
+  const jobId = `${message.trackId}-${Date.now()}`;
+
+  // Add job to room and broadcast updated count
+  room.addStreamJob(jobId, message.trackId.toString());
+  sendBroadcast({
+    server,
+    roomId,
+    message: {
+      type: "STREAM_JOB_UPDATE",
+      activeJobCount: room.getActiveStreamJobCount(),
+    },
+  });
+
   try {
     // Get the stream URL from the music provider
     const streamResponse = await MUSIC_PROVIDER_MANAGER.stream(message.trackId);
@@ -71,9 +85,29 @@ export const handleStreamMusic: HandlerFunction<
         },
       },
     });
+
+    // Job completed successfully - remove from tracking
+    room.removeStreamJob(jobId);
+    sendBroadcast({
+      server,
+      roomId,
+      message: {
+        type: "STREAM_JOB_UPDATE",
+        activeJobCount: room.getActiveStreamJobCount(),
+      },
+    });
   } catch (error) {
     console.error("Error in handleStreamMusic:", error);
-    // Note: We no longer send individual error responses - errors are logged server-side
-    // The client will not receive notification of failed streams
+
+    // Job failed - remove from tracking
+    room.removeStreamJob(jobId);
+    sendBroadcast({
+      server,
+      roomId,
+      message: {
+        type: "STREAM_JOB_UPDATE",
+        activeJobCount: room.getActiveStreamJobCount(),
+      },
+    });
   }
 };
