@@ -20,8 +20,15 @@ export function SearchResults({
 }: SearchResultsProps) {
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
+  const isLoadingMoreResults = useGlobalStore(
+    (state) => state.isLoadingMoreResults
+  );
+  const hasMoreResults = useGlobalStore((state) => state.hasMoreResults);
   const searchQuery = useGlobalStore((state) => state.searchQuery);
   const socket = useGlobalStore((state) => state.socket);
+  const loadMoreSearchResults = useGlobalStore(
+    (state) => state.loadMoreSearchResults
+  );
 
   // Helper function to format track name as "Artist 1, Artist 2 - Title (Version)"
   const formatTrackName = (track: TrackType) => {
@@ -43,11 +50,11 @@ export function SearchResults({
 
     const artistStr =
       artists.length > 0 ? artists.join(", ") : "Unknown Artist";
-    
+
     // Trim whitespace from title and include version if present
     const title = (track.title || "Unknown Title").trim();
     const version = track.version?.trim();
-    
+
     const fullTitle = version ? `${title} (${version})` : title;
 
     return `${artistStr} - ${fullTitle}`;
@@ -304,7 +311,7 @@ export function SearchResults({
                 ease: "easeOut",
               }}
               className="group hover:bg-neutral-800 px-3 py-2 transition-all duration-200 cursor-pointer flex items-center gap-3 rounded-md"
-              onClick={() => handleAddTrack(track)}
+              onMouseDown={() => handleAddTrack(track)}
             >
               {/* Album Art */}
               <div className="relative flex-shrink-0">
@@ -349,7 +356,7 @@ export function SearchResults({
                   e.stopPropagation();
                   handleAddTrack(track);
                 }}
-                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-neutral-700/50 hover:text-white transition-all duration-200"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer"
               >
                 <Plus className="h-3 w-3" />
               </Button>
@@ -359,22 +366,62 @@ export function SearchResults({
       </AnimatePresence>
 
       {/* Load More (if there are more results) */}
-      {searchResults.type === "success" &&
-        searchResults.response.data.tracks.total > tracks.length && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="my-2 px-3"
+      {hasMoreResults && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="my-2 px-3"
+        >
+          <Button
+            variant="ghost"
+            onMouseDown={(e) => {
+              e.preventDefault(); // Prevent focus from leaving the input
+              // We need this so we can have the proper onblur events occur later
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              loadMoreSearchResults();
+            }}
+            disabled={isLoadingMoreResults}
+            className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all duration-200 h-8 text-xs font-normal cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Button
-              variant="ghost"
-              className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all duration-200 h-8 text-xs font-normal cursor-pointer"
-            >
-              Show more results
-            </Button>
-          </motion.div>
-        )}
+            {isLoadingMoreResults ? (
+              <div className="flex items-center gap-2">
+                <div className="size-3 relative">
+                  <svg className="w-full h-full" viewBox="0 0 100 100">
+                    <motion.circle
+                      cx="50"
+                      cy="50"
+                      r="35"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      className="text-neutral-400"
+                      strokeDasharray={2 * Math.PI * 35 * 0.25}
+                      animate={{
+                        rotate: [0, 360],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      style={{
+                        transformOrigin: "center",
+                      }}
+                    />
+                  </svg>
+                </div>
+                Loading more...
+              </div>
+            ) : (
+              "Show more results"
+            )}
+          </Button>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

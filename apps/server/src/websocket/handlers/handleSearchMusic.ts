@@ -7,7 +7,10 @@ export const handleSearchMusic: HandlerFunction<
   ExtractWSRequestFrom["SEARCH_MUSIC"]
 > = async ({ ws, message }) => {
   try {
-    const data = await MUSIC_PROVIDER_MANAGER.search(message.query);
+    const data = await MUSIC_PROVIDER_MANAGER.search(
+      message.query,
+      message.offset || 0
+    );
 
     sendUnicast({
       ws,

@@ -189,7 +189,7 @@ export const Player = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [handlePlay]);
+  }, [handlePlay, canMutate]);
 
   return (
     <div className="w-full flex justify-center">

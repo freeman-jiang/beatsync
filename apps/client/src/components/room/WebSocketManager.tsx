@@ -211,9 +211,32 @@ export const WebSocketManager = ({
         }
       } else if (response.type === "SEARCH_RESPONSE") {
         console.log("Received search response:", response);
-        const { setSearchResults, setIsSearching } = useGlobalStore.getState();
-        setSearchResults(response.response);
+        const { 
+          setSearchResults, 
+          setIsSearching, 
+          setIsLoadingMoreResults,
+          setHasMoreResults,
+          isLoadingMoreResults,
+        } = useGlobalStore.getState();
+        
+        // Determine if this is pagination or new search
+        const isAppending = isLoadingMoreResults;
+        
+        // Update search results (append if pagination, replace if new search)
+        setSearchResults(response.response, isAppending);
+        
+        // Update loading states
         setIsSearching(false);
+        setIsLoadingMoreResults(false);
+        
+        // Update hasMoreResults based on response
+        if (response.response.type === "success") {
+          const { total, items, offset } = response.response.response.data.tracks;
+          const hasMore = (offset + items.length) < total;
+          setHasMoreResults(hasMore);
+        } else {
+          setHasMoreResults(false);
+        }
       } else if (response.type === "STREAM_JOB_UPDATE") {
         console.log("Received stream job update:", response.activeJobCount);
         setActiveStreamJobs(response.activeJobCount);

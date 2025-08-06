@@ -104,6 +104,7 @@ export const SendLocationSchema = z.object({
 export const SearchMusicSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SEARCH_MUSIC),
   query: z.string(),
+  offset: z.number().min(0).default(0).optional(),
 });
 
 export const StreamMusicSchema = z.object({

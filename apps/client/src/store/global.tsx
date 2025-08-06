@@ -18,8 +18,8 @@ import {
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
   PositionType,
-  SpatialConfigType,
   SearchResponseType,
+  SpatialConfigType,
 } from "@beatsync/shared";
 import { Mutex } from "async-mutex";
 import { toast } from "sonner";
@@ -93,8 +93,11 @@ interface GlobalStateValues {
   // Search results
   searchResults: SearchResponseType | null;
   isSearching: boolean;
+  isLoadingMoreResults: boolean;
   searchQuery: string;
-  
+  searchOffset: number;
+  hasMoreResults: boolean;
+
   // Stream job tracking
   activeStreamJobs: number;
 }
@@ -154,11 +157,18 @@ interface GlobalState extends GlobalStateValues {
   ) => void;
 
   // Search methods
-  setSearchResults: (results: SearchResponseType | null) => void;
+  setSearchResults: (
+    results: SearchResponseType | null,
+    append?: boolean
+  ) => void;
   setIsSearching: (isSearching: boolean) => void;
+  setIsLoadingMoreResults: (isLoading: boolean) => void;
   setSearchQuery: (query: string) => void;
+  setSearchOffset: (offset: number) => void;
+  setHasMoreResults: (hasMore: boolean) => void;
   clearSearchResults: () => void;
-  
+  loadMoreSearchResults: () => void;
+
   // Stream job methods
   setActiveStreamJobs: (count: number) => void;
 }
@@ -215,8 +225,11 @@ const initialState: GlobalStateValues = {
   // Search results
   searchResults: null,
   isSearching: false,
+  isLoadingMoreResults: false,
   searchQuery: "",
-  
+  searchOffset: 0,
+  hasMoreResults: false,
+
   // Stream job tracking
   activeStreamJobs: 0,
 };
@@ -1056,14 +1069,80 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ playbackControlsPermissions: permissions }),
 
     // Search methods
-    setSearchResults: (results) => set({ searchResults: results }),
+    setSearchResults: (results, append = false) => {
+      if (append && results?.type === "success") {
+        const state = get();
+        if (state.searchResults?.type === "success") {
+          // Append new results to existing ones
+          const existingItems = state.searchResults.response.data.tracks.items;
+          const newItems = results.response.data.tracks.items;
+          const combinedResults = {
+            ...results,
+            response: {
+              ...results.response,
+              data: {
+                ...results.response.data,
+                tracks: {
+                  ...results.response.data.tracks,
+                  items: [...existingItems, ...newItems],
+                },
+              },
+            },
+          };
+          set({ searchResults: combinedResults });
+          return;
+        }
+      }
+      set({ searchResults: results });
+    },
     setIsSearching: (isSearching) => set({ isSearching }),
+    setIsLoadingMoreResults: (isLoading) =>
+      set({ isLoadingMoreResults: isLoading }),
     setSearchQuery: (query) => set({ searchQuery: query }),
-    clearSearchResults: () => 
-      set({ searchResults: null, isSearching: false, searchQuery: "" }),
-    
+    setSearchOffset: (offset) => set({ searchOffset: offset }),
+    setHasMoreResults: (hasMore) => set({ hasMoreResults: hasMore }),
+    clearSearchResults: () =>
+      set({
+        searchResults: null,
+        isSearching: false,
+        isLoadingMoreResults: false,
+        searchQuery: "",
+        searchOffset: 0,
+        hasMoreResults: false,
+      }),
+    loadMoreSearchResults: () => {
+      const state = get();
+      const { socket, searchQuery, searchOffset, isLoadingMoreResults } = state;
+
+      if (!socket || !searchQuery || isLoadingMoreResults) {
+        console.error("Cannot load more results: missing requirements");
+        return;
+      }
+
+      // Calculate next offset based on current results
+      const currentResults =
+        state.searchResults?.type === "success"
+          ? state.searchResults.response.data.tracks.items.length
+          : 0;
+      const nextOffset = searchOffset + currentResults;
+
+      console.log("Loading more search results", { searchQuery, nextOffset });
+
+      // Set loading state
+      state.setIsLoadingMoreResults(true);
+      state.setSearchOffset(nextOffset);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SEARCH_MUSIC,
+          query: searchQuery,
+          offset: nextOffset,
+        },
+      });
+    },
+
     // Stream job methods
     setActiveStreamJobs: (count) => set({ activeStreamJobs: count }),
-    
   };
 });

@@ -20,6 +20,8 @@ export function InlineSearch() {
   const socket = useGlobalStore((state) => state.socket);
   const setIsSearching = useGlobalStore((state) => state.setIsSearching);
   const setSearchQuery = useGlobalStore((state) => state.setSearchQuery);
+  const setSearchOffset = useGlobalStore((state) => state.setSearchOffset);
+  const setHasMoreResults = useGlobalStore((state) => state.setHasMoreResults);
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
   const activeStreamJobs = useGlobalStore((state) => state.activeStreamJobs);
@@ -78,7 +80,9 @@ export function InlineSearch() {
 
     console.log("Sending search request", data.query);
 
-    // Set loading state and store query
+    // Reset pagination state for new search and set loading state
+    setSearchOffset(0);
+    setHasMoreResults(false);
     setIsSearching(true);
     setSearchQuery(data.query);
     setShowResults(true);
@@ -103,14 +107,15 @@ export function InlineSearch() {
     setIsFocused(true);
   };
 
-  const handleBlur = () => {
-    // Update focus state and dismiss search results when input loses focus
-    setIsFocused(false);
-    setShowResults(false);
-  };
-
   return (
-    <div className="relative w-full">
+    <div
+      className="relative w-full"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          setShowResults(false);
+        }
+      }}
+    >
       {/* Search Input */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="relative group">
@@ -130,7 +135,7 @@ export function InlineSearch() {
                 : "Search requires admin permissions"
             }
             onFocus={handleFocus}
-            onBlur={handleBlur}
+            onBlur={() => setIsFocused(false)}
             disabled={!canMutate}
             className={`w-full h-10 pl-10 pr-22 border border-neutral-600/30 rounded-lg text-sm font-normal transition-all duration-200 focus:outline-none ${
               canMutate
