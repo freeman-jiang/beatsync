@@ -85,21 +85,10 @@ export const handleStreamMusic: HandlerFunction<
         },
       },
     });
-
-    // Job completed successfully - remove from tracking
-    room.removeStreamJob(jobId);
-    sendBroadcast({
-      server,
-      roomId,
-      message: {
-        type: "STREAM_JOB_UPDATE",
-        activeJobCount: room.getActiveStreamJobCount(),
-      },
-    });
   } catch (error) {
     console.error("Error in handleStreamMusic:", error);
-
-    // Job failed - remove from tracking
+  } finally {
+    // Job completed or failed - remove from tracking and notify clients
     room.removeStreamJob(jobId);
     sendBroadcast({
       server,
