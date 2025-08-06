@@ -172,7 +172,7 @@ export function InlineSearch() {
             onFocus={handleFocus}
             onBlur={() => setIsFocused(false)}
             disabled={!canMutate}
-            className={`w-full h-10 pl-10 pr-22 border border-neutral-600/30 rounded-lg text-sm font-normal transition-all duration-200 focus:outline-none ${
+            className={`w-full h-10 pl-10 pr-24 sm:pr-20 border border-neutral-600/30 rounded-lg text-base sm:text-sm font-normal transition-all duration-200 focus:outline-none truncate ${
               canMutate
                 ? "bg-white/10 hover:bg-white/15 focus:bg-white/15 focus:ring-2 focus:ring-white/80 text-white placeholder:text-neutral-400"
                 : "bg-neutral-800/50 text-neutral-500 placeholder:text-neutral-600 cursor-not-allowed"
