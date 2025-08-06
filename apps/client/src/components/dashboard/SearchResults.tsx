@@ -327,7 +327,7 @@ export function SearchResults({
         >
           <Button
             variant="ghost"
-            className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/20 transition-all duration-200 h-8 text-xs font-normal cursor-pointer"
+            className="w-full justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all duration-200 h-8 text-xs font-normal cursor-pointer"
           >
             Show more results
           </Button>
