@@ -86,8 +86,8 @@ export function InlineSearch() {
     <div className="relative w-full">
       {/* Search Input */}
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+        <div className="relative group">
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 size-5 text-neutral-400 group-focus-within:text-white/80 transition-colors duration-200" />
           <input
             {...register("query")}
             type="text"
