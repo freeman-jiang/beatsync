@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum, TrackType } from "@beatsync/shared";
@@ -18,6 +20,7 @@ export function SearchResults({
   className,
   onTrackSelect,
 }: SearchResultsProps) {
+  const isMobile = useIsMobile();
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
   const isLoadingMoreResults = useGlobalStore(
@@ -295,7 +298,7 @@ export function SearchResults({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={className}
+      className={cn(isMobile && "max-h-[40vh]", className)}
     >
       <AnimatePresence>
         <div className="space-y-1">
