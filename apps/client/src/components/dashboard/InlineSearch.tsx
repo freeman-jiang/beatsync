@@ -23,9 +23,10 @@ export function InlineSearch() {
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
   const activeStreamJobs = useGlobalStore((state) => state.activeStreamJobs);
-  const { register, handleSubmit, setFocus, watch, reset } = useForm<SearchForm>({
-    defaultValues: { query: "" },
-  });
+  const { register, handleSubmit, setFocus, watch, reset } =
+    useForm<SearchForm>({
+      defaultValues: { query: "" },
+    });
 
   const watchedQuery = watch("query");
 
@@ -148,9 +149,31 @@ export function InlineSearch() {
                   transition={{ duration: 0.2, ease: "easeOut" }}
                   className="inline-flex items-center gap-1 mr-2"
                 >
-                  <div className="relative">
-                    <div className="size-2 bg-green-500 rounded-full animate-pulse" />
-                    <div className="absolute inset-0 size-2 bg-green-500/30 rounded-full animate-ping" />
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <svg className="w-full h-full" viewBox="0 0 100 100">
+                      <motion.circle
+                        cx="50"
+                        cy="50"
+                        r="35"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        className="text-green-500"
+                        strokeDasharray={2 * Math.PI * 35 * 0.25}
+                        animate={{
+                          rotate: [0, 360],
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        style={{
+                          transformOrigin: "center",
+                        }}
+                      />
+                    </svg>
                   </div>
                   <span className="text-xs font-mono text-green-400 font-medium">
                     {activeStreamJobs}
