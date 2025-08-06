@@ -3,7 +3,7 @@
 import { useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
-import { Search as SearchIcon } from "lucide-react";
+import { Search as SearchIcon, ZapIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -102,9 +102,10 @@ export function InlineSearch() {
       </form>
 
       {/* Beta Disclaimer */}
-      <p className="mt-2 text-[10px] font-mono text-neutral-500">
-        [EXPERIMENTAL FREE BETA]
-      </p>
+      <div className="mt-2 flex items-center gap-1 text-[10px] font-mono text-neutral-500 ml-0.5">
+        <ZapIcon className="size-3 text-neutral-400 stroke-1" />
+        <span>[EXPERIMENTAL FREE BETA]</span>
+      </div>
 
       {/* Search Results Dropdown */}
       <AnimatePresence>
