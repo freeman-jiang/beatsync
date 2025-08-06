@@ -245,16 +245,18 @@ export class RoomManager {
   }
 
   /**
-   * Check if the room has any active WebSocket connections
-   * (as opposed to ghost clients from restored state)
+   * Check if the room has any active clients based on recent NTP heartbeats
+   * This is more reliable than checking WebSocket readyState which can be inconsistent
    */
   hasActiveConnections(): boolean {
+    const now = Date.now();
     const clients = Array.from(this.clients.values());
+    
     for (const client of clients) {
-      const ws: ServerWebSocket<WSData> = client.ws;
-      // Check if the WebSocket is still active
-      // 1 = OPEN
-      if (ws && ws.readyState === 1) {
+      // A client is considered active if they've sent an NTP request within the timeout window
+      // This is more reliable than WebSocket readyState during network fluctuations
+      const timeSinceLastResponse = now - client.lastNtpResponse;
+      if (timeSinceLastResponse <= NTP_CONSTANTS.RESPONSE_TIMEOUT_MS) {
         return true;
       }
     }
