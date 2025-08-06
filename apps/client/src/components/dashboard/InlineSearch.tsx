@@ -3,7 +3,7 @@
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
-import { Search as SearchIcon, ZapIcon } from "lucide-react";
+import { ArrowDown, Search as SearchIcon, ZapIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -16,6 +16,7 @@ interface SearchForm {
 export function InlineSearch() {
   const [showResults, setShowResults] = React.useState(false);
   const [isFocused, setIsFocused] = React.useState(false);
+  const [showCheckmark, setShowCheckmark] = React.useState(false);
   const canMutate = useCanMutate();
   const socket = useGlobalStore((state) => state.socket);
   const setIsSearching = useGlobalStore((state) => state.setIsSearching);
@@ -97,9 +98,17 @@ export function InlineSearch() {
   };
 
   const handleTrackSelection = () => {
+    // Show checkmark animation
+    setShowCheckmark(true);
+
     // Dismiss search results immediately and clear input
     setShowResults(false);
     reset(); // Clear the form input
+
+    // Hide checkmark after 2 seconds
+    setTimeout(() => {
+      setShowCheckmark(false);
+    }, 2000);
   };
 
   const handleFocus = () => {
@@ -119,13 +128,39 @@ export function InlineSearch() {
       {/* Search Input */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="relative group">
-          <SearchIcon
-            className={`absolute left-3 top-1/2 transform -translate-y-1/2 size-5 transition-colors duration-200 ${
-              canMutate
-                ? "text-neutral-400 group-focus-within:text-white/80"
-                : "text-neutral-600"
-            }`}
-          />
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 size-5">
+            <AnimatePresence mode="wait">
+              {showCheckmark ? (
+                <motion.div
+                  key="checkmark"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute inset-0 size-5 justify-center"
+                >
+                  <ArrowDown className="w-full h-full text-green-500" />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="search"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute inset-0 size-5 justify-center"
+                >
+                  <SearchIcon
+                    className={`w-full h-full transition-colors duration-200 ${
+                      canMutate
+                        ? "text-neutral-400 group-focus-within:text-white/80"
+                        : "text-neutral-600"
+                    }`}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <input
             {...register("query")}
             type="text"
