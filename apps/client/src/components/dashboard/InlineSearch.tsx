@@ -101,6 +101,11 @@ export function InlineSearch() {
         </div>
       </form>
 
+      {/* Beta Disclaimer */}
+      <p className="mt-2 text-[10px] font-mono text-neutral-500">
+        [EXPERIMENTAL FREE BETA]
+      </p>
+
       {/* Search Results Dropdown */}
       <AnimatePresence>
         {showResults && (
