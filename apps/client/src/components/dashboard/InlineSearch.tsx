@@ -3,7 +3,7 @@
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
-import { ArrowDown, Search as SearchIcon, ZapIcon } from "lucide-react";
+import { ArrowDown, Search as SearchIcon, X, ZapIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -17,6 +17,10 @@ export function InlineSearch() {
   const [showResults, setShowResults] = React.useState(false);
   const [isFocused, setIsFocused] = React.useState(false);
   const [showCheckmark, setShowCheckmark] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const blurTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const canMutate = useCanMutate();
   const socket = useGlobalStore((state) => state.socket);
   const setIsSearching = useGlobalStore((state) => state.setIsSearching);
@@ -32,6 +36,30 @@ export function InlineSearch() {
     });
 
   const watchedQuery = watch("query");
+
+  // Detect mobile device
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) || window.innerWidth < 768
+      );
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Add keyboard shortcut for ⌘K to toggle focus (only when user can mutate)
   React.useEffect(() => {
@@ -116,12 +144,38 @@ export function InlineSearch() {
     setIsFocused(true);
   };
 
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    // Clear any existing timeout
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+    }
+
+    // Check if the new focus target is within our container
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      // On mobile, never dismiss on blur - only through explicit close button
+      if (!isMobile) {
+        // On desktop, hide immediately
+        setShowResults(false);
+      }
+    }
+  };
+
+  const handleCloseResults = () => {
+    setShowResults(false);
+    // Clear the timeout if it exists
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+    }
+  };
+
   return (
     <div
       className="relative w-full"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          setShowResults(false);
+      onBlur={handleBlur}
+      onFocus={() => {
+        // Cancel any pending blur timeout when focus returns
+        if (blurTimeoutRef.current) {
+          clearTimeout(blurTimeoutRef.current);
         }
       }}
     >
@@ -248,9 +302,27 @@ export function InlineSearch() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute top-full mt-2 w-full bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="absolute top-full mt-2 w-full bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-2xl shadow-2xl overflow-hidden z-[60]"
           >
-            <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-neutral-600/30 scrollbar-track-transparent hover:scrollbar-thumb-neutral-600/50 bg-neutral-900">
+            {/* Mobile close button */}
+            {isMobile && (
+              <div className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur-xl border-b border-neutral-800/50">
+                <button
+                  onClick={handleCloseResults}
+                  className="w-full px-4 py-3 flex items-center justify-between text-sm text-neutral-400 hover:text-white transition-colors"
+                  type="button"
+                >
+                  <span>Search Results</span>
+                  <X className="size-4" />
+                </button>
+              </div>
+            )}
+
+            <div
+              className={`${
+                isMobile ? "max-h-[70vh]" : "max-h-[60vh]"
+              } overflow-y-auto scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-neutral-600/30 scrollbar-track-transparent hover:scrollbar-thumb-neutral-600/50 bg-neutral-900`}
+            >
               {isSearching || searchResults ? (
                 <SearchResults
                   className="p-2"
