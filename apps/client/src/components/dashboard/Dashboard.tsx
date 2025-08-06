@@ -73,7 +73,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                   value="queue"
                   className="flex-1 data-[state=active]:bg-white/5 data-[state=active]:shadow-none rounded-none text-xs h-full gap-1 text-neutral-400 data-[state=active]:text-white transition-all duration-200"
                 >
-                  <ListMusic size={16} /> Queue
+                  <ListMusic size={16} /> Music
                 </TabsTrigger>
                 <TabsTrigger
                   value="spatial"

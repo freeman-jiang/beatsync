@@ -4,9 +4,9 @@ import { useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
 import { Search as SearchIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { AnimatePresence, motion } from "motion/react";
 import { SearchResults } from "./SearchResults";
 
 interface SearchForm {
@@ -68,8 +68,13 @@ export function InlineSearch() {
     setShowResults(false);
   };
 
+  const handleBlur = () => {
+    // Dismiss search results when input loses focus
+    setShowResults(false);
+  };
+
   return (
-    <div className="relative w-full max-w-2xl mx-auto">
+    <div className="relative w-full">
       {/* Search Input */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="relative">
@@ -78,7 +83,8 @@ export function InlineSearch() {
             {...register("query")}
             type="text"
             placeholder="What do you want to play?"
-            className="w-full h-10 pl-10 pr-16 bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-neutral-600/30 hover:border-neutral-500/50 focus:border-white/30 rounded-lg text-white placeholder:text-neutral-400 text-sm font-normal transition-all duration-200 focus:outline-none focus:ring-0"
+            onBlur={handleBlur}
+            className="w-full h-10 pl-10 pr-16 bg-white/10 hover:bg-white/15 focus:bg-white/5 border border-neutral-600/30 hover:border-neutral-500/50 focus:border-white/60 focus:ring-1 focus:ring-white/20 rounded-lg text-white placeholder:text-neutral-400 text-sm font-normal transition-all duration-200 focus:outline-none"
           />
           <kbd className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none inline-flex h-6 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-2 font-mono text-xs font-medium text-neutral-400">
             <span className="text-xs">⌘</span>K
@@ -98,7 +104,10 @@ export function InlineSearch() {
           >
             <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-neutral-600/30 scrollbar-track-transparent hover:scrollbar-thumb-neutral-600/50">
               {isSearching || searchResults ? (
-                <SearchResults className="p-2" onTrackSelect={handleTrackSelection} />
+                <SearchResults
+                  className="p-2"
+                  onTrackSelect={handleTrackSelection}
+                />
               ) : (
                 <div className="p-8 text-center">
                   <h3 className="text-lg font-medium text-white mb-2">
