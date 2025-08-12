@@ -1,9 +1,3 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
 import { AudioSourceState, useCanMutate, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
@@ -11,7 +5,8 @@ import { ClientActionEnum } from "@beatsync/shared";
 import {
   AlertCircle,
   Loader2,
-  MoreHorizontal,
+  MinusIcon,
+  // MoreHorizontal, // Keeping for potential future use
   Pause,
   Play,
 } from "lucide-react";
@@ -88,31 +83,31 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                   layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ 
-                    opacity: 0, 
+                  exit={{
+                    opacity: 0,
                     y: -10,
                     transition: {
                       duration: 0.25,
-                      ease: "easeInOut"
-                    }
+                      ease: "easeInOut",
+                    },
                   }}
                   transition={{
                     layout: {
                       type: "spring",
                       stiffness: 400,
                       damping: 45,
-                      mass: 1
+                      mass: 1,
                     },
                     opacity: {
                       duration: 0.4,
                       delay: 0.05 * index,
-                      ease: "easeOut"
+                      ease: "easeOut",
                     },
                     y: {
                       duration: 0.4,
                       delay: 0.05 * index,
-                      ease: "easeOut"
-                    }
+                      ease: "easeOut",
+                    },
                   }}
                   className={cn(
                     "flex items-center pl-2 pr-4 py-3 rounded-md group transition-colors select-none",
@@ -132,12 +127,12 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                           key="loading"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          exit={{ 
+                          exit={{
                             opacity: 0,
                             transition: {
                               duration: 0.3,
-                              ease: "easeOut"
-                            }
+                              ease: "easeOut",
+                            },
                           }}
                           className="absolute inset-0 flex items-center justify-center"
                         >
@@ -147,12 +142,12 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         <motion.div
                           key="error"
                           initial={{ opacity: 0 }}
-                          animate={{ 
+                          animate={{
                             opacity: 1,
                             transition: {
                               duration: 0.3,
-                              ease: "easeOut"
-                            }
+                              ease: "easeOut",
+                            },
                           }}
                           className="absolute inset-0 flex items-center justify-center"
                         >
@@ -162,12 +157,12 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         <motion.div
                           key="loaded"
                           initial={{ opacity: 0 }}
-                          animate={{ 
+                          animate={{
                             opacity: 1,
                             transition: {
                               duration: 0.3,
-                              ease: "easeOut"
-                            }
+                              ease: "easeOut",
+                            },
                           }}
                           className="absolute inset-0"
                         >
@@ -225,7 +220,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     </div>
                   </div>
 
-                  {/* Duration & Optional Re-upload Menu */}
+                  {/* Duration & Delete Button */}
                   <div className="ml-4 flex items-center gap-2">
                     <div className="text-xs text-neutral-500 select-none">
                       {!isLoading &&
@@ -234,8 +229,29 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         )}
                     </div>
 
-                    {/* Dropdown for re-uploading - Always shown */}
-                    <DropdownMenu>
+                    {/* Direct delete button */}
+                    {canMutate && (
+                      <button
+                        className="p-1 rounded-full text-neutral-500 hover:text-red-400 transition-colors hover:scale-110 duration-150 focus:outline-none focus:text-red-400 focus:scale-110"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const socket = useGlobalStore.getState().socket;
+                          if (!socket) return;
+                          sendWSRequest({
+                            ws: socket,
+                            request: {
+                              type: ClientActionEnum.enum.DELETE_AUDIO_SOURCES,
+                              urls: [sourceState.source.url],
+                            },
+                          });
+                        }}
+                      >
+                        <MinusIcon className="size-4" />
+                      </button>
+                    )}
+
+                    {/* Dropdown for re-uploading - Commented out for potential future use */}
+                    {/* <DropdownMenu>
                       <DropdownMenuTrigger
                         asChild
                         onClick={(e) => e.stopPropagation()}
@@ -269,7 +285,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
-                    </DropdownMenu>
+                    </DropdownMenu> */}
                   </div>
                 </motion.div>
               );
