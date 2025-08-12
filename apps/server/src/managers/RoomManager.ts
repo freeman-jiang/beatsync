@@ -66,6 +66,14 @@ const RoomPlaybackStateSchema = z.object({
 });
 type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
 
+// Default/initial playback state for rooms
+const INITIAL_PLAYBACK_STATE: RoomPlaybackState = {
+  type: "paused",
+  audioSource: "",
+  serverTimeToExecute: 0,
+  trackPositionSeconds: 0,
+};
+
 /**
  * RoomManager handles all operations for a single room.
  * Each room has its own instance of RoomManager.
@@ -82,12 +90,7 @@ export class RoomManager {
   private cleanupTimer?: NodeJS.Timeout;
   private heartbeatCheckInterval?: NodeJS.Timeout;
   private onClientCountChange?: () => void;
-  private playbackState: RoomPlaybackState = {
-    type: "paused",
-    audioSource: "",
-    serverTimeToExecute: 0,
-    trackPositionSeconds: 0,
-  };
+  private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "ADMIN_ONLY";
   private activeStreamJobs = new Map<
@@ -252,9 +255,19 @@ export class RoomManager {
 
     this.audioSources = this.audioSources.filter((s) => !urlSet.has(s.url));
 
+    // Reset playback state if we removed the currently playing track
+    if (removingCurrent) {
+      console.log(
+        `Room ${this.roomId}: Currently playing track was removed. Resetting playback state.`
+      );
+      this.playbackState = INITIAL_PLAYBACK_STATE;
+    }
+
     const after = this.audioSources.length;
     if (before !== after) {
-      console.log(`Removed ${before - after} sources from room ${this.roomId}`);
+      console.log(
+        `Removed ${before - after} sources from room ${this.roomId}: `
+      );
     }
     return {
       updated: this.audioSources,
