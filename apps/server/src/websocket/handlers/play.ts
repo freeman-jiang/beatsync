@@ -1,5 +1,4 @@
-import { epochNow, ExtractWSRequestFrom } from "@beatsync/shared";
-import { SCHEDULE_TIME_MS } from "../../config";
+import { ExtractWSRequestFrom } from "@beatsync/shared";
 import { sendBroadcast } from "../../utils/responses";
 import { requireCanMutate } from "../middlewares";
 import { HandlerFunction } from "../types";
@@ -9,7 +8,8 @@ export const handlePlay: HandlerFunction<
 > = async ({ ws, message, server }) => {
   const { room } = requireCanMutate(ws);
 
-  const serverTimeToExecute = epochNow() + SCHEDULE_TIME_MS;
+  // Use dynamic scheduling based on max client RTT
+  const serverTimeToExecute = room.getScheduledExecutionTime();
 
   // Update playback state
   room.updatePlaybackSchedulePlay(message, serverTimeToExecute);
@@ -21,7 +21,7 @@ export const handlePlay: HandlerFunction<
       type: "SCHEDULED_ACTION",
       scheduledAction: message,
       serverTimeToExecute: serverTimeToExecute,
-      // TODO: Make the longest RTT + some amount instead of hardcoded this breaks for long RTTs
+      // Dynamic delay based on actual client RTTs
     },
   });
 };

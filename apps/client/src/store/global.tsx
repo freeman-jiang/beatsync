@@ -534,11 +534,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         if (state.isPlaying) {
           state.pauseAudio({ when: 0 });
         }
-        
+
         console.warn(
           `Cannot play audio: Track not found in audioSources: ${data.audioSource}`
         );
-        
+
         // NO retry, NO toast - track is gone permanently
         return;
       }
@@ -549,17 +549,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         if (state.isPlaying) {
           state.pauseAudio({ when: 0 });
         }
-        
+
         console.warn(
           `Cannot play audio: Track still loading: ${data.audioSource}`
         );
-        
+
         // Show toast for legitimate loading state
         toast.warning(
           `"${extractFileNameFromUrl(data.audioSource)}" not loaded yet...`,
           { id: "schedulePlay" }
         );
-        
+
         // Retry sync after 1 second - track should load eventually
         const { socket } = getSocket(state);
         setTimeout(() => {
@@ -568,7 +568,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
             request: { type: ClientActionEnum.enum.SYNC },
           });
         }, 1000);
-        
+
         return;
       }
 
@@ -670,8 +670,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const { socket } = getSocket(state);
 
-      // Always send NTP request for continuous heartbeat
-      _sendNTPRequest(socket);
+      // Always send NTP request for continuous heartbeat, include current RTT
+      _sendNTPRequest(socket, state.roundTripEstimate || undefined); // don't send 0 but undefined if not properly calc'd
 
       // Show warning if latency is high
       if (state.isSynced && state.roundTripEstimate > 750) {
@@ -1095,7 +1095,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Check if the currently selected/playing track was removed
       const currentStillExists = newAudioSources.some(
-        as => as.source.url === state.selectedAudioUrl
+        (as) => as.source.url === state.selectedAudioUrl
       );
 
       if (!currentStillExists && state.selectedAudioUrl) {
@@ -1103,7 +1103,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         if (state.isPlaying) {
           state.pauseAudio({ when: 0 });
         }
-        
+
         // Clear selected track - don't auto-select another
         set({ selectedAudioUrl: "" });
       }

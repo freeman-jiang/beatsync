@@ -8,6 +8,7 @@ const NTPResponseMessageSchema = z.object({
   t0: z.number(), // Client send timestamp (echoed back)
   t1: z.number(), // Server receive timestamp
   t2: z.number(), // Server send timestamp
+  clientRTT: z.number().optional(), // Client's current RTT estimate in ms
 });
 export type NTPResponseMessageType = z.infer<typeof NTPResponseMessageSchema>;
 

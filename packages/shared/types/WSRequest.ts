@@ -34,6 +34,7 @@ export const NTPRequestPacketSchema = z.object({
   type: z.literal(ClientActionEnum.enum.NTP_REQUEST),
   t0: z.number(), // Client send timestamp
   t1: z.number().optional(), // Server receive timestamp (will be set by the server)
+  clientRTT: z.number().optional(), // Client's current RTT estimate in ms
 });
 
 export const PlayActionSchema = z.object({

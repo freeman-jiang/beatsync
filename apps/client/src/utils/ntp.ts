@@ -11,7 +11,7 @@ export interface NTPMeasurement {
   clockOffset: number;
 }
 
-export const _sendNTPRequest = (ws: WebSocket) => {
+export const _sendNTPRequest = (ws: WebSocket, currentRTT?: number) => {
   if (ws.readyState !== WebSocket.OPEN) {
     throw new Error("Cannot send NTP request: WebSocket is not open");
   }
@@ -22,6 +22,7 @@ export const _sendNTPRequest = (ws: WebSocket) => {
     request: {
       type: ClientActionEnum.enum.NTP_REQUEST,
       t0,
+      clientRTT: currentRTT,
     },
   });
 };

@@ -7,14 +7,18 @@ import {
 import { z } from "zod";
 
 export class MusicProviderManager {
-  private providerUrl: string;
+  private providerUrl: string | undefined;
 
   constructor() {
-    const url = process.env.PROVIDER_URL;
-    if (!url) {
+    // Lazy initialization - don't throw in constructor for test compatibility
+    this.providerUrl = process.env.PROVIDER_URL;
+  }
+
+  private getProviderUrl(): string {
+    if (!this.providerUrl) {
       throw new Error("PROVIDER_URL environment variable is required");
     }
-    this.providerUrl = url;
+    return this.providerUrl;
   }
 
   async search(
@@ -27,7 +31,7 @@ export class MusicProviderManager {
         offset,
       });
 
-      const searchUrl = new URL("/api/search", this.providerUrl);
+      const searchUrl = new URL("/api/search", this.getProviderUrl());
       searchUrl.searchParams.set("q", q);
       searchUrl.searchParams.set("offset", validOffset.toString());
 
@@ -53,7 +57,7 @@ export class MusicProviderManager {
     try {
       const { id } = TrackParamsSchema.parse({ id: trackId });
 
-      const streamUrl = new URL("/api/track", this.providerUrl);
+      const streamUrl = new URL("/api/track", this.getProviderUrl());
       streamUrl.searchParams.set("id", id.toString());
 
       const response = await fetch(streamUrl.toString());

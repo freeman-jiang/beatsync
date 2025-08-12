@@ -15,7 +15,7 @@ import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import { Server, ServerWebSocket } from "bun";
 import { z } from "zod";
-import { SCHEDULE_TIME_MS } from "../config";
+import { calculateScheduleTime, DEFAULT_CLIENT_RTT_MS } from "../config";
 import { deleteObjectsWithPrefix } from "../lib/r2";
 import { calculateGainFromDistanceToSource } from "../spatial";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
@@ -360,12 +360,51 @@ export class RoomManager {
   }
 
   /**
+   * Get the maximum RTT among all connected clients
+   */
+  getMaxClientRTT(): number {
+    if (this.clients.size === 0) return DEFAULT_CLIENT_RTT_MS; // Default RTT if no clients
+
+    let maxRTT = DEFAULT_CLIENT_RTT_MS; // Minimum default RTT
+    for (const client of this.clients.values()) {
+      if (client.rtt > maxRTT) {
+        maxRTT = client.rtt;
+      }
+    }
+
+    return maxRTT;
+  }
+
+  /**
+   * Get the scheduled execution time based on dynamic RTT
+   * @returns Server timestamp when the action should be executed
+   */
+  getScheduledExecutionTime(): number {
+    const maxRTT = this.getMaxClientRTT();
+    const scheduleDelay = calculateScheduleTime(maxRTT);
+    console.log(
+      `Scheduling with dynamic delay: ${scheduleDelay}ms (max RTT: ${maxRTT}ms)`
+    );
+    return epochNow() + scheduleDelay;
+  }
+
+  /**
    * Receive an NTP request from a client
    */
-  processNTPRequestFrom(clientId: string): void {
+  processNTPRequestFrom(clientId: string, clientRTT?: number): void {
     const client = this.clients.get(clientId);
     if (!client) return;
     client.lastNtpResponse = Date.now();
+
+    // Update RTT if provided (using exponential moving average for smoothing)
+    if (clientRTT !== undefined && clientRTT > 0) {
+      const alpha = 0.2; // Smoothing factor
+      client.rtt =
+        client.rtt > 0
+          ? client.rtt * (1 - alpha) + clientRTT * alpha // Exponential moving average
+          : clientRTT; // First measurement
+    }
+
     this.clients.set(clientId, client);
   }
 
@@ -471,7 +510,7 @@ export class RoomManager {
       // Send the updated configuration to all clients
       const message: WSBroadcastType = {
         type: "SCHEDULED_ACTION",
-        serverTimeToExecute: epochNow() + SCHEDULE_TIME_MS,
+        serverTimeToExecute: this.getScheduledExecutionTime(),
         scheduledAction: {
           type: "SPATIAL_CONFIG",
           listeningSource: this.listeningSource,
@@ -522,7 +561,7 @@ export class RoomManager {
 
   syncClient(ws: ServerWebSocket<WSData>): void {
     // A client has joined late, and needs to sync with the room
-    // Predict where the playback state will be in epochNow() + SCHEDULE_TIME_MS
+    // Predict where the playback state will be after the dynamic scheduling delay
     // And make client play at that position then
 
     // Determine if we are currently playing or paused
@@ -535,7 +574,9 @@ export class RoomManager {
     const trackPositionSecondsWhenPlaybackStarted =
       this.playbackState.trackPositionSeconds;
     const now = epochNow();
-    const serverTimeToExecute = now + SCHEDULE_TIME_MS;
+
+    // Use dynamic scheduling based on max client RTT
+    const serverTimeToExecute = this.getScheduledExecutionTime();
 
     // Calculate how much time has elapsed since playback started
     const timeElapsedSincePlaybackStarted = now - serverTimeWhenPlaybackStarted;

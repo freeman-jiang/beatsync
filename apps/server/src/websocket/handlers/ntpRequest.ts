@@ -11,9 +11,9 @@ export const handleNTPRequest: HandlerFunction<
     return;
   }
 
-  // Update heartbeat for client
+  // Update heartbeat and RTT for client
   const { room } = requireRoom(ws);
-  room.processNTPRequestFrom(ws.data.clientId);
+  room.processNTPRequestFrom(ws.data.clientId, message.clientRTT);
 
   sendUnicast({
     ws,
