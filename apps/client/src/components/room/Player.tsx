@@ -44,10 +44,10 @@ export const Player = () => {
     if (!selectedAudioId) return;
 
     const audioSource = audioSources.find(
-      (source) => source.url === selectedAudioId
+      (sourceState) => sourceState.source.url === selectedAudioId
     );
     if (audioSource) {
-      setTrackDuration(getAudioDuration({ url: audioSource.url }));
+      setTrackDuration(getAudioDuration({ url: audioSource.source.url }));
       // Reset slider position when track changes
       setSliderPosition(0);
     }
@@ -272,7 +272,7 @@ export const Player = () => {
             className={cn(!canMutate && "opacity-50")}
           />
           <span className="text-xs text-muted-foreground min-w-11 text-right select-none">
-            {formatTime(trackDuration)}
+            {trackDuration > 0 ? formatTime(trackDuration) : ""}
           </span>
         </div>
       </div>

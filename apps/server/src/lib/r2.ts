@@ -81,6 +81,34 @@ export function getPublicAudioUrl(roomId: string, fileName: string): string {
 }
 
 /**
+ * Extract the R2 key from a public URL
+ * @param url The public URL (e.g., https://cdn.example.com/room-123/song.mp3)
+ * @returns The R2 key (e.g., room-123/song.mp3) or null if extraction fails
+ */
+export function extractKeyFromUrl(url: string): string | null {
+  try {
+    // Parse the URL to handle it properly
+    const urlParts = new URL(url);
+
+    // Extract the pathname and remove leading slash
+    const pathWithoutLeadingSlash = urlParts.pathname.startsWith("/")
+      ? urlParts.pathname.substring(1)
+      : urlParts.pathname;
+
+    // Decode URL-encoded parts
+    // Split by '/' to decode each part separately (roomId and fileName)
+    const keyParts = pathWithoutLeadingSlash.split("/");
+    const decodedKeyParts = keyParts.map((part) => decodeURIComponent(part));
+    const key = decodedKeyParts.join("/");
+
+    return key;
+  } catch (error) {
+    console.error(`Failed to extract key from URL ${url}:`, error);
+    return null;
+  }
+}
+
+/**
  * Validate if an audio file exists in R2 by checking its URL
  * @param audioUrl The public URL of the audio file
  * @returns true if the file exists, false otherwise
@@ -90,15 +118,12 @@ export async function validateAudioFileExists(
 ): Promise<boolean> {
   try {
     // Extract the key from the public URL
-    // URL format: ${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${encodedFileName}
-    const urlPath = audioUrl.replace(S3_CONFIG.PUBLIC_URL, "");
-    let key = urlPath.startsWith("/") ? urlPath.substring(1) : urlPath;
+    const key = extractKeyFromUrl(audioUrl);
 
-    // Decode the URL-encoded parts of the key
-    // Split by '/' to decode each part separately (roomId and fileName)
-    const keyParts = key.split("/");
-    const decodedKeyParts = keyParts.map((part) => decodeURIComponent(part));
-    key = decodedKeyParts.join("/");
+    if (!key) {
+      console.error(`Could not extract key from URL: ${audioUrl}`);
+      return false;
+    }
 
     // Perform HEAD request to check if object exists
     const command = new HeadObjectCommand({

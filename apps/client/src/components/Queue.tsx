@@ -5,9 +5,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
-import { useCanMutate, useGlobalStore } from "@/store/global";
-import { AudioSourceType } from "@beatsync/shared";
-import { MoreHorizontal, Pause, Play } from "lucide-react";
+import { AudioSourceState, useCanMutate, useGlobalStore } from "@/store/global";
+import { sendWSRequest } from "@/utils/ws";
+import { ClientActionEnum } from "@beatsync/shared";
+import {
+  AlertCircle,
+  Loader2,
+  MoreHorizontal,
+  Pause,
+  Play,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
 import LoadDefaultTracksButton from "./LoadDefaultTracksButton";
@@ -27,8 +34,20 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const canMutate = useCanMutate();
   // socket handled by child button component when needed
 
-  const handleItemClick = (source: AudioSourceType) => {
+  const handleItemClick = (sourceState: AudioSourceState) => {
     if (!canMutate) return;
+
+    // Don't allow interaction with loading or error tracks
+    if (sourceState.status === "loading") {
+      // Could show a toast here if desired
+      return;
+    }
+    if (sourceState.status === "error") {
+      // Could show error details in a toast
+      return;
+    }
+
+    const source = sourceState.source;
     if (source.url === selectedAudioId) {
       if (isPlaying) {
         broadcastPause();
@@ -57,13 +76,15 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
         {audioSources.length > 0 ? (
           <AnimatePresence initial={true}>
             {/* Ensure keys are stable and unique even if duplicates attempted */}
-            {audioSources.map((source, index) => {
-              const isSelected = source.url === selectedAudioId;
+            {audioSources.map((sourceState, index) => {
+              const isSelected = sourceState.source.url === selectedAudioId;
               const isPlayingThis = isSelected && isPlaying;
+              const isLoading = sourceState.status === "loading";
+              const isError = sourceState.status === "error";
 
               return (
                 <motion.div
-                  key={`${source.url}-${index}`}
+                  key={sourceState.source.url}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
@@ -76,40 +97,51 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     isSelected
                       ? "text-white hover:bg-neutral-700/20"
                       : "text-neutral-300 hover:bg-neutral-700/20",
-                    !canMutate && "text-white/50"
+                    !canMutate && "text-white/50",
+                    (isLoading || isError) && "opacity-60 cursor-not-allowed"
                   )}
-                  onClick={() => handleItemClick(source)}
+                  onClick={() => handleItemClick(sourceState)}
                 >
                   {/* Track number / Play icon */}
                   <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center relative cursor-default select-none">
-                    {/* Play/Pause button (shown on hover) */}
-                    <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
-                      {isSelected && isPlaying ? (
-                        <Pause className="fill-current size-3.5 stroke-1" />
-                      ) : (
-                        <Play className="fill-current size-3.5" />
-                      )}
-                    </button>
-
-                    {/* Playing indicator or track number (hidden on hover) */}
-                    <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
-                      {isPlayingThis ? (
-                        <div className="flex items-end justify-center h-4 w-4 gap-[2px]">
-                          <div className="bg-primary-500 w-[2px] h-[40%] animate-[sound-wave-1_1.2s_ease-in-out_infinite]"></div>
-                          <div className="bg-primary-500 w-[2px] h-[80%] animate-[sound-wave-2_1.4s_ease-in-out_infinite]"></div>
-                          <div className="bg-primary-500 w-[2px] h-[60%] animate-[sound-wave-3_1s_ease-in-out_infinite]"></div>
-                        </div>
-                      ) : (
-                        <span
-                          className={cn(
-                            "text-sm group-hover:opacity-0 select-none",
-                            isSelected ? "text-primary-400" : "text-neutral-400"
+                    {isLoading ? (
+                      <Loader2 className="size-4 animate-spin text-neutral-400" />
+                    ) : isError ? (
+                      <AlertCircle className="size-4 text-red-400" />
+                    ) : (
+                      <>
+                        {/* Play/Pause button (shown on hover) */}
+                        <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
+                          {isSelected && isPlaying ? (
+                            <Pause className="fill-current size-3.5 stroke-1" />
+                          ) : (
+                            <Play className="fill-current size-3.5" />
                           )}
-                        >
-                          {index + 1}
-                        </span>
-                      )}
-                    </div>
+                        </button>
+
+                        {/* Playing indicator or track number (hidden on hover) */}
+                        <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
+                          {isPlayingThis ? (
+                            <div className="flex items-end justify-center h-4 w-4 gap-[2px]">
+                              <div className="bg-primary-500 w-[2px] h-[40%] animate-[sound-wave-1_1.2s_ease-in-out_infinite]"></div>
+                              <div className="bg-primary-500 w-[2px] h-[80%] animate-[sound-wave-2_1.4s_ease-in-out_infinite]"></div>
+                              <div className="bg-primary-500 w-[2px] h-[60%] animate-[sound-wave-3_1s_ease-in-out_infinite]"></div>
+                            </div>
+                          ) : (
+                            <span
+                              className={cn(
+                                "text-sm group-hover:opacity-0 select-none",
+                                isSelected
+                                  ? "text-primary-400"
+                                  : "text-neutral-400"
+                              )}
+                            >
+                              {index + 1}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Track name */}
@@ -117,17 +149,27 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                     <div
                       className={cn(
                         "font-medium text-sm truncate select-none",
-                        isSelected ? "text-primary-400" : ""
+                        isSelected && !isLoading ? "text-primary-400" : "",
+                        isError && "text-red-400",
+                        isLoading && "opacity-60"
                       )}
                     >
-                      {extractFileNameFromUrl(source.url)}
+                      {extractFileNameFromUrl(sourceState.source.url)}
+                      {isError && sourceState.error && (
+                        <span className="text-xs text-red-400 ml-2">
+                          ({sourceState.error})
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* Duration & Optional Re-upload Menu */}
                   <div className="ml-4 flex items-center gap-2">
                     <div className="text-xs text-neutral-500 select-none">
-                      {formatTime(getAudioDuration({ url: source.url }))}
+                      {!isLoading &&
+                        formatTime(
+                          getAudioDuration({ url: sourceState.source.url })
+                        )}
                     </div>
 
                     {/* Dropdown for re-uploading - Always shown */}
@@ -145,10 +187,25 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                         align="center"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-sm">
-                          {/* <UploadCloud className="size-3.5 text-neutral-400" /> */}
-                          <span>Nothing to see here!</span>
-                        </DropdownMenuItem>
+                        {canMutate && (
+                          <DropdownMenuItem
+                            className="flex items-center gap-2 cursor-pointer text-sm"
+                            onClick={() => {
+                              const socket = useGlobalStore.getState().socket;
+                              if (!socket) return;
+                              sendWSRequest({
+                                ws: socket,
+                                request: {
+                                  type: ClientActionEnum.enum
+                                    .DELETE_AUDIO_SOURCES,
+                                  urls: [sourceState.source.url],
+                                },
+                              });
+                            }}
+                          >
+                            <span>Remove from queue</span>
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

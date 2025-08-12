@@ -90,7 +90,10 @@ export class RoomManager {
   };
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "ADMIN_ONLY";
-  private activeStreamJobs = new Map<string, { trackId: string; status: string }>();
+  private activeStreamJobs = new Map<
+    string,
+    { trackId: string; status: string }
+  >();
 
   constructor(
     private readonly roomId: string,
@@ -108,6 +111,10 @@ export class RoomManager {
 
   getPlaybackControlsPermissions(): PlaybackControlsPermissionsType {
     return this.playbackControlsPermissions;
+  }
+
+  getPlaybackState(): RoomPlaybackState {
+    return this.playbackState;
   }
 
   /**
@@ -226,6 +233,36 @@ export class RoomManager {
     return this.audioSources;
   }
 
+  removeAudioSources(urls: string[]): {
+    updated: AudioSourceType[];
+    removedCurrent: boolean;
+    removedUrl?: string;
+  } {
+    const before = this.audioSources.length;
+    const urlSet = new Set(urls);
+
+    // Check if current playback url is being removed
+    const removingCurrent =
+      this.playbackState.type === "playing" &&
+      urlSet.has(this.playbackState.audioSource);
+
+    const removedUrl = removingCurrent
+      ? this.playbackState.audioSource
+      : undefined;
+
+    this.audioSources = this.audioSources.filter((s) => !urlSet.has(s.url));
+
+    const after = this.audioSources.length;
+    if (before !== after) {
+      console.log(`Removed ${before - after} sources from room ${this.roomId}`);
+    }
+    return {
+      updated: this.audioSources,
+      removedCurrent: removingCurrent,
+      removedUrl,
+    };
+  }
+
   // Restore client cache from backup
   restoreClientCache(cache: z.infer<typeof ClientCacheBackupSchema>): void {
     this.clientCache = new Map(Object.entries(cache));
@@ -252,7 +289,7 @@ export class RoomManager {
   hasActiveConnections(): boolean {
     const now = Date.now();
     const clients = Array.from(this.clients.values());
-    
+
     for (const client of clients) {
       // A client is considered active if they've sent an NTP request within the timeout window
       // This is more reliable than WebSocket readyState during network fluctuations
@@ -298,7 +335,7 @@ export class RoomManager {
    * Stream job management methods
    */
   addStreamJob(jobId: string, trackId: string): void {
-    this.activeStreamJobs.set(jobId, { trackId, status: 'active' });
+    this.activeStreamJobs.set(jobId, { trackId, status: "active" });
   }
 
   removeStreamJob(jobId: string): void {
