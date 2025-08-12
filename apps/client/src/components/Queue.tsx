@@ -85,12 +85,34 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
               return (
                 <motion.div
                   key={sourceState.source.url}
+                  layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ 
+                    opacity: 0, 
+                    y: -10,
+                    transition: {
+                      duration: 0.25,
+                      ease: "easeInOut"
+                    }
+                  }}
                   transition={{
-                    duration: 0.4,
-                    delay: 0.05 * index,
-                    ease: "easeOut",
+                    layout: {
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 45,
+                      mass: 1
+                    },
+                    opacity: {
+                      duration: 0.4,
+                      delay: 0.05 * index,
+                      ease: "easeOut"
+                    },
+                    y: {
+                      duration: 0.4,
+                      delay: 0.05 * index,
+                      ease: "easeOut"
+                    }
                   }}
                   className={cn(
                     "flex items-center pl-2 pr-4 py-3 rounded-md group transition-colors select-none",
@@ -104,44 +126,84 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
                 >
                   {/* Track number / Play icon */}
                   <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center relative cursor-default select-none">
-                    {isLoading ? (
-                      <Loader2 className="size-4 animate-spin text-neutral-400" />
-                    ) : isError ? (
-                      <AlertCircle className="size-4 text-red-400" />
-                    ) : (
-                      <>
-                        {/* Play/Pause button (shown on hover) */}
-                        <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
-                          {isSelected && isPlaying ? (
-                            <Pause className="fill-current size-3.5 stroke-1" />
-                          ) : (
-                            <Play className="fill-current size-3.5" />
-                          )}
-                        </button>
+                    <AnimatePresence mode="wait">
+                      {isLoading ? (
+                        <motion.div
+                          key="loading"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ 
+                            opacity: 0,
+                            transition: {
+                              duration: 0.3,
+                              ease: "easeOut"
+                            }
+                          }}
+                          className="absolute inset-0 flex items-center justify-center"
+                        >
+                          <Loader2 className="size-4 animate-spin text-neutral-400" />
+                        </motion.div>
+                      ) : isError ? (
+                        <motion.div
+                          key="error"
+                          initial={{ opacity: 0 }}
+                          animate={{ 
+                            opacity: 1,
+                            transition: {
+                              duration: 0.3,
+                              ease: "easeOut"
+                            }
+                          }}
+                          className="absolute inset-0 flex items-center justify-center"
+                        >
+                          <AlertCircle className="size-4 text-red-400" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="loaded"
+                          initial={{ opacity: 0 }}
+                          animate={{ 
+                            opacity: 1,
+                            transition: {
+                              duration: 0.3,
+                              ease: "easeOut"
+                            }
+                          }}
+                          className="absolute inset-0"
+                        >
+                          {/* Play/Pause button (shown on hover) */}
+                          <button className="text-white text-sm hover:scale-110 transition-transform w-full h-full flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 select-none">
+                            {isSelected && isPlaying ? (
+                              <Pause className="fill-current size-3.5 stroke-1" />
+                            ) : (
+                              <Play className="fill-current size-3.5" />
+                            )}
+                          </button>
 
-                        {/* Playing indicator or track number (hidden on hover) */}
-                        <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
-                          {isPlayingThis ? (
-                            <div className="flex items-end justify-center h-4 w-4 gap-[2px]">
-                              <div className="bg-primary-500 w-[2px] h-[40%] animate-[sound-wave-1_1.2s_ease-in-out_infinite]"></div>
-                              <div className="bg-primary-500 w-[2px] h-[80%] animate-[sound-wave-2_1.4s_ease-in-out_infinite]"></div>
-                              <div className="bg-primary-500 w-[2px] h-[60%] animate-[sound-wave-3_1s_ease-in-out_infinite]"></div>
-                            </div>
-                          ) : (
-                            <span
-                              className={cn(
-                                "text-sm group-hover:opacity-0 select-none",
-                                isSelected
-                                  ? "text-primary-400"
-                                  : "text-neutral-400"
-                              )}
-                            >
-                              {index + 1}
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    )}
+                          {/* Playing indicator or track number (hidden on hover) */}
+                          <div className="w-full h-full flex items-center justify-center group-hover:opacity-0 select-none">
+                            {isPlayingThis ? (
+                              <div className="flex items-end justify-center h-4 w-4 gap-[2px]">
+                                <div className="bg-primary-500 w-[2px] h-[40%] animate-[sound-wave-1_1.2s_ease-in-out_infinite]"></div>
+                                <div className="bg-primary-500 w-[2px] h-[80%] animate-[sound-wave-2_1.4s_ease-in-out_infinite]"></div>
+                                <div className="bg-primary-500 w-[2px] h-[60%] animate-[sound-wave-3_1s_ease-in-out_infinite]"></div>
+                              </div>
+                            ) : (
+                              <span
+                                className={cn(
+                                  "text-sm group-hover:opacity-0 select-none",
+                                  isSelected
+                                    ? "text-primary-400"
+                                    : "text-neutral-400"
+                                )}
+                              >
+                                {index + 1}
+                              </span>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Track name */}
