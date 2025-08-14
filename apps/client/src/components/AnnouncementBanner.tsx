@@ -13,9 +13,8 @@ export const AnnouncementBanner = () => {
       <div className="relative">
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
-            <span className="font-semibold">{"Aug 13, 2025: "}</span>Added
-            ability to delete tracks, improved synchronization reliability and
-            fixed iOS audio pausing issues.
+            <span className="font-semibold">{"Aug 14, 2025: "}</span>Added
+            global volume slider + ability to delete tracks
             {/* <a
               href="#"
               className="ml-3 inline-flex items-center text-white underline hover:no-underline font-semibold"
