@@ -14,7 +14,7 @@ export const AnnouncementBanner = () => {
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
             <span className="font-semibold">{"Aug 14, 2025: "}</span>Added
-            global volume slider + ability to delete tracks
+            global volume slider + deleting tracks
             {/* <a
               href="#"
               className="ml-3 inline-flex items-center text-white underline hover:no-underline font-semibold"
