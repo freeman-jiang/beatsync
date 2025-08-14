@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { Volume1, Volume2, VolumeX } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { throttle } from "throttle-debounce";
 import { Slider } from "../ui/slider";
 
@@ -25,11 +25,52 @@ export const GlobalVolumeControl = ({
 
   // Local state for optimistic UI updates
   const [displayVolume, setDisplayVolume] = useState(globalVolume);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Sync displayVolume when globalVolume changes from server
+  // Refs for smooth interpolation
+  const targetVolumeRef = useRef(globalVolume);
+  const currentVolumeRef = useRef(globalVolume);
+  const animationFrameRef = useRef<number>(0);
+
+  // Smooth interpolation for remote volume changes
   useEffect(() => {
-    setDisplayVolume(globalVolume);
-  }, [globalVolume]);
+    // Update target when globalVolume changes
+    targetVolumeRef.current = globalVolume;
+
+    // Don't interpolate if user is dragging
+    if (isDragging) {
+      return;
+    }
+
+    const animate = () => {
+      // Calculate difference between target and current
+      const diff = targetVolumeRef.current - currentVolumeRef.current;
+
+      // If difference is very small, snap to target
+      if (Math.abs(diff) < 0.001) {
+        currentVolumeRef.current = targetVolumeRef.current;
+        setDisplayVolume(currentVolumeRef.current);
+        return;
+      }
+
+      // Move 30% of the way to target each frame (exponential ease-out)
+      currentVolumeRef.current += diff * 0.25;
+      setDisplayVolume(currentVolumeRef.current);
+
+      // Continue animation
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    // Start animation
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    // Cleanup
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [globalVolume, isDragging]);
 
   // Create throttled version of sendGlobalVolumeUpdate
   const throttledSendUpdate = useMemo(
@@ -56,13 +97,18 @@ export const GlobalVolumeControl = ({
         console.error("Cannot mutate global volume");
         return;
       }
-      const volume = value[0];
+      const volume = value[0] / 100;
 
-      // Update local state immediately for smooth UI
-      setDisplayVolume(volume / 100);
+      // Mark as dragging
+      setIsDragging(true);
+
+      // Update local state and refs immediately for smooth UI
+      setDisplayVolume(volume);
+      currentVolumeRef.current = volume;
+      targetVolumeRef.current = volume;
 
       // Send throttled update to server
-      throttledSendUpdate(volume / 100);
+      throttledSendUpdate(volume);
     },
     [canMutate, throttledSendUpdate]
   );
@@ -75,7 +121,12 @@ export const GlobalVolumeControl = ({
       // Send final value to ensure it's accurate
       const finalVolume = value[0] / 100;
       setDisplayVolume(finalVolume);
+      currentVolumeRef.current = finalVolume;
+      targetVolumeRef.current = finalVolume;
       sendGlobalVolumeUpdate(finalVolume);
+
+      // Mark as no longer dragging
+      setIsDragging(false);
     },
     [canMutate, sendGlobalVolumeUpdate]
   );
@@ -140,6 +191,8 @@ export const GlobalVolumeControl = ({
           // Toggle mute
           const newVolume = displayVolume > 0 ? 0 : 0.5;
           setDisplayVolume(newVolume);
+          currentVolumeRef.current = newVolume;
+          targetVolumeRef.current = newVolume;
           sendGlobalVolumeUpdate(newVolume);
         }}
       >
