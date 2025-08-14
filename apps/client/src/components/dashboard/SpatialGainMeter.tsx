@@ -14,6 +14,15 @@ export const SpatialGainMeter = () => {
 
   // Update gain value with smooth interpolation
   useEffect(() => {
+    // Only run interval when spatial audio is enabled
+    if (!isEnabled) {
+      // Reset to default when disabled
+      targetGainRef.current = 1;
+      currentGainRef.current = 1;
+      setGainValue(1);
+      return;
+    }
+
     const intervalId = setInterval(() => {
       // Get the target value from state
       targetGainRef.current = getCurrentSpatialGainValue();
@@ -32,7 +41,7 @@ export const SpatialGainMeter = () => {
     }, 50);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [isEnabled, getCurrentSpatialGainValue]);
 
   // Calculate bar width as percentage (max gain is typically 1)
   // Limit to 94% to maintain visible border radius at max gain
