@@ -6,7 +6,7 @@ import {
 } from "@beatsync/shared";
 import { Server, ServerWebSocket } from "bun";
 import { globalManager } from "../managers";
-import { sendBroadcast } from "../utils/responses";
+import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { WSData } from "../utils/websocket";
 import { dispatchMessage } from "../websocket/dispatch";
 
@@ -45,28 +45,48 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
     // - we need to send one message per event, what we are really trying to do is sync this client
     // We should actually just create a single unicast message catching the client up with all of this bundled into one message (even broadcast is fine but it should be one message)
     // just the issue is that we do diff instead of full state sync
-    const audioSourcesMessage: WSBroadcastType = {
-      type: "ROOM_EVENT",
-      event: {
-        type: "SET_AUDIO_SOURCES",
-        sources: audioSources,
-        currentAudioSource: room.getPlaybackState().audioSource || undefined,
+    sendBroadcast({
+      server,
+      roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: {
+          type: "SET_AUDIO_SOURCES",
+          sources: audioSources,
+          currentAudioSource: room.getPlaybackState().audioSource || undefined,
+        },
       },
-    };
-
-    // Send directly to the WebSocket since this is a broadcast-type message sent to a single client
-    ws.send(JSON.stringify(audioSourcesMessage));
+      // Optionally, you could add a filter to only send to this ws if needed,
+      // but by default this will broadcast to all in the room.
+    });
   }
 
   // Always send the current playback controls
-  const playbackControlsMessage: WSBroadcastType = {
-    type: "ROOM_EVENT",
-    event: {
-      type: "SET_PLAYBACK_CONTROLS",
-      permissions: room.getPlaybackControlsPermissions(),
+  sendBroadcast({
+    server,
+    roomId,
+    message: {
+      type: "ROOM_EVENT",
+      event: {
+        type: "SET_PLAYBACK_CONTROLS",
+        permissions: room.getPlaybackControlsPermissions(),
+      },
     },
-  };
-  ws.send(JSON.stringify(playbackControlsMessage));
+  });
+
+  // Send current global volume state to the newly joined client only
+  sendUnicast({
+    ws,
+    message: {
+      type: "SCHEDULED_ACTION",
+      serverTimeToExecute: epochNow(),
+      scheduledAction: {
+        type: "GLOBAL_VOLUME_CONFIG",
+        volume: room.getState().globalVolume,
+        rampTime: 0.1,
+      },
+    },
+  });
 
   const message = createClientUpdate(roomId);
   sendBroadcast({ server, roomId, message });
