@@ -39,13 +39,14 @@ function Slider({
       <SliderPrimitive.Track
         data-slot="slider-track"
         className={cn(
-          "bg-neutral-500 relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5"
+          "bg-neutral-500 relative grow rounded-full data-[orientation=horizontal]:h-1 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5",
+          "before:absolute before:content-[''] before:inset-y-[-8px] before:left-0 before:right-0 cursor-pointer"
         )}
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
-            "bg-white absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full group-hover:bg-primary-500"
+            "bg-white absolute rounded-full data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full group-hover:bg-primary-500"
           )}
         />
       </SliderPrimitive.Track>
