@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Separator } from "../ui/separator";
 import { ConnectedUsersList } from "./ConnectedUsersList";
+import { GlobalVolumeControl } from "./GlobalVolumeControl";
 import { PlaybackPermissions } from "./PlaybackPermissions";
 
 interface LeftProps {
@@ -59,6 +60,11 @@ export const Left = ({ className }: LeftProps) => {
       <PlaybackPermissions />
 
       <Separator className="bg-neutral-800/50" />
+
+      <div className="block lg:hidden">
+        <GlobalVolumeControl isMobile />
+        <Separator className="bg-neutral-800/50" />
+      </div>
 
       {/* Connected Users List */}
       <ConnectedUsersList />

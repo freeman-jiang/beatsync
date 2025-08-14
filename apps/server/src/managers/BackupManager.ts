@@ -20,6 +20,7 @@ interface RoomRestoreResult {
     id: string;
     numClients: number;
     numAudioSources: number;
+    globalVolume: number;
   };
   success: boolean;
   error?: string;
@@ -65,6 +66,7 @@ export class BackupManager {
           id: roomId,
           numClients: roomData.clients.length,
           numAudioSources: validAudioSources.length,
+          globalVolume: roomData.globalVolume,
         },
         success: true,
       };
@@ -73,6 +75,7 @@ export class BackupManager {
       return {
         room: {
           id: roomId,
+          globalVolume: roomData.globalVolume,
           numClients: roomData.clients.length,
           numAudioSources: roomData.audioSources.length,
         },

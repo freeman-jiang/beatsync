@@ -2,16 +2,17 @@
 import { getClientId } from "@/lib/clientId";
 import { extractFileNameFromUrl } from "@/lib/utils";
 import {
-  NTPMeasurement,
   _sendNTPRequest,
   calculateOffsetEstimate,
   calculateWaitTimeMilliseconds,
+  NTPMeasurement,
 } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
 import {
   AudioSourceType,
   ClientActionEnum,
   ClientType,
+  GlobalVolumeConfigType,
   GRID,
   NTP_CONSTANTS,
   PlaybackControlsPermissionsEnum,
@@ -81,6 +82,7 @@ interface GlobalStateValues {
   currentTime: number;
   duration: number;
   volume: number;
+  globalVolume: number; // Master volume (0-1)
 
   // Tracking properties
   playbackStartTime: number;
@@ -153,6 +155,10 @@ interface GlobalState extends GlobalStateValues {
   skipToNextTrack: (isAutoplay?: boolean) => void;
   skipToPreviousTrack: () => void;
   getCurrentGainValue: () => number;
+  setGlobalVolume: (volume: number) => void;
+  sendGlobalVolumeUpdate: (volume: number) => void;
+  processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => void;
+  applyFinalGain: (rampTime?: number) => void;
   resetStore: () => void;
   setReconnectionInfo: (info: {
     isReconnecting: boolean;
@@ -219,6 +225,7 @@ const initialState: GlobalStateValues = {
   audioPlayer: null,
   duration: 0,
   volume: 0.5,
+  globalVolume: 1.0, // Default 100%
   reconnectionInfo: {
     isReconnecting: false,
     currentAttempt: 0,
@@ -381,7 +388,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     // Create master gain node for volume control
     const gainNode = audioContext.createGain();
-    gainNode.gain.value = 1; // Default volume
+    const state = get();
+    gainNode.gain.value = state.globalVolume; // Use global volume
     const sourceNode = audioContext.createBufferSource();
     sourceNode.connect(gainNode);
     gainNode.connect(audioContext.destination);
@@ -713,14 +721,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     processStopSpatialAudio: () => {
-      const state = get();
-
-      const { gainNode } = getAudioPlayer(state);
-      gainNode.gain.cancelScheduledValues(0);
-      gainNode.gain.value = 1;
-
       set({ isSpatialAudioEnabled: false });
       set({ spatialConfig: undefined });
+
+      // Apply final gain which will now just be the global volume
+      get().applyFinalGain();
     },
 
     sendNTPRequest: () => {
@@ -940,33 +945,23 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     processSpatialConfig: (config: SpatialConfigType) => {
       const state = get();
       set({ spatialConfig: config });
-      const { gains, listeningSource } = config;
+      const { listeningSource } = config;
 
       // Don't set if we were the ones dragging the listening source
       if (!state.isDraggingListeningSource) {
         set({ listeningSourcePosition: listeningSource });
       }
 
+      // Use the shared applyFinalGain method which handles global volume multiplication
       const clientId = getClientId();
-      const user = gains[clientId];
+      const user = config.gains[clientId];
       if (!user) {
         console.error(`No gain config found for client ${clientId}`);
         return;
       }
-      const { gain, rampTime } = user;
 
-      // Process
-      const { audioContext, gainNode } = getAudioPlayer(state);
-
-      const now = audioContext.currentTime;
-      const currentGain = gainNode.gain.value;
-
-      // Reset
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(currentGain, now);
-
-      // Ramp time is set server side
-      gainNode.gain.linearRampToValueAtTime(gain, now + rampTime);
+      // The rampTime comes from the server-side spatial config
+      state.applyFinalGain(user.rampTime);
     },
 
     pauseAudio: (data: { when: number }) => {
@@ -1103,6 +1098,57 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       if (!state.audioPlayer) return 1; // Default value if no player
       return state.audioPlayer.gainNode.gain.value;
+    },
+
+    setGlobalVolume: (volume) => {
+      set({ globalVolume: Math.max(0, Math.min(1, volume)) });
+      get().applyFinalGain();
+    },
+
+    sendGlobalVolumeUpdate: (volume) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_GLOBAL_VOLUME,
+          volume,
+        },
+      });
+    },
+
+    processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => {
+      const { volume, rampTime } = config;
+      set({ globalVolume: volume });
+      get().applyFinalGain(rampTime);
+    },
+
+    applyFinalGain: (rampTime = 0.1) => {
+      const state = get();
+      const { audioContext, gainNode } = getAudioPlayer(state);
+
+      // Calculate final gain
+      let finalGain = state.globalVolume;
+
+      // If spatial audio is enabled, get the spatial gain for this client
+      if (state.isSpatialAudioEnabled && state.spatialConfig) {
+        const clientId = getClientId();
+        const spatialGain = state.spatialConfig.gains[clientId]?.gain || 1;
+        finalGain = state.globalVolume * spatialGain;
+      }
+
+      // Apply with smooth ramping
+      const now = audioContext.currentTime;
+
+      // Cancel any scheduled values
+      gainNode.gain.cancelScheduledValues(now);
+
+      // Set the current value
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+
+      // Ramp to the new value over the specified time
+      gainNode.gain.linearRampToValueAtTime(finalGain, now + rampTime);
     },
 
     getAudioDuration: ({ url }) => {

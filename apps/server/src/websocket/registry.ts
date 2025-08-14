@@ -4,6 +4,7 @@ import { handleLoadDefaultTracks } from "./handlers/handleLoadDefaultTracks";
 import { handleSearchMusic } from "./handlers/handleSearchMusic";
 import { handleSendIp } from "./handlers/handleSendIp";
 import { handleSetAdmin } from "./handlers/handleSetAdmin";
+import { handleSetGlobalVolume } from "./handlers/setGlobalVolume";
 import { handleSetPlaybackControls } from "./handlers/handleSetPlaybackControls";
 import { handleStreamMusic } from "./handlers/handleStreamMusic";
 import { handleMoveClient } from "./handlers/moveClient";
@@ -95,5 +96,10 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.STREAM_MUSIC]: {
     handle: handleStreamMusic,
     description: "Stream music",
+  },
+
+  [ClientActionEnum.enum.SET_GLOBAL_VOLUME]: {
+    handle: handleSetGlobalVolume,
+    description: "Set global volume for all clients in the room",
   },
 };

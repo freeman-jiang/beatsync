@@ -1,24 +1,29 @@
+import { getClientId } from "@/lib/clientId";
 import { useGlobalStore } from "@/store/global";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
 export const GainMeter = () => {
-  const getCurrentGainValue = useGlobalStore(
-    (state) => state.getCurrentGainValue
-  );
   const isEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
+  const spatialConfig = useGlobalStore((state) => state.spatialConfig);
 
   const [gainValue, setGainValue] = useState(1);
 
   // Update gain value every 50ms for smoother animation
   useEffect(() => {
     const intervalId = setInterval(() => {
-      const currentGain = getCurrentGainValue();
-      setGainValue(currentGain);
+      // Get spatial gain directly from spatialConfig (pre-normalization by global volume)
+      if (isEnabled && spatialConfig) {
+        const clientId = getClientId();
+        const spatialGain = spatialConfig.gains[clientId]?.gain ?? 1.0;
+        setGainValue(spatialGain);
+      } else {
+        setGainValue(1.0);
+      }
     }, 50);
 
     return () => clearInterval(intervalId);
-  }, [getCurrentGainValue]);
+  }, [isEnabled, spatialConfig]);
 
   // Calculate bar width as percentage (max gain is typically 1)
   // Limit to 94% to maintain visible border radius at max gain

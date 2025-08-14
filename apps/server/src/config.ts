@@ -11,7 +11,7 @@ export const VOLUME_DOWN_RAMP_TIME = 0.5;
 
 // Scheduling settings
 export const MIN_SCHEDULE_TIME_MS = 400; // Minimum scheduling delay
-export const DEFAULT_CLIENT_RTT_MS = 100; // Default RTT when no clients or initial value
+export const DEFAULT_CLIENT_RTT_MS = 0; // Default RTT when no clients or initial value
 const CAP_SCHEDULE_TIME_MS = 3_000; // Maximum scheduling delay
 
 /**

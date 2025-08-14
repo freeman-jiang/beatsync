@@ -29,6 +29,7 @@ interface RoomData {
   intervalId?: NodeJS.Timeout;
   listeningSource: PositionType;
   playbackControlsPermissions: PlaybackControlsPermissionsType;
+  globalVolume: number; // Master volume multiplier (0-1)
 }
 
 // Define Zod schemas for backup validation
@@ -47,6 +48,7 @@ const RoomBackupSchema = z.object({
   clients: z.array(BackupClientSchema),
   audioSources: z.array(AudioSourceSchema),
   clientCache: ClientCacheBackupSchema.optional(),
+  globalVolume: z.number().min(0).max(1).default(1.0),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -93,6 +95,7 @@ export class RoomManager {
   private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "ADMIN_ONLY";
+  private globalVolume: number = 1.0; // Default 100% volume
   private activeStreamJobs = new Map<
     string,
     { trackId: string; status: string }
@@ -325,6 +328,7 @@ export class RoomManager {
       intervalId: this.intervalId,
       listeningSource: this.listeningSource,
       playbackControlsPermissions: this.playbackControlsPermissions,
+      globalVolume: this.globalVolume,
     };
   }
 
@@ -461,6 +465,27 @@ export class RoomManager {
   }
 
   /**
+   * Set global volume for all clients
+   */
+  setGlobalVolume(volume: number, server: Server): void {
+    this.globalVolume = Math.max(0, Math.min(1, volume)); // Clamp 0-1
+
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "SCHEDULED_ACTION",
+        serverTimeToExecute: epochNow(), // Execute ASAP
+        scheduledAction: {
+          type: "GLOBAL_VOLUME_CONFIG",
+          volume: this.globalVolume,
+          rampTime: 0.1,
+        },
+      },
+    });
+  }
+
+  /**
    * Start spatial audio interval
    */
   startSpatialAudio(server: Server): void {
@@ -492,15 +517,16 @@ export class RoomManager {
       // Calculate gains for each client
       const gains = Object.fromEntries(
         clients.map((client) => {
-          const gain = calculateGainFromDistanceToSource({
+          const spatialGain = calculateGainFromDistanceToSource({
             client: client.position,
             source: this.listeningSource,
           });
 
+          // Send pure spatial gain - client will apply global volume
           return [
             client.clientId,
             {
-              gain,
+              gain: spatialGain,
               rampTime: 0.25,
             },
           ];
@@ -645,6 +671,7 @@ export class RoomManager {
       })),
       audioSources: this.audioSources,
       clientCache: clientCacheObject,
+      globalVolume: this.globalVolume,
     };
   }
 
@@ -699,20 +726,25 @@ export class RoomManager {
 
     const gains = Object.fromEntries(
       clients.map((client) => {
-        const gain = calculateGainFromDistanceToSource({
+        const spatialGain = calculateGainFromDistanceToSource({
           client: client.position,
           source: this.listeningSource,
         });
 
+        // Send pure spatial gain - client will apply global volume
         console.log(
           `Client ${client.username} at (${client.position.x}, ${
             client.position.y
-          }) - gain: ${gain.toFixed(2)}`
+          }) - spatial gain: ${spatialGain.toFixed(
+            2
+          )} (global volume ${this.globalVolume.toFixed(
+            2
+          )} applied on client)`
         );
         return [
           client.clientId,
           {
-            gain,
+            gain: spatialGain,
             rampTime: 0.25,
           },
         ];

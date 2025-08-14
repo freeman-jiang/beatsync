@@ -28,6 +28,7 @@ export const ClientActionEnum = z.enum([
   "DELETE_AUDIO_SOURCES", // Delete audio sources from the room queue (non-default only)
   "SEARCH_MUSIC", // Search for music
   "STREAM_MUSIC", // Stream music
+  "SET_GLOBAL_VOLUME", // Set global volume for all clients
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -125,6 +126,11 @@ export const StreamMusicSchema = z.object({
   trackName: z.string().optional(),
 });
 
+export const SetGlobalVolumeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_GLOBAL_VOLUME),
+  volume: z.number().min(0).max(1), // 0-1 range
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -142,6 +148,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   DeleteAudioSourcesSchema,
   SearchMusicSchema,
   StreamMusicSchema,
+  SetGlobalVolumeSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

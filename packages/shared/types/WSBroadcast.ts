@@ -58,6 +58,13 @@ const StopSpatialAudioSchema = z.object({
 });
 export type StopSpatialAudioType = z.infer<typeof StopSpatialAudioSchema>;
 
+const GlobalVolumeConfigSchema = z.object({
+  type: z.literal("GLOBAL_VOLUME_CONFIG"),
+  volume: z.number().min(0).max(1),
+  rampTime: z.number(), // smooth transition
+});
+export type GlobalVolumeConfigType = z.infer<typeof GlobalVolumeConfigSchema>;
+
 const StreamJobUpdateSchema = z.object({
   type: z.literal("STREAM_JOB_UPDATE"),
   activeJobCount: z.number().nonnegative(),
@@ -72,6 +79,7 @@ export const ScheduledActionSchema = z.object({
     PauseActionSchema,
     SpatialConfigSchema,
     StopSpatialAudioSchema,
+    GlobalVolumeConfigSchema,
   ]),
 });
 

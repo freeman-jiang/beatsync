@@ -74,6 +74,9 @@ export const WebSocketManager = ({
   const processStopSpatialAudio = useGlobalStore(
     (state) => state.processStopSpatialAudio
   );
+  const processGlobalVolumeConfig = useGlobalStore(
+    (state) => state.processGlobalVolumeConfig
+  );
   const handleSetAudioSources = useGlobalStore(
     (state) => state.handleSetAudioSources
   );
@@ -208,6 +211,8 @@ export const WebSocketManager = ({
           }
         } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
           processStopSpatialAudio();
+        } else if (scheduledAction.type === "GLOBAL_VOLUME_CONFIG") {
+          processGlobalVolumeConfig(scheduledAction);
         }
       } else if (response.type === "SEARCH_RESPONSE") {
         console.log("Received search response:", response);
