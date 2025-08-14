@@ -1,29 +1,38 @@
-import { getClientId } from "@/lib/clientId";
 import { useGlobalStore } from "@/store/global";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const SpatialGainMeter = () => {
   const isEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
-  const spatialConfig = useGlobalStore((state) => state.spatialConfig);
+  const getCurrentSpatialGainValue = useGlobalStore(
+    (state) => state.getCurrentSpatialGainValue
+  );
 
   const [gainValue, setGainValue] = useState(1);
+  const targetGainRef = useRef(1);
+  const currentGainRef = useRef(1);
 
-  // Update gain value every 50ms for smoother animation
+  // Update gain value with smooth interpolation
   useEffect(() => {
     const intervalId = setInterval(() => {
-      // Get spatial gain directly from spatialConfig (pre-normalization by global volume)
-      if (isEnabled && spatialConfig) {
-        const clientId = getClientId();
-        const spatialGain = spatialConfig.gains[clientId]?.gain ?? 1.0;
-        setGainValue(spatialGain);
-      } else {
-        setGainValue(1.0);
+      // Get the target value from state
+      targetGainRef.current = getCurrentSpatialGainValue();
+
+      // Smooth interpolation: move 20% of the way to target each frame
+      // This creates an exponential ease-out effect
+      const diff = targetGainRef.current - currentGainRef.current;
+      currentGainRef.current += diff * 0.35;
+
+      // Snap to target if we're very close (prevents infinite approach)
+      if (Math.abs(diff) < 0.001) {
+        currentGainRef.current = targetGainRef.current;
       }
+
+      setGainValue(currentGainRef.current);
     }, 50);
 
     return () => clearInterval(intervalId);
-  }, [isEnabled, spatialConfig]);
+  }, []);
 
   // Calculate bar width as percentage (max gain is typically 1)
   // Limit to 94% to maintain visible border radius at max gain

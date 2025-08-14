@@ -155,6 +155,7 @@ interface GlobalState extends GlobalStateValues {
   skipToNextTrack: (isAutoplay?: boolean) => void;
   skipToPreviousTrack: () => void;
   getCurrentGainValue: () => number;
+  getCurrentSpatialGainValue: () => number;
   setGlobalVolume: (volume: number) => void;
   sendGlobalVolumeUpdate: (volume: number) => void;
   processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => void;
@@ -1098,6 +1099,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       if (!state.audioPlayer) return 1; // Default value if no player
       return state.audioPlayer.gainNode.gain.value;
+    },
+
+    getCurrentSpatialGainValue: () => {
+      const state = get();
+      if (!state.spatialConfig) return 1; // Default value if no spatial config
+      const clientId = getClientId();
+      return state.spatialConfig.gains[clientId].gain;
     },
 
     setGlobalVolume: (volume) => {
