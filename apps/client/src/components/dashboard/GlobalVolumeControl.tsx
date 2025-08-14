@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { Volume1, Volume2, VolumeX } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { throttle } from "throttle-debounce";
 import { Slider } from "../ui/slider";
 
@@ -23,7 +23,13 @@ export const GlobalVolumeControl = ({
     (state) => state.sendGlobalVolumeUpdate
   );
 
-  // Local state for slider while dragging (UI feedback only)
+  // Local state for optimistic UI updates
+  const [displayVolume, setDisplayVolume] = useState(globalVolume);
+
+  // Sync displayVolume when globalVolume changes from server
+  useEffect(() => {
+    setDisplayVolume(globalVolume);
+  }, [globalVolume]);
 
   // Create throttled version of sendGlobalVolumeUpdate
   const throttledSendUpdate = useMemo(
@@ -41,7 +47,7 @@ export const GlobalVolumeControl = ({
     return Volume2;
   };
 
-  const VolumeIcon = getVolumeIcon(globalVolume * 100);
+  const VolumeIcon = getVolumeIcon(displayVolume * 100);
 
   // Handle slider change (while dragging) - send updates continuously
   const handleSliderChange = useCallback(
@@ -51,6 +57,9 @@ export const GlobalVolumeControl = ({
         return;
       }
       const volume = value[0];
+
+      // Update local state immediately for smooth UI
+      setDisplayVolume(volume / 100);
 
       // Send throttled update to server
       throttledSendUpdate(volume / 100);
@@ -65,6 +74,7 @@ export const GlobalVolumeControl = ({
 
       // Send final value to ensure it's accurate
       const finalVolume = value[0] / 100;
+      setDisplayVolume(finalVolume);
       sendGlobalVolumeUpdate(finalVolume);
     },
     [canMutate, sendGlobalVolumeUpdate]
@@ -93,7 +103,7 @@ export const GlobalVolumeControl = ({
               <VolumeIcon className="h-4 w-4" />
             </button>
             <Slider
-              value={[globalVolume * 100]}
+              value={[displayVolume * 100]}
               min={0}
               max={100}
               step={1}
@@ -103,7 +113,7 @@ export const GlobalVolumeControl = ({
               className={cn("flex-1", !canMutate && "opacity-50")}
             />
             <div className="text-xs text-neutral-400 min-w-[3rem] text-right">
-              {Math.round(globalVolume * 100)}%
+              {Math.round(displayVolume * 100)}%
             </div>
           </div>
         </div>
@@ -128,7 +138,8 @@ export const GlobalVolumeControl = ({
         onClick={() => {
           if (!canMutate) return;
           // Toggle mute
-          const newVolume = globalVolume > 0 ? 0 : 0.5;
+          const newVolume = displayVolume > 0 ? 0 : 0.5;
+          setDisplayVolume(newVolume);
           sendGlobalVolumeUpdate(newVolume);
         }}
       >
@@ -136,7 +147,7 @@ export const GlobalVolumeControl = ({
       </button>
       <div className="w-24 flex items-center">
         <Slider
-          value={[globalVolume * 100]}
+          value={[displayVolume * 100]}
           min={0}
           max={100}
           step={1}
