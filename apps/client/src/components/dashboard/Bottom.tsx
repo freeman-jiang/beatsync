@@ -9,7 +9,7 @@ export const Bottom = () => {
         <div className="flex-1 max-w-3xl mx-auto">
           <Player />
         </div>
-        <div className="hidden lg:block absolute right-4">
+        <div className="hidden lg:block absolute right-6">
           <GlobalVolumeControl />
         </div>
       </div>
