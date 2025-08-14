@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { Volume1, Volume2, VolumeX } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { throttle } from "throttle-debounce";
 import { Slider } from "../ui/slider";
 
@@ -24,8 +24,6 @@ export const GlobalVolumeControl = ({
   );
 
   // Local state for slider while dragging (UI feedback only)
-  const [localVolume, setLocalVolume] = useState(globalVolume * 100);
-  const [isDragging, setIsDragging] = useState(false);
 
   // Create throttled version of sendGlobalVolumeUpdate
   const throttledSendUpdate = useMemo(
@@ -36,13 +34,6 @@ export const GlobalVolumeControl = ({
     [sendGlobalVolumeUpdate]
   );
 
-  // Update local volume when global volume changes (from server)
-  useEffect(() => {
-    if (!isDragging) {
-      setLocalVolume(globalVolume * 100);
-    }
-  }, [globalVolume, isDragging]);
-
   // Get appropriate volume icon
   const getVolumeIcon = (volume: number) => {
     if (volume === 0) return VolumeX;
@@ -50,9 +41,7 @@ export const GlobalVolumeControl = ({
     return Volume2;
   };
 
-  const VolumeIcon = getVolumeIcon(
-    isDragging ? localVolume : globalVolume * 100
-  );
+  const VolumeIcon = getVolumeIcon(globalVolume * 100);
 
   // Handle slider change (while dragging) - send updates continuously
   const handleSliderChange = useCallback(
@@ -62,8 +51,6 @@ export const GlobalVolumeControl = ({
         return;
       }
       const volume = value[0];
-      setIsDragging(true);
-      setLocalVolume(volume);
 
       // Send throttled update to server
       throttledSendUpdate(volume / 100);
@@ -75,7 +62,6 @@ export const GlobalVolumeControl = ({
   const handleSliderCommit = useCallback(
     (value: number[]) => {
       if (!canMutate) return;
-      setIsDragging(false);
 
       // Send final value to ensure it's accurate
       const finalVolume = value[0] / 100;
@@ -107,7 +93,7 @@ export const GlobalVolumeControl = ({
               <VolumeIcon className="h-4 w-4" />
             </button>
             <Slider
-              value={[isDragging ? localVolume : globalVolume * 100]}
+              value={[globalVolume * 100]}
               min={0}
               max={100}
               step={1}
@@ -117,7 +103,7 @@ export const GlobalVolumeControl = ({
               className={cn("flex-1", !canMutate && "opacity-50")}
             />
             <div className="text-xs text-neutral-400 min-w-[3rem] text-right">
-              {Math.round(isDragging ? localVolume : globalVolume * 100)}%
+              {Math.round(globalVolume * 100)}%
             </div>
           </div>
         </div>
@@ -150,7 +136,7 @@ export const GlobalVolumeControl = ({
       </button>
       <div className="w-24 flex items-center">
         <Slider
-          value={[isDragging ? localVolume : globalVolume * 100]}
+          value={[globalVolume * 100]}
           min={0}
           max={100}
           step={1}
