@@ -3,7 +3,7 @@ import { useGlobalStore } from "@/store/global";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
-export const GainMeter = () => {
+export const SpatialGainMeter = () => {
   const isEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
   const spatialConfig = useGlobalStore((state) => state.spatialConfig);
 

@@ -6,7 +6,7 @@ import { ClientType, GRID } from "@beatsync/shared";
 import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GainMeter } from "../dashboard/GainMeter";
+import { SpatialGainMeter } from "../dashboard/SpatialGainMeter";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
@@ -442,7 +442,7 @@ export const UserGrid = () => {
 
             {/* Gain Meter */}
             <div className="mt-2.5">
-              <GainMeter />
+              <SpatialGainMeter />
             </div>
           </>
         )}
