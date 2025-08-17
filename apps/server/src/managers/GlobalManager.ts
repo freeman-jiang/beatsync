@@ -131,13 +131,15 @@ export class GlobalManager {
 
   // Get actual active rooms:
   getActiveRooms(): DiscoverRoomsType {
-    return Array.from(this.rooms.values())
+    const activeRooms = Array.from(this.rooms.values())
       .filter(
         (room) =>
           room.hasActiveConnections() &&
           room.getPlaybackState().type === "playing"
       )
       .map((room) => room.serialize());
+
+    return activeRooms;
   }
 
   /**

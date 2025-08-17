@@ -65,30 +65,38 @@ export const ActiveRooms = () => {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {/* Flag indicator - show oldest user's flag */}
-                <div className="relative w-10 h-10 flex-shrink-0">
+                <div className="relative size-10 flex-shrink-0">
                   {(() => {
                     const oldestClient = getOldestClient(room.clients);
-                    const flagEmoji = oldestClient?.location?.flagEmoji;
+                    const flagSvgURL = oldestClient.location?.flagSvgURL;
                     const isPlaying = room.playbackState.type === "playing";
-                    
+
                     return (
-                      <div className={cn(
-                        "w-full h-full rounded bg-neutral-800 flex items-center justify-center text-xl",
-                        isPlaying && "ring-1 ring-green-500/30"
-                      )}>
-                        {flagEmoji ? (
-                          <span className="leading-none">{flagEmoji}</span>
-                        ) : (
-                          <Users2 className="w-5 h-5 text-neutral-600" />
+                      <div
+                        className={cn(
+                          "w-full h-full rounded flex items-center justify-center overflow-hidden",
+                          isPlaying && ""
                         )}
-                        {isPlaying && (
+                      >
+                        {flagSvgURL ? (
+                          <img
+                            src={flagSvgURL}
+                            alt="Country flag"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+                            <Users2 className="w-5 h-5 text-neutral-600" />
+                          </div>
+                        )}
+                        {/* {isPlaying && (
                           <div className="absolute -top-1 -right-1">
                             <div className="relative flex items-center justify-center">
                               <div className="size-2 bg-green-500 rounded-full" />
                               <div className="absolute size-2 bg-green-500/30 rounded-full animate-ping" />
                             </div>
                           </div>
-                        )}
+                        )} */}
                       </div>
                     );
                   })()}
@@ -100,8 +108,8 @@ export const ActiveRooms = () => {
                     {extractFileNameFromUrl(room.playbackState.audioSource) ||
                       "No track playing"}
                   </p>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    Room {room.roomId}
+                  <p className="text-xs font-mono text-neutral-500 mt-0.5">
+                    {room.roomId}
                   </p>
                 </div>
               </div>
@@ -115,7 +123,7 @@ export const ActiveRooms = () => {
                   </div>
                   {room.audioSources.length > 1 && (
                     <>
-                      <span className="text-neutral-700">·</span>
+                      <span className="inline-block size-0.5 rounded-full bg-neutral-600 align-middle" />
                       <span className="font-medium">
                         {room.audioSources.length} tracks
                       </span>
