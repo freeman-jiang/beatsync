@@ -1,3 +1,4 @@
+import { DiscoverRoomsType } from "@beatsync/shared";
 import { RoomManager } from "./RoomManager";
 
 /**
@@ -126,6 +127,17 @@ export class GlobalManager {
     }
 
     return this.activeUserCount;
+  }
+
+  // Get actual active rooms:
+  getActiveRooms(): DiscoverRoomsType {
+    return Array.from(this.rooms.values())
+      .filter(
+        (room) =>
+          room.hasActiveConnections() &&
+          room.getPlaybackState().type === "playing"
+      )
+      .map((room) => room.serialize());
   }
 
   /**

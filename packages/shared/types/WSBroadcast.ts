@@ -8,7 +8,7 @@ import {
 import { AudioSourceSchema, PositionSchema } from "./basic";
 
 // Client change
-const ClientSchema = z.object({
+export const ClientSchema = z.object({
   username: z.string(),
   clientId: z.string(),
   ws: z.any(),

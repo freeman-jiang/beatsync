@@ -1,6 +1,7 @@
 import {
   AudioSourceType,
   ClientType,
+  DiscoveryRoomType,
   epochNow,
   NTP_CONSTANTS,
   PauseActionType,
@@ -737,9 +738,7 @@ export class RoomManager {
             client.position.y
           }) - spatial gain: ${spatialGain.toFixed(
             2
-          )} (global volume ${this.globalVolume.toFixed(
-            2
-          )} applied on client)`
+          )} (global volume ${this.globalVolume.toFixed(2)} applied on client)`
         );
         return [
           client.clientId,
@@ -826,5 +825,15 @@ export class RoomManager {
       this.heartbeatCheckInterval = undefined;
       console.log(`💔 Stopped heartbeat checking for room ${this.roomId}`);
     }
+  }
+
+  // For active rooms display endpoint:
+  serialize(): DiscoveryRoomType {
+    return {
+      roomId: this.roomId,
+      clients: this.getClients(),
+      audioSources: this.audioSources,
+      playbackState: this.playbackState,
+    };
   }
 }

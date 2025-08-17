@@ -1,8 +1,11 @@
+import { BackupManager } from "./managers/BackupManager";
+import { getActiveRooms } from "./routes/active";
+import { handleGetDefaultAudio } from "./routes/default";
+import { handleDiscover } from "./routes/discover";
 import { handleRoot } from "./routes/root";
 import { handleStats } from "./routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "./routes/upload";
 import { handleWebSocketUpgrade } from "./routes/websocket";
-import { handleGetDefaultAudio } from "./routes/default";
 import {
   handleClose,
   handleMessage,
@@ -10,8 +13,6 @@ import {
 } from "./routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "./utils/responses";
 import { WSData } from "./utils/websocket";
-import { BackupManager } from "./managers/BackupManager";
-import { getActiveRooms } from "./routes/active";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData, undefined>({
@@ -47,6 +48,9 @@ const server = Bun.serve<WSData, undefined>({
 
         case "/active-rooms":
           return getActiveRooms(req);
+
+        case "/discover":
+          return handleDiscover(req);
 
         default:
           return errorResponse("Not found", 404);
