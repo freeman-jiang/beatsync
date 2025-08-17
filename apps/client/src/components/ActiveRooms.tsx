@@ -1,10 +1,10 @@
 "use client";
 import { fetchDiscoverRooms } from "@/lib/api";
 import { generateName } from "@/lib/randomNames";
-import { cn, extractFileNameFromUrl } from "@/lib/utils";
+import { cn, extractFileNameFromUrl, getOldestClient } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Music2, Users2 } from "lucide-react";
+import { ChevronRight, Users2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
@@ -64,47 +64,34 @@ export const ActiveRooms = () => {
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                {/* Playing indicator */}
+                {/* Flag indicator - show oldest user's flag */}
                 <div className="relative w-10 h-10 flex-shrink-0">
-                  {room.playbackState.type === "playing" ? (
-                    <div className="w-full h-full rounded bg-neutral-800 flex items-center justify-center">
-                      <div className="flex items-end gap-0.5 h-4">
-                        <motion.div
-                          className="w-0.5 bg-green-500 rounded-full"
-                          animate={{ height: ["30%", "100%", "30%"] }}
-                          transition={{
-                            duration: 1.2,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                          }}
-                        />
-                        <motion.div
-                          className="w-0.5 bg-green-500 rounded-full"
-                          animate={{ height: ["60%", "30%", "60%"] }}
-                          transition={{
-                            duration: 1.2,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 0.2,
-                          }}
-                        />
-                        <motion.div
-                          className="w-0.5 bg-green-500 rounded-full"
-                          animate={{ height: ["40%", "80%", "40%"] }}
-                          transition={{
-                            duration: 1.2,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 0.4,
-                          }}
-                        />
+                  {(() => {
+                    const oldestClient = getOldestClient(room.clients);
+                    const flagEmoji = oldestClient?.location?.flagEmoji;
+                    const isPlaying = room.playbackState.type === "playing";
+                    
+                    return (
+                      <div className={cn(
+                        "w-full h-full rounded bg-neutral-800 flex items-center justify-center text-xl",
+                        isPlaying && "ring-1 ring-green-500/30"
+                      )}>
+                        {flagEmoji ? (
+                          <span className="leading-none">{flagEmoji}</span>
+                        ) : (
+                          <Users2 className="w-5 h-5 text-neutral-600" />
+                        )}
+                        {isPlaying && (
+                          <div className="absolute -top-1 -right-1">
+                            <div className="relative flex items-center justify-center">
+                              <div className="size-2 bg-green-500 rounded-full" />
+                              <div className="absolute size-2 bg-green-500/30 rounded-full animate-ping" />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="w-full h-full rounded bg-neutral-800 flex items-center justify-center">
-                      <Music2 className="w-5 h-5 text-neutral-600" />
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Track info */}

@@ -144,6 +144,7 @@ export class RoomManager {
 
     // Add the new client
     this.clients.set(clientId, {
+      joinedAt: Date.now(),
       username,
       clientId,
       ws,

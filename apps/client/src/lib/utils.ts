@@ -1,9 +1,19 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { R2_AUDIO_FILE_NAME_DELIMITER } from "@beatsync/shared";
+import type { ClientType } from "@beatsync/shared";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * Get the oldest client in a room (first to join based on joinedAt timestamp)
+ */
+export function getOldestClient(clients: ClientType[]): ClientType | null {
+  if (!clients || clients.length === 0) return null;
+  
+  return [...clients].sort((a, b) => a.joinedAt - b.joinedAt)[0];
 }
 
 /**

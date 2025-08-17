@@ -17,6 +17,7 @@ export const ClientSchema = z.object({
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
   isAdmin: z.boolean().default(false), // Admin status
   location: LocationSchema.optional(),
+  joinedAt: z.number(), // Timestamp when the client joined the room
 });
 export type ClientType = z.infer<typeof ClientSchema>;
 const ClientChangeMessageSchema = z.object({
