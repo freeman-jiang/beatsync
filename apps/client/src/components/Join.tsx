@@ -1,4 +1,5 @@
 "use client";
+import { ActiveRooms } from "@/components/ActiveRooms";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -112,14 +113,14 @@ export const Join = () => {
 
   return (
     <motion.div
-      className="fixed inset-0 flex flex-col items-center justify-center bg-neutral-950 backdrop-blur-sm"
+      className="fixed inset-0 flex flex-col items-center justify-center bg-neutral-950 backdrop-blur-sm overflow-y-auto"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="w-full px-1">
+      <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto">
         <motion.div
-          className="flex flex-col items-center justify-center p-6 bg-neutral-900 rounded-lg border border-neutral-800 shadow-xl max-w-[28rem] mx-auto"
+          className="flex flex-col items-center justify-center p-6 bg-neutral-900 rounded-lg border border-neutral-800 shadow-xl mx-auto"
           initial={{ opacity: 0, y: 10, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -374,6 +375,9 @@ export const Join = () => {
             </a>
           </motion.div>
         </motion.div>
+
+        {/* Active Rooms Section */}
+        <ActiveRooms />
       </div>
     </motion.div>
   );

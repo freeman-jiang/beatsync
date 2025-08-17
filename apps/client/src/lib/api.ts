@@ -1,4 +1,5 @@
 import {
+  DiscoverRoomsType,
   GetActiveRoomsType,
   GetDefaultAudioType,
   GetUploadUrlType,
@@ -109,5 +110,13 @@ export async function fetchActiveRooms() {
     `${process.env.NEXT_PUBLIC_API_URL}/active-rooms`
   );
   const data: GetActiveRoomsType = await response.json();
+  return data;
+}
+
+export async function fetchDiscoverRooms() {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/discover`
+  );
+  const data: DiscoverRoomsType = await response.json();
   return data;
 }

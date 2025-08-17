@@ -1,9 +1,9 @@
 "use client";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Join } from "@/components/Join";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { useEffect } from "react";
-import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 export default function Home() {
   const resetGlobalStore = useGlobalStore((state) => state.resetStore);
