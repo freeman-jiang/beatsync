@@ -117,35 +117,41 @@ export const ActiveRooms = () => {
 
               {/* Stacked avatars and arrow */}
               <div className="flex items-center gap-3">
-                {/* Stacked country flag avatars */}
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2.5">
-                    {room.clients.slice(0, 5).map((client) => (
-                      <Avatar
-                        key={client.clientId}
-                        className="size-5 ring-1 ring-black/60 transition-all"
-                      >
-                        {client.location?.flagSvgURL ? (
-                          <AvatarImage
-                            src={client.location.flagSvgURL}
-                            alt={`${client.location.country || "Country"} flag`}
-                          />
-                        ) : (
-                          <AvatarFallback className="bg-neutral-800">
-                            <Users2 className="w-2.5 h-2.5 text-neutral-500" />
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                    ))}
+                {/* Stacked country flag avatars and track count */}
+                <div className="flex flex-col items-end gap-1">
+                  {/* Stacked country flag avatars */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2.5">
+                      {room.clients.slice(0, 5).map((client) => (
+                        <Avatar
+                          key={client.clientId}
+                          className="size-5 ring-1 ring-black/60 transition-all"
+                        >
+                          {client.location?.flagSvgURL ? (
+                            <AvatarImage
+                              src={client.location.flagSvgURL}
+                              alt={`${
+                                client.location.country || "Country"
+                              } flag`}
+                            />
+                          ) : (
+                            <AvatarFallback className="bg-neutral-800">
+                              <Users2 className="w-2.5 h-2.5 text-neutral-500" />
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                      ))}
+                    </div>
+                    {room.clients.length > 5 && (
+                      <span className="text-[11px] text-neutral-500 font-medium">
+                        +{room.clients.length - 5}
+                      </span>
+                    )}
                   </div>
-                  {room.clients.length > 5 && (
-                    <span className="text-[11px] text-neutral-500 font-medium">
-                      +{room.clients.length - 5}
-                    </span>
-                  )}
+                  {/* Track count */}
                   {room.audioSources.length > 1 && (
                     <span className="text-[11px] text-neutral-500 font-medium">
-                      • {room.audioSources.length} tracks
+                      {room.audioSources.length} tracks
                     </span>
                   )}
                 </div>
