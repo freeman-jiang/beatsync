@@ -1,4 +1,5 @@
 "use client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { fetchDiscoverRooms } from "@/lib/api";
 import { generateName } from "@/lib/randomNames";
 import { cn, extractFileNameFromUrl, getOldestClient } from "@/lib/utils";
@@ -114,20 +115,38 @@ export const ActiveRooms = () => {
                 </div>
               </div>
 
-              {/* Metadata and arrow */}
+              {/* Stacked avatars and arrow */}
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-                  <div className="flex items-center gap-1">
-                    <Users2 className="w-3.5 h-3.5" />
-                    <span className="font-medium">{room.clients.length}</span>
+                {/* Stacked country flag avatars */}
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-2.5">
+                    {room.clients.slice(0, 5).map((client) => (
+                      <Avatar
+                        key={client.clientId}
+                        className="size-5 ring-1 ring-black/60 transition-all"
+                      >
+                        {client.location?.flagSvgURL ? (
+                          <AvatarImage
+                            src={client.location.flagSvgURL}
+                            alt={`${client.location.country || "Country"} flag`}
+                          />
+                        ) : (
+                          <AvatarFallback className="bg-neutral-800">
+                            <Users2 className="w-2.5 h-2.5 text-neutral-500" />
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                    ))}
                   </div>
+                  {room.clients.length > 5 && (
+                    <span className="text-[11px] text-neutral-500 font-medium">
+                      +{room.clients.length - 5}
+                    </span>
+                  )}
                   {room.audioSources.length > 1 && (
-                    <>
-                      <span className="inline-block size-0.5 rounded-full bg-neutral-600 align-middle" />
-                      <span className="font-medium">
-                        {room.audioSources.length} tracks
-                      </span>
-                    </>
+                    <span className="text-[11px] text-neutral-500 font-medium">
+                      • {room.audioSources.length} tracks
+                    </span>
                   )}
                 </div>
                 <ChevronRight className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0" />
