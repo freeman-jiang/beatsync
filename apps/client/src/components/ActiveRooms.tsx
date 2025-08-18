@@ -117,9 +117,15 @@ export const ActiveRooms = () => {
 
               {/* Stacked avatars and arrow */}
               <div className="flex items-center gap-3">
-                {/* Stacked country flag avatars and track count */}
+                {/* Track count and stacked country flag avatars */}
                 <div className="flex flex-col items-end gap-1">
-                  {/* Stacked country flag avatars */}
+                  {/* Track count on top */}
+                  {room.audioSources.length > 1 && (
+                    <span className="text-[11px] text-neutral-500 font-medium">
+                      {room.audioSources.length} tracks
+                    </span>
+                  )}
+                  {/* Stacked country flag avatars on bottom */}
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2.5">
                       {room.clients.slice(0, 5).map((client) => (
@@ -148,12 +154,6 @@ export const ActiveRooms = () => {
                       </span>
                     )}
                   </div>
-                  {/* Track count */}
-                  {room.audioSources.length > 1 && (
-                    <span className="text-[11px] text-neutral-500 font-medium">
-                      {room.audioSources.length} tracks
-                    </span>
-                  )}
                 </div>
                 <ChevronRight className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0" />
               </div>
