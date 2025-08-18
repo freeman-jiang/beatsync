@@ -8,10 +8,9 @@ import {
 import { AudioSourceSchema, PositionSchema } from "./basic";
 
 // Client change
-export const ClientSchema = z.object({
+export const ClientDataSchema = z.object({
   username: z.string(),
   clientId: z.string(),
-  ws: z.any(),
   rtt: z.number().nonnegative().default(0), // Round-trip time in milliseconds
   position: PositionSchema,
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
@@ -19,10 +18,10 @@ export const ClientSchema = z.object({
   location: LocationSchema.optional(),
   joinedAt: z.number(), // Timestamp when the client joined the room
 });
-export type ClientType = z.infer<typeof ClientSchema>;
+export type ClientDataType = z.infer<typeof ClientDataSchema>;
 const ClientChangeMessageSchema = z.object({
   type: z.literal("CLIENT_CHANGE"),
-  clients: z.array(ClientSchema),
+  clients: z.array(ClientDataSchema),
 });
 
 // Set audio sources

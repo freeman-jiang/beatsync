@@ -1,18 +1,17 @@
-import { ClientType, GRID } from "@beatsync/shared";
+import { ClientDataType, GRID } from "@beatsync/shared";
 
 /**
  * Positions clients in a circle around a center point
  * @param clients Map of clients to position
  */
-export function positionClientsInCircle(
-  clients: Map<string, ClientType>
-): void {
-  const clientCount = clients.size;
+export function positionClientsInCircle(clients: ClientDataType[]): void {
+  const clientCount = clients.length;
+  if (clientCount === 0) return;
 
   // Early return for single client case
   if (clientCount === 1) {
     // Center the single client explicitly
-    const client = clients.values().next().value!;
+    const client = clients[0];
     client.position = {
       x: GRID.ORIGIN_X,
       y: GRID.ORIGIN_Y - 25,
@@ -30,16 +29,5 @@ export function positionClientsInCircle(
       y: GRID.ORIGIN_Y + GRID.CLIENT_RADIUS * Math.sin(angle),
     };
     index++;
-  });
-}
-
-/**
- * Debug function to print client positions
- * @param clients Map of clients to debug
- */
-export function debugClientPositions(clients: Map<string, ClientType>): void {
-  console.log("Client Positions:");
-  clients.forEach((client, id) => {
-    console.log(`Client ${id}: x=${client.position.x}, y=${client.position.y}`);
   });
 }

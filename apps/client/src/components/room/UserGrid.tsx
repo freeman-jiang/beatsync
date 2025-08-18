@@ -2,7 +2,7 @@
 import { useClientId } from "@/hooks/useClientId";
 import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
-import { ClientType, GRID } from "@beatsync/shared";
+import { ClientDataType, GRID } from "@beatsync/shared";
 import { ArrowUp, Crown, HeadphonesIcon, Rotate3D } from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +19,7 @@ import {
 
 // Define prop types for components
 interface ClientAvatarProps {
-  client: ClientType;
+  client: ClientDataType;
   isCurrentUser: boolean;
   animationSyncKey: number;
   isGridEnabled: boolean;

@@ -41,10 +41,8 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
       `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
     );
 
-    // TODO: this is not ideal:
-    // - we need to send one message per event, what we are really trying to do is sync this client
-    // We should actually just create a single unicast message catching the client up with all of this bundled into one message (even broadcast is fine but it should be one message)
-    // just the issue is that we do diff instead of full state sync
+    // Send audio sources via broadcast (which will include the newly joined client)
+    // This ensures all clients stay in sync
     sendBroadcast({
       server,
       roomId,
@@ -56,8 +54,6 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
           currentAudioSource: room.getPlaybackState().audioSource || undefined,
         },
       },
-      // Optionally, you could add a filter to only send to this ws if needed,
-      // but by default this will broadcast to all in the room.
     });
   }
 

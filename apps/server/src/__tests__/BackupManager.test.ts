@@ -41,16 +41,18 @@ describe("BackupManager (Simplified Tests)", () => {
 
       // Verify the structure matches what BackupManager expects
       expect(room1Backup).toMatchObject({
-        clients: [],
+        clientDatas: [],
         audioSources: [
           { url: "https://example.com/audio1.mp3" },
           { url: "https://example.com/audio2.mp3" },
         ],
+        globalVolume: 1,
       });
 
       expect(room2Backup).toMatchObject({
-        clients: [],
+        clientDatas: [],
         audioSources: [{ url: "https://example.com/audio3.mp3" }],
+        globalVolume: 1,
       });
     });
 
@@ -89,8 +91,9 @@ describe("BackupManager (Simplified Tests)", () => {
       const backupState = emptyRoom.createBackup();
 
       expect(backupState).toMatchObject({
-        clients: [],
+        clientDatas: [],
         audioSources: [],
+        globalVolume: 1,
       });
     });
   });
@@ -104,10 +107,12 @@ describe("BackupManager (Simplified Tests)", () => {
       const backupState = room.createBackup();
 
       // Verify the structure matches our schema expectations
-      expect(backupState).toHaveProperty("clients");
+      expect(backupState).toHaveProperty("clientDatas");
       expect(backupState).toHaveProperty("audioSources");
-      expect(Array.isArray(backupState.clients)).toBe(true);
+      expect(backupState).toHaveProperty("globalVolume");
+      expect(Array.isArray(backupState.clientDatas)).toBe(true);
       expect(Array.isArray(backupState.audioSources)).toBe(true);
+      expect(backupState.globalVolume).toBe(1);
 
       // Each audio source should have a url property
       backupState.audioSources.forEach((source) => {

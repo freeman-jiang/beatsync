@@ -11,7 +11,7 @@ import { sendWSRequest } from "@/utils/ws";
 import {
   AudioSourceType,
   ClientActionEnum,
-  ClientType,
+  ClientDataType,
   GlobalVolumeConfigType,
   GRID,
   NTP_CONSTANTS,
@@ -67,8 +67,8 @@ interface GlobalStateValues {
   isSpatialAudioEnabled: boolean;
 
   // Connected clients
-  connectedClients: ClientType[];
-  currentUser: ClientType | null;
+  connectedClients: ClientDataType[];
+  currentUser: ClientDataType | null;
 
   // NTP
   ntpMeasurements: NTPMeasurement[];
@@ -138,7 +138,7 @@ interface GlobalState extends GlobalStateValues {
   setIsDraggingListeningSource: (isDragging: boolean) => void;
   setIsSpatialAudioEnabled: (isEnabled: boolean) => void;
   processStopSpatialAudio: () => void;
-  setConnectedClients: (clients: ClientType[]) => void;
+  setConnectedClients: (clients: ClientDataType[]) => void;
   sendNTPRequest: () => void;
   resetNTPConfig: () => void;
   addNTPMeasurement: (measurement: NTPMeasurement) => void;

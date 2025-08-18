@@ -1,6 +1,7 @@
 import {
   AudioSourceType,
-  ClientType,
+  ClientDataSchema,
+  ClientDataType,
   DiscoveryRoomType,
   epochNow,
   NTP_CONSTANTS,
@@ -25,7 +26,7 @@ import { WSData } from "../utils/websocket";
 
 interface RoomData {
   audioSources: AudioSourceType[];
-  clients: Map<string, ClientType>;
+  clients: ClientDataType[];
   roomId: string;
   intervalId?: NodeJS.Timeout;
   listeningSource: PositionType;
@@ -33,22 +34,14 @@ interface RoomData {
   globalVolume: number; // Master volume multiplier (0-1)
 }
 
-// Define Zod schemas for backup validation
-const BackupClientSchema = z.object({
-  clientId: z.string(),
-  username: z.string(),
-  isAdmin: z.boolean(),
-});
-
 export const ClientCacheBackupSchema = z.record(
   z.string(),
   z.object({ isAdmin: z.boolean() })
 );
 
 const RoomBackupSchema = z.object({
-  clients: z.array(BackupClientSchema),
+  clientDatas: z.array(ClientDataSchema),
   audioSources: z.array(AudioSourceSchema),
-  clientCache: ClientCacheBackupSchema.optional(),
   globalVolume: z.number().min(0).max(1).default(1.0),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
@@ -82,8 +75,8 @@ const INITIAL_PLAYBACK_STATE: RoomPlaybackState = {
  * Each room has its own instance of RoomManager.
  */
 export class RoomManager {
-  private clients = new Map<string, ClientType>();
-  private clientCache = new Map<string, Pick<ClientType, "isAdmin">>(); // user id -> isAdmin
+  private clientData = new Map<string, ClientDataType>(); // map of clientId -> client data
+  private wsConnections = new Map<string, ServerWebSocket<WSData>>(); // map of clientId -> ws
   private audioSources: AudioSourceType[] = [];
   private listeningSource: PositionType = {
     x: GRID.ORIGIN_X,
@@ -134,27 +127,25 @@ export class RoomManager {
     const { username, clientId } = ws.data;
 
     // Check if this username has cached admin status
-    const cachedClient = this.clientCache.get(clientId);
+    const cachedClient = this.clientData.get(clientId);
 
     // The first client to join a room will always be an admin, otherwise they are an admin if they were an admin in the past
-    const isAdmin = cachedClient?.isAdmin || this.clients.size === 0;
+    const isAdmin = cachedClient?.isAdmin || this.clientData.size === 0;
 
-    // Update the client cache
-    this.clientCache.set(clientId, { isAdmin });
-
-    // Add the new client
-    this.clients.set(clientId, {
+    // 1) Set client data
+    this.clientData.set(clientId, {
       joinedAt: Date.now(),
       username,
       clientId,
-      ws,
       isAdmin,
       rtt: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
     });
+    // 2) Set ws connection (actually adds to room)
+    this.wsConnections.set(clientId, ws);
 
-    positionClientsInCircle(this.clients);
+    positionClientsInCircle(this.getClients());
 
     // Idempotently start heartbeat checking
     this.startHeartbeatChecking();
@@ -167,30 +158,27 @@ export class RoomManager {
    * Remove a client from the room
    */
   removeClient(clientId: string): void {
-    this.clients.delete(clientId);
-
+    // Actually remove the client from both maps
+    this.clientData.delete(clientId);
+    this.wsConnections.delete(clientId);
+    
+    const activeClients = this.getClients();
     // Reposition remaining clients if any
-    if (this.clients.size > 0) {
-      positionClientsInCircle(this.clients);
-
+    if (activeClients.length > 0) {
       // Always check to ensure there is at least one admin
+      positionClientsInCircle(activeClients);
 
       // Check if any admins remain after removing this client
-      const remainingAdmins = Array.from(this.clients.values()).filter(
-        (client) => client.isAdmin
-      );
+      const remainingAdmins = activeClients.filter((client) => client.isAdmin);
 
       // If no admins remain, randomly select a new admin
       if (remainingAdmins.length === 0) {
-        const remainingClients = Array.from(this.clients.values());
-        const randomIndex = Math.floor(Math.random() * remainingClients.length);
-        const newAdmin = remainingClients[randomIndex];
+        const randomIndex = Math.floor(Math.random() * activeClients.length);
+        const newAdmin = activeClients[randomIndex];
 
         if (newAdmin) {
           newAdmin.isAdmin = true;
-          this.clients.set(newAdmin.clientId, newAdmin);
-          this.clientCache.set(newAdmin.clientId, { isAdmin: true });
-
+          this.clientData.set(newAdmin.clientId, newAdmin);
           console.log(
             `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
           );
@@ -212,13 +200,10 @@ export class RoomManager {
     targetClientId: string;
     isAdmin: boolean;
   }): void {
-    const client = this.clients.get(targetClientId);
+    const client = this.clientData.get(targetClientId);
     if (!client) return;
     client.isAdmin = isAdmin;
-    this.clients.set(targetClientId, client);
-
-    // Update the client cache to remember this admin status
-    this.clientCache.set(client.clientId, { isAdmin });
+    this.clientData.set(targetClientId, client);
   }
 
   setPlaybackControls(
@@ -281,23 +266,14 @@ export class RoomManager {
     };
   }
 
-  // Restore client cache from backup
-  restoreClientCache(cache: z.infer<typeof ClientCacheBackupSchema>): void {
-    this.clientCache = new Map(Object.entries(cache));
-  }
-
   /**
    * Get all clients in the room
    */
-  getClients(): ClientType[] {
-    return Array.from(this.clients.values());
-  }
-
-  /**
-   * Check if the room is empty
-   */
-  isEmpty(): boolean {
-    return this.clients.size === 0;
+  getClients(): ClientDataType[] {
+    // Only return clients that have an active WebSocket connection
+    return Array.from(this.clientData.values()).filter((client) =>
+      this.wsConnections.has(client.clientId)
+    );
   }
 
   /**
@@ -306,7 +282,7 @@ export class RoomManager {
    */
   hasActiveConnections(): boolean {
     const now = Date.now();
-    const clients = Array.from(this.clients.values());
+    const clients = this.getClients();
 
     for (const client of clients) {
       // A client is considered active if they've sent an NTP request within the timeout window
@@ -325,7 +301,7 @@ export class RoomManager {
   getState(): RoomData {
     return {
       audioSources: this.audioSources,
-      clients: this.clients,
+      clients: this.getClients(),
       roomId: this.roomId,
       intervalId: this.intervalId,
       listeningSource: this.listeningSource,
@@ -340,14 +316,14 @@ export class RoomManager {
   getStats(): RoomType {
     return {
       roomId: this.roomId,
-      clientCount: this.clients.size,
+      clientCount: this.getClients().length,
       audioSourceCount: this.audioSources.length,
       hasSpatialAudio: !!this.intervalId,
     };
   }
 
   getNumClients(): number {
-    return this.clients.size;
+    return this.getClients().length;
   }
 
   /**
@@ -369,10 +345,11 @@ export class RoomManager {
    * Get the maximum RTT among all connected clients
    */
   getMaxClientRTT(): number {
-    if (this.clients.size === 0) return DEFAULT_CLIENT_RTT_MS; // Default RTT if no clients
+    const activeClients = this.getClients();
+    if (activeClients.length === 0) return DEFAULT_CLIENT_RTT_MS; // Default RTT if no clients
 
     let maxRTT = DEFAULT_CLIENT_RTT_MS; // Minimum default RTT
-    for (const client of this.clients.values()) {
+    for (const client of activeClients) {
       if (client.rtt > maxRTT) {
         maxRTT = client.rtt;
       }
@@ -398,7 +375,7 @@ export class RoomManager {
    * Receive an NTP request from a client
    */
   processNTPRequestFrom(clientId: string, clientRTT?: number): void {
-    const client = this.clients.get(clientId);
+    const client = this.clientData.get(clientId);
     if (!client) return;
     client.lastNtpResponse = Date.now();
 
@@ -411,14 +388,14 @@ export class RoomManager {
           : clientRTT; // First measurement
     }
 
-    this.clients.set(clientId, client);
+    this.clientData.set(clientId, client);
   }
 
   /**
    * Reorder clients, moving the specified client to the front
    */
-  reorderClients(clientId: string, server: Server): ClientType[] {
-    const clients = Array.from(this.clients.values());
+  reorderClients(clientId: string, server: Server): ClientDataType[] {
+    const clients = this.getClients();
     const clientIndex = clients.findIndex(
       (client) => client.clientId === clientId
     );
@@ -430,13 +407,13 @@ export class RoomManager {
     clients.unshift(client);
 
     // Update the clients map to maintain the new order
-    this.clients.clear();
+    this.clientData.clear();
     clients.forEach((client) => {
-      this.clients.set(client.clientId, client);
+      this.clientData.set(client.clientId, client);
     });
 
     // Update client positions based on new order
-    positionClientsInCircle(this.clients);
+    positionClientsInCircle(this.getClients());
 
     // Update gains
     this._calculateGainsAndBroadcast(server);
@@ -448,11 +425,11 @@ export class RoomManager {
    * Move a client to a new position
    */
   moveClient(clientId: string, position: PositionType, server: Server): void {
-    const client = this.clients.get(clientId);
+    const client = this.clientData.get(clientId);
     if (!client) return;
 
     client.position = position;
-    this.clients.set(clientId, client);
+    this.clientData.set(clientId, client);
 
     // Update spatial audio config
     this._calculateGainsAndBroadcast(server);
@@ -498,7 +475,7 @@ export class RoomManager {
     let loopCount = 0;
 
     const updateSpatialAudio = () => {
-      const clients = Array.from(this.clients.values());
+      const clients = this.getClients();
       console.log(
         `ROOM ${this.roomId} LOOP ${loopCount}: Connected clients: ${clients.length}`
       );
@@ -646,33 +623,25 @@ export class RoomManager {
     ws: ServerWebSocket<WSData>;
     message: z.infer<typeof SendLocationSchema>;
   }): void {
-    const client = this.clients.get(ws.data.clientId);
+    const client = this.clientData.get(ws.data.clientId);
     if (!client) return;
 
     client.location = location;
 
-    this.clients.set(client.clientId, client);
+    this.clientData.set(client.clientId, client);
   }
 
-  getClient(clientId: string): ClientType | undefined {
-    return this.clients.get(clientId);
+  getClient(clientId: string): ClientDataType | undefined {
+    return this.clientData.get(clientId);
   }
 
   /**
    * Get the backup state for this room
    */
   createBackup(): RoomBackupType {
-    // Convert clientCache Map to object for serialization
-    const clientCacheObject = Object.fromEntries(this.clientCache);
-
     return {
-      clients: this.getClients().map((client) => ({
-        clientId: client.clientId,
-        username: client.username,
-        isAdmin: client.isAdmin,
-      })),
+      clientDatas: Array.from(this.clientData.values()),
       audioSources: this.audioSources,
-      clientCache: clientCacheObject,
       globalVolume: this.globalVolume,
     };
   }
@@ -724,7 +693,7 @@ export class RoomManager {
    * Calculate gains and broadcast to all clients
    */
   private _calculateGainsAndBroadcast(server: Server): void {
-    const clients = Array.from(this.clients.values());
+    const clients = this.getClients();
 
     const gains = Object.fromEntries(
       clients.map((client) => {
@@ -782,28 +751,36 @@ export class RoomManager {
       const staleClients: string[] = [];
 
       // Check each client's last heartbeat
-      this.clients.forEach((client, clientId) => {
+      const activeClients = this.getClients();
+      activeClients.forEach((client) => {
         const timeSinceLastResponse = now - client.lastNtpResponse;
 
         if (timeSinceLastResponse > NTP_CONSTANTS.RESPONSE_TIMEOUT_MS) {
           console.warn(
-            `⚠️ Client ${clientId} in room ${this.roomId} has not responded for ${timeSinceLastResponse}ms`
+            `⚠️ Client ${client.clientId} in room ${this.roomId} has not responded for ${timeSinceLastResponse}ms`
           );
-          staleClients.push(clientId);
+          staleClients.push(client.clientId);
         }
       });
 
       // Remove stale clients
       staleClients.forEach((clientId) => {
-        const client = this.clients.get(clientId);
+        const client = this.clientData.get(clientId);
         if (client) {
           console.log(
             `🔌 Disconnecting stale client ${clientId} from room ${this.roomId}`
           );
           // Close the WebSocket connection
           try {
-            const ws: ServerWebSocket<WSData> = client.ws;
+            const ws = this.wsConnections.get(clientId);
+            if (!ws) {
+              console.error(
+                `❌ No WebSocket connection found for client ${clientId} in room ${this.roomId}`
+              );
+              return;
+            }
             ws.close(1000, "Connection timeout - no heartbeat response");
+            this.wsConnections.delete(clientId);
           } catch (error) {
             console.error(
               `Error closing WebSocket for client ${clientId}:`,
@@ -836,5 +813,11 @@ export class RoomManager {
       audioSources: this.audioSources,
       playbackState: this.playbackState,
     };
+  }
+
+  restoreClientData(clientData: ClientDataType[]): void {
+    clientData.forEach((client) => {
+      this.clientData.set(client.clientId, client);
+    });
   }
 }

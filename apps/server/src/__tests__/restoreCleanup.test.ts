@@ -13,14 +13,16 @@ mock.module("../lib/r2", () => ({
       data: {
         rooms: {
           "test-room-1": {
-            clients: [{ clientId: "ghost-1", username: "user1", isAdmin: false }],
+            clientDatas: [{ clientId: "ghost-1", username: "user1", isAdmin: false, joinedAt: Date.now(), rtt: 0, position: { x: 0, y: 0 }, lastNtpResponse: Date.now() }],
             audioSources: [
-              { id: "audio-1", url: "test.mp3", name: "Test Audio" },
+              { url: "test.mp3" },
             ],
+            globalVolume: 1,
           },
           "test-room-2": {
-            clients: [],
+            clientDatas: [],
             audioSources: [],
+            globalVolume: 1,
           },
         },
       },
@@ -168,11 +170,11 @@ describe("Restore Cleanup", () => {
       position: { x: 0, y: 0 },
     };
 
-    // Manually add ghost to clients map
-    (room as any).clients.set("ghost-1", ghostClient);
+    // Manually add ghost to clientData map
+    (room as any).clientData.set("ghost-1", ghostClient);
 
     // Room should not be empty (has a ghost)
-    expect(room.isEmpty()).toBe(false);
+    expect(room.getClients().length).toBe(0); // Ghost client has no WebSocket so it won't be returned
 
     // But should have no active connections
     expect(room.hasActiveConnections()).toBe(false);

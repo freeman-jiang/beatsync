@@ -1,7 +1,7 @@
 "use client";
-import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { ClientType } from "@beatsync/shared";
+import { cn } from "@/lib/utils";
+import { ClientDataType } from "@beatsync/shared";
 import { TooltipPortal } from "@radix-ui/react-tooltip";
 import { Crown, MoreVertical, User } from "lucide-react";
 import { motion } from "motion/react";
@@ -15,15 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "../ui/popover";
 
 export interface ConnectedUserItemProps {
-  client: ClientType;
+  client: ClientDataType;
   isCurrentUser: boolean;
   isAdmin: boolean;
   onSetAdmin: (clientId: string, isAdmin: boolean) => void;
@@ -56,9 +52,7 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(
           <div className="space-y-1 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-3 flex justify-center">
-                <span className="text-sm">
-                  {client.location.flagEmoji}
-                </span>
+                <span className="text-sm">{client.location.flagEmoji}</span>
               </div>
               <span className="text-foreground/70">
                 {`${client.location.city}, ${client.location.region} • ${client.location.country}`}
@@ -84,9 +78,7 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(
             className="object-cover w-full h-full"
           />
           <AvatarFallback
-            className={
-              isCurrentUser ? "bg-primary-600" : "bg-neutral-600"
-            }
+            className={isCurrentUser ? "bg-primary-600" : "bg-neutral-600"}
           >
             {client.username
               .split("-")
@@ -142,9 +134,7 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(
           </Popover>
         ) : (
           <Tooltip delayDuration={100}>
-            <TooltipTrigger asChild>
-              {avatarContent}
-            </TooltipTrigger>
+            <TooltipTrigger asChild>{avatarContent}</TooltipTrigger>
             <TooltipPortal>
               <TooltipContent
                 side="top"
@@ -157,53 +147,53 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(
             </TooltipPortal>
           </Tooltip>
         )}
-          <div className="flex flex-col min-w-0">
-            <div className="text-xs font-medium truncate">
-              <span>{client.username}</span>
-            </div>
+        <div className="flex flex-col min-w-0">
+          <div className="text-xs font-medium truncate">
+            <span>{client.username}</span>
           </div>
-          <Badge
-            variant={isCurrentUser ? "default" : "outline"}
-            className={cn(
-              "ml-auto text-xs shrink-0 min-w-[60px] text-center py-0 h-5",
-              isCurrentUser ? "bg-primary-600 text-primary-50" : ""
-            )}
-          >
-            {isCurrentUser ? "You" : "Connected"}
-          </Badge>
-          {/* Admin controls dropdown - only show if current user is admin and not targeting self */}
-          {isAdmin && !isCurrentUser && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 hover:bg-neutral-700/50"
-                >
-                  <MoreVertical className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                {client.isAdmin ? (
-                  <DropdownMenuItem
-                    onClick={() => onSetAdmin(client.clientId, false)}
-                    className="text-xs"
-                  >
-                    <Crown className="h-3 w-3 mr-2 text-red-500" />
-                    Remove Admin
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    onClick={() => onSetAdmin(client.clientId, true)}
-                    className="text-xs"
-                  >
-                    <Crown className="h-3 w-3 mr-2 text-green-500" />
-                    Make Admin
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        </div>
+        <Badge
+          variant={isCurrentUser ? "default" : "outline"}
+          className={cn(
+            "ml-auto text-xs shrink-0 min-w-[60px] text-center py-0 h-5",
+            isCurrentUser ? "bg-primary-600 text-primary-50" : ""
           )}
+        >
+          {isCurrentUser ? "You" : "Connected"}
+        </Badge>
+        {/* Admin controls dropdown - only show if current user is admin and not targeting self */}
+        {isAdmin && !isCurrentUser && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-neutral-700/50"
+              >
+                <MoreVertical className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              {client.isAdmin ? (
+                <DropdownMenuItem
+                  onClick={() => onSetAdmin(client.clientId, false)}
+                  className="text-xs"
+                >
+                  <Crown className="h-3 w-3 mr-2 text-red-500" />
+                  Remove Admin
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => onSetAdmin(client.clientId, true)}
+                  className="text-xs"
+                >
+                  <Crown className="h-3 w-3 mr-2 text-green-500" />
+                  Make Admin
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </motion.div>
     );
   }

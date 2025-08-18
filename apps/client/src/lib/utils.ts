@@ -1,4 +1,4 @@
-import type { ClientType } from "@beatsync/shared";
+import type { ClientDataType } from "@beatsync/shared";
 import { R2_AUDIO_FILE_NAME_DELIMITER } from "@beatsync/shared";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Get the oldest client in a room (first to join based on joinedAt timestamp)
  */
-export function getOldestClient(clients: ClientType[]): ClientType {
+export function getOldestClient(clients: ClientDataType[]): ClientDataType {
   if (!clients || clients.length === 0) {
     throw new Error("No clients provided");
   }

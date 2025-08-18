@@ -3,9 +3,14 @@ import { handleOpen } from "../routes/websocketHandlers";
 import { globalManager } from "../managers/GlobalManager";
 import { Server } from "bun";
 
-// Mock the sendBroadcast and sendUnicast functions
+// Track messages sent via sendBroadcast
+let broadcastMessages: Array<{ server: any; roomId: string; message: any }> = [];
+
+// Mock the sendBroadcast and sendUnicast functions  
 mock.module("../utils/responses", () => ({
-  sendBroadcast: mock(() => {}),
+  sendBroadcast: mock(({ server, roomId, message }: { server: any; roomId: string; message: any }) => {
+    broadcastMessages.push({ server, roomId, message });
+  }),
   sendUnicast: mock(() => {}),
   corsHeaders: {},
   jsonResponse: mock(() => new Response()),
@@ -14,6 +19,9 @@ mock.module("../utils/responses", () => ({
 
 describe("WebSocket Handlers (Simplified Tests)", () => {
   beforeEach(async () => {
+    // Clear broadcast messages
+    broadcastMessages = [];
+    
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
@@ -29,8 +37,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       room.addAudioSource({ url: "https://example.com/song1.mp3" });
       room.addAudioSource({ url: "https://example.com/song2.mp3" });
 
-      // Track messages sent to the WebSocket
-      const sentMessages: string[] = [];
+      // Create mock WebSocket
       const mockWs = {
         data: {
           username: "returningUser",
@@ -38,9 +45,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           roomId: roomId,
         },
         subscribe: mock(() => {}),
-        send: mock((message: string) => {
-          sentMessages.push(message);
-        }),
+        send: mock(() => {}),
       };
 
       const mockServer = {
@@ -50,25 +55,19 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       // Simulate client connection
       handleOpen(mockWs as any, mockServer);
 
-      // Verify SET_AUDIO_SOURCES was sent
-      const audioSourcesMessage = sentMessages.find((msg) => {
-        try {
-          const parsed = JSON.parse(msg);
-          return (
-            parsed.type === "ROOM_EVENT" &&
-            parsed.event?.type === "SET_AUDIO_SOURCES"
-          );
-        } catch {
-          return false;
-        }
+      // Verify SET_AUDIO_SOURCES was broadcast
+      const audioSourcesMessage = broadcastMessages.find((msg) => {
+        return (
+          msg.message.type === "ROOM_EVENT" &&
+          msg.message.event?.type === "SET_AUDIO_SOURCES"
+        );
       });
 
       expect(audioSourcesMessage).toBeTruthy();
 
       // Verify the audio sources content
-      const parsed = JSON.parse(audioSourcesMessage!);
-      expect(parsed.event.sources).toHaveLength(2);
-      expect(parsed.event.sources).toEqual([
+      expect(audioSourcesMessage!.message.event.sources).toHaveLength(2);
+      expect(audioSourcesMessage!.message.event.sources).toEqual([
         { url: "https://example.com/song1.mp3" },
         { url: "https://example.com/song2.mp3" },
       ]);
@@ -79,8 +78,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       const roomId = "new-room";
       globalManager.getOrCreateRoom(roomId);
 
-      // Track messages sent to the WebSocket
-      const sentMessages: string[] = [];
+      // Create mock WebSocket
       const mockWs = {
         data: {
           username: "newUser",
@@ -88,29 +86,25 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           roomId: roomId,
         },
         subscribe: mock(() => {}),
-        send: mock((message: string) => {
-          sentMessages.push(message);
-        }),
+        send: mock(() => {}),
       };
 
       const mockServer = {
         publish: mock(() => {}),
       } as unknown as Server;
 
+      // Clear broadcast messages before this test
+      broadcastMessages = [];
+
       // Simulate client connection
       handleOpen(mockWs as any, mockServer);
 
-      // Verify no SET_AUDIO_SOURCES was sent
-      const audioSourcesMessage = sentMessages.find((msg) => {
-        try {
-          const parsed = JSON.parse(msg);
-          return (
-            parsed.type === "ROOM_EVENT" &&
-            parsed.event?.type === "SET_AUDIO_SOURCES"
-          );
-        } catch {
-          return false;
-        }
+      // Verify no SET_AUDIO_SOURCES was broadcast
+      const audioSourcesMessage = broadcastMessages.find((msg) => {
+        return (
+          msg.message.type === "ROOM_EVENT" &&
+          msg.message.event?.type === "SET_AUDIO_SOURCES"
+        );
       });
 
       expect(audioSourcesMessage).toBeUndefined();
@@ -123,7 +117,6 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       room.addAudioSource({ url: "https://example.com/shared.mp3" });
 
       // First client joins
-      const client1Messages: string[] = [];
       const mockWs1 = {
         data: {
           username: "user1",
@@ -131,13 +124,10 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           roomId: roomId,
         },
         subscribe: mock(() => {}),
-        send: mock((message: string) => {
-          client1Messages.push(message);
-        }),
+        send: mock(() => {}),
       };
 
       // Second client joins
-      const client2Messages: string[] = [];
       const mockWs2 = {
         data: {
           username: "user2",
@@ -145,37 +135,35 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           roomId: roomId,
         },
         subscribe: mock(() => {}),
-        send: mock((message: string) => {
-          client2Messages.push(message);
-        }),
+        send: mock(() => {}),
       };
 
       const mockServer = {
         publish: mock(() => {}),
       } as unknown as Server;
 
+      // Clear broadcast messages
+      broadcastMessages = [];
+
       // Both clients connect
       handleOpen(mockWs1 as any, mockServer);
       handleOpen(mockWs2 as any, mockServer);
 
-      // Verify both clients received the audio sources
-      for (const messages of [client1Messages, client2Messages]) {
-        const audioSourcesMessage = messages.find((msg) => {
-          try {
-            const parsed = JSON.parse(msg);
-            return (
-              parsed.type === "ROOM_EVENT" &&
-              parsed.event?.type === "SET_AUDIO_SOURCES"
-            );
-          } catch {
-            return false;
-          }
-        });
+      // Count how many SET_AUDIO_SOURCES broadcasts were sent
+      const audioSourcesMessages = broadcastMessages.filter((msg) => {
+        return (
+          msg.message.type === "ROOM_EVENT" &&
+          msg.message.event?.type === "SET_AUDIO_SOURCES"
+        );
+      });
 
-        expect(audioSourcesMessage).toBeTruthy();
-        const parsed = JSON.parse(audioSourcesMessage!);
-        expect(parsed.event.sources).toHaveLength(1);
-        expect(parsed.event.sources[0].url).toBe(
+      // Should have broadcast audio sources twice (once for each client joining)
+      expect(audioSourcesMessages).toHaveLength(2);
+      
+      // Verify the content of audio sources
+      for (const msg of audioSourcesMessages) {
+        expect(msg.message.event.sources).toHaveLength(1);
+        expect(msg.message.event.sources[0].url).toBe(
           "https://example.com/shared.mp3"
         );
       }

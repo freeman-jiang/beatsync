@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AudioSourceSchema } from "./basic";
-import { ClientSchema } from "./WSBroadcast";
+import { ClientDataSchema } from "./WSBroadcast";
 
 // Legacy upload schema (deprecated)
 export const UploadAudioSchema = z.object({
@@ -69,7 +69,7 @@ export type GetActiveRoomsType = z.infer<typeof GetActiveRoomsSchema>;
 
 export const DiscoveryRoomSchema = z.object({
   roomId: z.string(),
-  clients: z.array(ClientSchema),
+  clients: z.array(ClientDataSchema),
   audioSources: z.array(AudioSourceSchema),
   playbackState: z.object({
     type: z.enum(["playing", "paused"]),
