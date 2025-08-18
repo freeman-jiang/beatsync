@@ -63,75 +63,64 @@ export const ActiveRooms = () => {
             )}
             onClick={() => handleJoinRoom(room.roomId)}
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                {/* Flag indicator - show oldest user's flag */}
-                <div className="relative size-10 flex-shrink-0">
-                  {(() => {
-                    const oldestClient = getOldestClient(room.clients);
-                    const flagSvgURL = oldestClient.location?.flagSvgURL;
-                    const isPlaying = room.playbackState.type === "playing";
+            <div className="flex items-center gap-3">
+              {/* Flag indicator - show oldest user's flag */}
+              <div className="relative size-10 flex-shrink-0">
+                {(() => {
+                  const oldestClient = getOldestClient(room.clients);
+                  const flagSvgURL = oldestClient.location?.flagSvgURL;
+                  const isPlaying = room.playbackState.type === "playing";
 
-                    return (
-                      <div
-                        className={cn(
-                          "w-full h-full rounded flex items-center justify-center overflow-hidden",
-                          isPlaying && ""
-                        )}
-                      >
-                        {flagSvgURL ? (
-                          <img
-                            src={flagSvgURL}
-                            alt="Country flag"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
-                            <Users2 className="w-5 h-5 text-neutral-600" />
-                          </div>
-                        )}
-                        {/* {isPlaying && (
-                          <div className="absolute -top-1 -right-1">
-                            <div className="relative flex items-center justify-center">
-                              <div className="size-2 bg-green-500 rounded-full" />
-                              <div className="absolute size-2 bg-green-500/30 rounded-full animate-ping" />
-                            </div>
-                          </div>
-                        )} */}
-                      </div>
-                    );
-                  })()}
-                </div>
+                  return (
+                    <div
+                      className={cn(
+                        "w-full h-full rounded flex items-center justify-center overflow-hidden",
+                        isPlaying && ""
+                      )}
+                    >
+                      {flagSvgURL ? (
+                        <img
+                          src={flagSvgURL}
+                          alt="Country flag"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+                          <Users2 className="w-5 h-5 text-neutral-600" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
 
-                {/* Track info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate leading-tight">
+              {/* Two-row content */}
+              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                {/* Top row: Track title + track count */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-white truncate leading-tight flex-1">
                     {extractFileNameFromUrl(room.playbackState.audioSource) ||
                       "No track playing"}
                   </p>
-                  <p className="text-xs font-mono text-neutral-500 mt-0.5">
-                    {room.roomId}
-                  </p>
-                </div>
-              </div>
-
-              {/* Stacked avatars and arrow */}
-              <div className="flex items-center gap-3">
-                {/* Track count and stacked country flag avatars */}
-                <div className="flex flex-col items-end gap-1">
-                  {/* Track count on top */}
                   {room.audioSources.length > 1 && (
-                    <span className="text-[11px] text-neutral-500 font-medium">
+                    <span className="text-[11px] text-neutral-500 font-medium ml-2">
                       {room.audioSources.length} tracks
                     </span>
                   )}
-                  {/* Stacked country flag avatars on bottom */}
-                  <div className="flex items-center gap-2">
+                </div>
+
+                {/* Bottom row: Room ID + avatars */}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-mono text-neutral-500">
+                    {room.roomId}
+                  </p>
+                  {/* Stacked country flag avatars */}
+                  <div className="flex items-center gap-1">
                     <div className="flex -space-x-2.5">
                       {room.clients.slice(0, 5).map((client) => (
                         <Avatar
                           key={client.clientId}
-                          className="size-5 ring-1 ring-black/60 transition-all"
+                          className="size-[18px] ring-1 ring-black/60"
                         >
                           {client.location?.flagSvgURL ? (
                             <AvatarImage
@@ -142,21 +131,23 @@ export const ActiveRooms = () => {
                             />
                           ) : (
                             <AvatarFallback className="bg-neutral-800">
-                              <Users2 className="w-2.5 h-2.5 text-neutral-500" />
+                              <Users2 className="w-2 h-2 text-neutral-500" />
                             </AvatarFallback>
                           )}
                         </Avatar>
                       ))}
                     </div>
                     {room.clients.length > 5 && (
-                      <span className="text-[11px] text-neutral-500 font-medium">
+                      <span className="text-[10px] text-neutral-500 font-medium">
                         +{room.clients.length - 5}
                       </span>
                     )}
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0" />
               </div>
+
+              {/* Arrow */}
+              <ChevronRight className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0" />
             </div>
           </motion.div>
         ))}
