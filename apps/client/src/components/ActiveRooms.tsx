@@ -6,7 +6,7 @@ import { cn, extractFileNameFromUrl, getOldestClient } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Users2 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
 
@@ -43,24 +43,48 @@ export const ActiveRooms = () => {
   return (
     <motion.div
       className="mt-12 w-full max-w-[32rem] mb-32"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
     >
       <h3 className="text-xs font-medium text-neutral-500 mb-1.5 uppercase tracking-[0.1em]">
         Playing Now
       </h3>
       <div className="space-y-1">
-        {discoverRooms.map((room, index) => (
-          <motion.div
-            key={room.roomId}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{
-              duration: 0.3,
-              delay: 0.1 + Math.min(index * 0.02, 0.5),
-            }}
-            className={cn(
+        <AnimatePresence initial={true}>
+          {discoverRooms.map((room, index) => (
+            <motion.div
+              key={room.roomId}
+              layout
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{
+                opacity: 0,
+                y: -10,
+                transition: {
+                  duration: 0.3,
+                  ease: [0.25, 0.1, 0.25, 1],
+                },
+              }}
+              transition={{
+                layout: {
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 40,
+                  mass: 0.8,
+                },
+                opacity: {
+                  duration: 0.6,
+                  delay: 0.5 + (0.04 * index),
+                  ease: [0.25, 0.1, 0.25, 1],
+                },
+                y: {
+                  duration: 0.6,
+                  delay: 0.5 + (0.04 * index),
+                  ease: [0.25, 0.1, 0.25, 1],
+                },
+              }}
+              className={cn(
               "group relative rounded-md p-3 -mx-3",
               "hover:bg-white/[0.05] transition-colors duration-200 cursor-pointer"
             )}
@@ -153,7 +177,8 @@ export const ActiveRooms = () => {
               <ChevronRight className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0" />
             </div>
           </motion.div>
-        ))}
+          ))}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
