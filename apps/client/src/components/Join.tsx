@@ -1,5 +1,4 @@
 "use client";
-import { ActiveRooms } from "@/components/ActiveRooms";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -20,6 +19,8 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FaDiscord, FaGithub } from "react-icons/fa";
 import { toast } from "sonner";
+import { ActiveRooms } from "./ActiveRooms";
+import { AnnouncementBanner } from "./AnnouncementBanner";
 
 interface JoinFormData {
   roomId: string;
@@ -113,12 +114,12 @@ export const Join = () => {
 
   return (
     <motion.div
-      className="fixed inset-0 flex flex-col items-center justify-center bg-neutral-950 backdrop-blur-sm overflow-y-auto"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto">
+      <AnnouncementBanner />
+      <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto mt-32">
         <motion.div
           className="flex flex-col items-center justify-center p-6 bg-neutral-900 rounded-lg border border-neutral-800 shadow-xl mx-auto"
           initial={{ opacity: 0, y: 10, scale: 0.98 }}

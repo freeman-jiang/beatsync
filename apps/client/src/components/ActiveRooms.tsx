@@ -42,13 +42,13 @@ export const ActiveRooms = () => {
 
   return (
     <motion.div
-      className="mt-12 w-full max-w-[32rem]"
+      className="mt-12 w-full max-w-[32rem] mb-32"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.2 }}
     >
-      <h3 className="text-[11px] font-semibold text-neutral-500 mb-3 uppercase tracking-[0.1em]">
-        Discover
+      <h3 className="text-xs font-medium text-neutral-500 mb-1.5 uppercase tracking-[0.1em]">
+        Playing Now
       </h3>
       <div className="space-y-1">
         {discoverRooms.map((room, index) => (
@@ -56,7 +56,10 @@ export const ActiveRooms = () => {
             key={room.roomId}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 + Math.min(index * 0.02, 0.5) }}
+            transition={{
+              duration: 0.3,
+              delay: 0.1 + Math.min(index * 0.02, 0.5),
+            }}
             className={cn(
               "group relative rounded-md p-3 -mx-3",
               "hover:bg-white/[0.05] transition-colors duration-200 cursor-pointer"
@@ -97,13 +100,13 @@ export const ActiveRooms = () => {
               {/* Two-row content */}
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 {/* Top row: Track title + track count */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white truncate leading-tight flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-white truncate leading-tight">
                     {extractFileNameFromUrl(room.playbackState.audioSource) ||
                       "No track playing"}
                   </p>
                   {room.audioSources.length > 1 && (
-                    <span className="text-[11px] text-neutral-500 font-medium ml-2">
+                    <span className="text-[11px] text-neutral-500 font-medium flex-shrink-0">
                       {room.audioSources.length} tracks
                     </span>
                   )}

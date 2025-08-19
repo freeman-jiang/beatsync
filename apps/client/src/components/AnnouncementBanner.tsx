@@ -9,7 +9,7 @@ export const AnnouncementBanner = () => {
   if (!showBanner) return null;
 
   return (
-    <div className="bg-gradient-to-bl from-neutral-900 to-neutral-800 text-white fixed top-0 left-0 right-0 z-50">
+    <div className="bg-gradient-to-bl from-neutral-900 to-neutral-800 text-white">
       <div className="relative">
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
