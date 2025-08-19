@@ -51,12 +51,12 @@ export const ActiveRooms = () => {
         Discover
       </h3>
       <div className="space-y-1">
-        {discoverRooms.slice(0, 4).map((room, index) => (
+        {discoverRooms.map((room, index) => (
           <motion.div
             key={room.roomId}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 + index * 0.05 }}
+            transition={{ duration: 0.3, delay: 0.1 + Math.min(index * 0.02, 0.5) }}
             className={cn(
               "group relative rounded-md p-3 -mx-3",
               "hover:bg-white/[0.05] transition-colors duration-200 cursor-pointer"
@@ -152,18 +152,6 @@ export const ActiveRooms = () => {
           </motion.div>
         ))}
       </div>
-
-      {discoverRooms.length > 4 && (
-        <motion.button
-          className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors mt-4 font-medium"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.4 }}
-          onClick={() => console.log("Show all rooms")}
-        >
-          Show all {discoverRooms.length} rooms
-        </motion.button>
-      )}
     </motion.div>
   );
 };

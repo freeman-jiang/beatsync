@@ -137,7 +137,9 @@ export class GlobalManager {
           room.hasActiveConnections() &&
           room.getPlaybackState().type === "playing"
       )
-      .map((room) => room.serialize());
+      .map((room) => room.serialize())
+      .sort((a, b) => b.clients.length - a.clients.length) // Sort by client count desc
+      .slice(0, 50); // Limit to top 50 rooms
 
     return activeRooms;
   }
