@@ -119,7 +119,7 @@ export const Join = () => {
       transition={{ duration: 0.5 }}
     >
       <AnnouncementBanner />
-      <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto mt-32">
+      <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto mt-20 lg:mt-24">
         <motion.div
           className="flex flex-col items-center justify-center p-6 bg-neutral-900 rounded-lg border border-neutral-800 shadow-xl mx-auto"
           initial={{ opacity: 0, y: 10, scale: 0.98 }}
