@@ -3,7 +3,9 @@ import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { Check, Copy, Link, QrCode } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { QRCodeSVG } from "qrcode.react";
+// import { QRCodeCanvas } from "qrcode.react";
+import QRCode from "react-qr-code";
+
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -58,18 +60,19 @@ export const RoomQRCode = () => {
           </DialogHeader>
           <Separator className="my-0 bg-neutral-800/50" />
           <div className="flex flex-col items-center space-y-4 pb-6">
-            <div className="w-full h-full lg:px-12 max-w-full">
-              <QRCodeSVG
-                value={roomUrl}
-                bgColor="transparent"
-                fgColor="#ffffff"
-                className="rounded-lg"
-                level="M"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                }}
-              />
+            <div className="w-full lg:px-8">
+              <div className="w-full h-full" style={{ height: "auto" }}>
+                <QRCode
+                  value={roomUrl}
+                  size={256}
+                  style={{ width: "100%", maxWidth: "100%", height: "auto" }}
+                  viewBox="0 0 256 256"
+                  fgColor="#ffffff"
+                  bgColor="#000000"
+                  className="rounded-lg"
+                  level="M"
+                />
+              </div>
             </div>
 
             {/* Copy URL Button */}
