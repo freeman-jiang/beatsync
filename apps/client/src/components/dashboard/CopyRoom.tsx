@@ -58,13 +58,17 @@ export const RoomQRCode = () => {
           </DialogHeader>
           <Separator className="my-0 bg-neutral-800/50" />
           <div className="flex flex-col items-center space-y-4 pb-6">
-            <div className="w-full h-full lg:px-12">
+            <div className="w-full h-full lg:px-12 max-w-full">
               <QRCodeSVG
                 value={roomUrl}
                 bgColor="transparent"
                 fgColor="#ffffff"
-                className="w-full h-full rounded-lg"
+                className="rounded-lg"
                 level="M"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
               />
             </div>
 
