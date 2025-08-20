@@ -2,6 +2,7 @@
 import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { Check, Copy, QrCode } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import {
@@ -81,12 +82,32 @@ export const RoomQRCode = () => {
                   <span className="text-sm font-mono text-white">{roomId}</span>
                 </div>
               </div>
-              <div className="text-neutral-400 group-hover:text-white transition-colors">
-                {copied ? (
-                  <Check size={16} className="text-green-500" />
-                ) : (
-                  <Copy size={16} />
-                )}
+              <div className="relative w-4 h-4 flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  {copied ? (
+                    <motion.div
+                      key="check"
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      transition={{ duration: 0.1, ease: "easeOut" }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <Check size={16} className="text-green-500" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="copy"
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      transition={{ duration: 0.1, ease: "easeOut" }}
+                      className="absolute inset-0 flex items-center justify-center text-neutral-400 group-hover:text-white transition-colors"
+                    >
+                      <Copy size={16} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </button>
           </div>
