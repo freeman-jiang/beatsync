@@ -1,10 +1,11 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
-import { Check, Copy, QrCode } from "lucide-react";
+import { Check, Copy, Link, QrCode } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ export const RoomQRCode = () => {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+      toast.error("Failed to copy room URL");
     }
   };
 
@@ -50,13 +52,13 @@ export const RoomQRCode = () => {
               <QrCode size={18} className="text-neutral-400" />
               Share Beatsync Room
             </DialogTitle>
-            <DialogDescription className="text-neutral-400 -mt-1.5">
+            <DialogDescription className="text-neutral-400 -mt-1.5 text-left">
               Scan QR code to join room {roomId}
             </DialogDescription>
           </DialogHeader>
           <Separator className="my-0 bg-neutral-800/50" />
           <div className="flex flex-col items-center space-y-4 pb-6">
-            <div className="w-full h-full px-12">
+            <div className="w-full h-full lg:px-12">
               <QRCodeSVG
                 value={roomUrl}
                 bgColor="transparent"
@@ -73,13 +75,15 @@ export const RoomQRCode = () => {
             >
               <div className="flex items-center gap-3">
                 <div className="text-neutral-400">
-                  <QrCode size={16} />
+                  <Link size={16} />
                 </div>
                 <div className="flex flex-col items-start">
                   <span className="text-xs text-neutral-500 uppercase tracking-wide">
-                    Room Code
+                    Room URL
                   </span>
-                  <span className="text-sm font-mono text-white">{roomId}</span>
+                  <span className="text-sm font-mono text-white truncate max-w-[50vw]">
+                    {roomUrl}
+                  </span>
                 </div>
               </div>
               <div className="relative w-4 h-4 flex items-center justify-center">
