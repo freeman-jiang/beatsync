@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { AudioUploaderMinimal } from "../AudioUploaderMinimal";
 import { Separator } from "../ui/separator";
 import { ConnectedUsersList } from "./ConnectedUsersList";
+import { RoomQRCode } from "./CopyRoom";
 import { GlobalVolumeControl } from "./GlobalVolumeControl";
 import { PlaybackPermissions } from "./PlaybackPermissions";
 
@@ -15,18 +16,6 @@ interface LeftProps {
 }
 
 export const Left = ({ className }: LeftProps) => {
-  // const shareRoom = () => {
-  //   try {
-  //     navigator.share({
-  //       title: "Join my BeatSync room",
-  //       text: `Join my BeatSync room with code: ${roomId}`,
-  //       url: window.location.href,
-  //     });
-  //   } catch {
-  //     copyRoomId();
-  //   }
-  // };
-
   const roomId = useRoomStore((state) => state.roomId);
 
   return (
@@ -49,9 +38,14 @@ export const Left = ({ className }: LeftProps) => {
 
       {/* Navigation menu */}
       <motion.div className="px-3.5 space-y-2.5 py-2 mt-1">
-        <div className="flex items-center gap-2 font-medium">
-          <Hash size={18} />
-          <span>Room {roomId}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-medium">
+            <Hash size={18} />
+            <span>Room {roomId}</span>
+          </div>
+
+          {/* QR Code Dialog */}
+          <RoomQRCode />
         </div>
       </motion.div>
 
