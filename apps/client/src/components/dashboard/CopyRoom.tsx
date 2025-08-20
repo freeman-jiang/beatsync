@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
-import { QrCode } from "lucide-react";
+import { Check, Copy, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import {
@@ -15,8 +15,19 @@ import { Separator } from "../ui/separator";
 
 export const RoomQRCode = () => {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const roomId = useRoomStore((state) => state.roomId);
   const roomUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(roomUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
 
   return (
     <>
@@ -43,16 +54,41 @@ export const RoomQRCode = () => {
             </DialogDescription>
           </DialogHeader>
           <Separator className="my-0 bg-neutral-800/50" />
-          <div className="px-6 pb-8">
-            <QRCodeSVG
-              className="w-full h-full"
-              value={roomUrl}
-              bgColor="transparent"
-              fgColor="#ffffff"
-            />
-            <div className="text-xs text-neutral-400 break-all text-center mt-2">
-              {roomUrl}
+          <div className="flex flex-col items-center space-y-4 pb-6">
+            <div className="w-full h-full px-12">
+              <QRCodeSVG
+                value={roomUrl}
+                bgColor="transparent"
+                fgColor="#ffffff"
+                className="w-full h-full rounded-lg"
+                level="M"
+              />
             </div>
+
+            {/* Copy URL Button */}
+            <button
+              onClick={handleCopyUrl}
+              className="w-full flex items-center justify-between px-4 py-3 bg-neutral-800/50 hover:bg-neutral-800/70 border border-neutral-700/50 rounded-lg transition-all duration-200 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-neutral-400">
+                  <QrCode size={16} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-xs text-neutral-500 uppercase tracking-wide">
+                    Room Code
+                  </span>
+                  <span className="text-sm font-mono text-white">{roomId}</span>
+                </div>
+              </div>
+              <div className="text-neutral-400 group-hover:text-white transition-colors">
+                {copied ? (
+                  <Check size={16} className="text-green-500" />
+                ) : (
+                  <Copy size={16} />
+                )}
+              </div>
+            </button>
           </div>
         </DialogContent>
       </Dialog>
