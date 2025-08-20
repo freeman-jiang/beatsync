@@ -71,7 +71,7 @@ export const RoomQRCode = () => {
             {/* Copy URL Button */}
             <button
               onClick={handleCopyUrl}
-              className="w-full flex items-center justify-between px-4 py-3 bg-neutral-800/50 hover:bg-neutral-800/70 border border-neutral-700/50 rounded-lg transition-all duration-200 group"
+              className="w-full flex items-center justify-between px-4 py-3 bg-neutral-800/50 hover:bg-neutral-800/70 border border-neutral-700/50 rounded-lg transition-all duration-200 group cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <div className="text-neutral-400">
