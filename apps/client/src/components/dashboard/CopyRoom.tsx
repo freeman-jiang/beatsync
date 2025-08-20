@@ -32,7 +32,7 @@ export const RoomQRCode = () => {
         <span className="text-sm font-medium">QR</span>
       </button>
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-        <DialogContent className="backdrop-blur-md bg-neutral-900/80 border border-neutral-800/60 shadow-xl p-6 rounded-xl transition-all duration-200">
+        <DialogContent className="backdrop-blur-md bg-neutral-900/80 border border-neutral-800/60 shadow-xl rounded-xl transition-all duration-200">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-medium">
               <QrCode size={18} className="text-neutral-400" />
@@ -43,7 +43,7 @@ export const RoomQRCode = () => {
             </DialogDescription>
           </DialogHeader>
           <Separator className="my-0 bg-neutral-800/50" />
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-8">
             <QRCodeSVG
               className="w-full h-full"
               value={roomUrl}
