@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { Check, Copy, Link, QrCode } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-// import { QRCodeCanvas } from "qrcode.react";
 import QRCode from "react-qr-code";
 
 import { useState } from "react";
@@ -65,7 +64,7 @@ export const RoomQRCode = () => {
                 <QRCode
                   value={roomUrl}
                   size={256}
-                  style={{ width: "100%", maxWidth: "100%", height: "auto" }}
+                  style={{ width: "100%", maxWidth: "100%", height: "100%" }}
                   viewBox="0 0 256 256"
                   fgColor="#ffffff"
                   bgColor="#000000"
