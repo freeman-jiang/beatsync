@@ -3,9 +3,8 @@ import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { Check, Copy, Link, QrCode } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import QRCode from "react-qr-code";
-
-import { useState } from "react";
+import QRCodeLib from "qrcode";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -19,8 +18,32 @@ import { Separator } from "../ui/separator";
 export const RoomQRCode = () => {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const roomId = useRoomStore((state) => state.roomId);
   const roomUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  // Generate QR code when dialog opens
+  useEffect(() => {
+    if (qrDialogOpen && roomUrl) {
+      QRCodeLib.toDataURL(
+        roomUrl,
+        {
+          margin: 0,
+          color: {
+            dark: "#ffffff",
+            light: "#00000000", // transparent background
+          },
+          errorCorrectionLevel: "M",
+          scale: 40,
+        },
+        (err, url) => {
+          if (!err) {
+            setQrCodeDataUrl(url);
+          }
+        }
+      );
+    }
+  }, [qrDialogOpen, roomUrl]);
 
   const handleCopyUrl = async () => {
     try {
@@ -61,16 +84,13 @@ export const RoomQRCode = () => {
           <div className="flex flex-col items-center space-y-4 pb-6">
             <div className="w-full lg:px-8">
               <div className="w-full h-full" style={{ height: "auto" }}>
-                <QRCode
-                  value={roomUrl}
-                  size={256}
-                  style={{ width: "100%", maxWidth: "100%", height: "100%" }}
-                  viewBox="0 0 256 256"
-                  fgColor="#ffffff"
-                  bgColor="#000000"
-                  className="rounded-lg"
-                  level="M"
-                />
+                {qrCodeDataUrl && (
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="Room QR Code"
+                    className="w-full h-full"
+                  />
+                )}
               </div>
             </div>
 
