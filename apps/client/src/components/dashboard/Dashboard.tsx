@@ -52,7 +52,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden min-h-0">
             <Left className="flex" />
             <Main />
-            <Right className="flex lg:flex-shrink-0" />
+            <Right />
           </div>
 
           {/* --- MOBILE LAYOUT (< lg) --- */}
@@ -127,7 +127,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                     transition={{ duration: 0.3 }}
                     className="h-full"
                   >
-                    <Right className="flex h-full w-full" />
+                    <Right />
                   </motion.div>
                 </TabsContent>
               </AnimatePresence>

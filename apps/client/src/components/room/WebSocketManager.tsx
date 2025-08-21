@@ -3,6 +3,7 @@ import { useClientId } from "@/hooks/useClientId";
 import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { getUserLocation } from "@/lib/ip";
+import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { NTPMeasurement } from "@/utils/ntp";
@@ -86,6 +87,7 @@ export const WebSocketManager = ({
   const setActiveStreamJobs = useGlobalStore(
     (state) => state.setActiveStreamJobs
   );
+  const setMessages = useChatStore((state) => state.setMessages);
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } =
@@ -188,6 +190,9 @@ export const WebSocketManager = ({
           handleSetAudioSources(event);
         } else if (event.type === "SET_PLAYBACK_CONTROLS") {
           setPlaybackControlsPermissions(event.permissions);
+        } else if (event.type === "CHAT_UPDATE") {
+          // Handle chat messages
+          setMessages(event.messages, event.isFullSync, event.newestId);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action

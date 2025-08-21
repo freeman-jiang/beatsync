@@ -1,11 +1,11 @@
 "use client";
 
-import { useGlobalStore, useCanMutate } from "@/store/global";
+import { cn } from "@/lib/utils";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { Construction, Orbit, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
 import { Button } from "../ui/button";
-import { cn } from "@/lib/utils";
 
 export const AudioControls = () => {
   const posthog = usePostHog();
@@ -29,17 +29,19 @@ export const AudioControls = () => {
   };
 
   return (
-    <motion.div className="px-4 space-y-2 py-3 mt-1">
+    <motion.div className="space-y-2 py-3 mt-1">
       <div className="flex items-center gap-2 font-medium">
         <Sparkles size={18} />
         <span>Audio Effects</span>
       </div>
 
       <div className="space-y-2">
-        <motion.div className={cn(
-          "bg-neutral-800/20 rounded-md p-3 hover:bg-neutral-800/30 transition-colors",
-          !canMutate && "opacity-50"
-        )}>
+        <motion.div
+          className={cn(
+            "bg-neutral-800/20 rounded-md p-3 hover:bg-neutral-800/30 transition-colors",
+            !canMutate && "opacity-50"
+          )}
+        >
           <div className="flex justify-between items-center">
             <div className="text-xs text-neutral-300 flex items-center gap-1.5">
               <Orbit className="h-3 w-3 text-primary-500" />

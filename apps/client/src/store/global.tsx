@@ -132,6 +132,7 @@ interface GlobalState extends GlobalStateValues {
   broadcastPause: () => void;
   startSpatialAudio: () => void;
   sendStopSpatialAudio: () => void;
+  sendChatMessage: (text: string) => void;
   setSpatialConfig: (config: SpatialConfigType) => void;
   updateListeningSource: (position: PositionType) => void;
   setListeningSourcePosition: (position: PositionType) => void;
@@ -717,6 +718,19 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         ws: socket,
         request: {
           type: ClientActionEnum.enum.STOP_SPATIAL_AUDIO,
+        },
+      });
+    },
+
+    sendChatMessage: (text: string) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SEND_CHAT_MESSAGE,
+          text,
         },
       });
     },

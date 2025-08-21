@@ -3,7 +3,7 @@ import { Server, ServerWebSocket } from "bun";
 import { z } from "zod";
 import { sendBroadcast } from "../../utils/responses";
 import { WSData } from "../../utils/websocket";
-import { requireCanMutate } from "../middlewares";
+import { requireRoom } from "../middlewares";
 
 export async function handleSendChatMessage({
   ws,
@@ -14,7 +14,7 @@ export async function handleSendChatMessage({
   message: z.infer<typeof SendChatMessageSchema>;
   server: Server;
 }) {
-  const { room } = requireCanMutate(ws);
+  const { room } = requireRoom(ws);
 
   try {
     const chatMessage = room.addChatMessage({

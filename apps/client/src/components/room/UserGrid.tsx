@@ -334,7 +334,7 @@ export const UserGrid = () => {
 
   return (
     <div className="flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between py-3">
         <div className="flex items-center gap-2 font-medium">
           <Rotate3D size={18} />
           <span>Spatial Audio</span>
@@ -358,7 +358,7 @@ export const UserGrid = () => {
         </div>
       </div>
 
-      <div className="flex-1 px-4 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {clients.length === 0 ? (
           <div className="text-center py-4 text-muted-foreground">
             No other users connected
