@@ -233,9 +233,9 @@ export const Chat = () => {
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{
                               type: "spring",
-                              stiffness: 500,
-                              damping: 30,
-                              mass: 0.5,
+                              stiffness: 700,
+                              damping: 35,
+                              mass: 0.3,
                             }}
                             layout
                           >
