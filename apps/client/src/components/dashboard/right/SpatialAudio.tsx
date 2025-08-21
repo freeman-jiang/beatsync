@@ -10,7 +10,7 @@ interface SpatialAudioProps {
 
 export const SpatialAudio = ({ className }: SpatialAudioProps) => {
   return (
-    <motion.div className={cn("w-full h-full px-2", className)}>
+    <motion.div className={cn("w-full h-full px-4", className)}>
       {/* Spatial Audio Controls */}
       <motion.div className="flex-1 flex flex-col">
         {/* Spatial Audio Grid */}

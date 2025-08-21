@@ -333,9 +333,9 @@ export const UserGrid = () => {
   }, [clients, clientId]);
 
   return (
-    <div className="flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between py-3">
-        <div className="flex items-center gap-2 font-medium">
+    <div className="flex flex-col overflow-hidden mt-1">
+      <div className="flex items-center justify-between pb-3">
+        <div className="flex items-center gap-2 font-medium text-sm">
           <Rotate3D size={18} />
           <span>Spatial Audio</span>
         </div>
