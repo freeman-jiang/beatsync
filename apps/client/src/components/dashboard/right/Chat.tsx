@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { formatChatTimestamp } from "@/utils/time";
-import { AnimatePresence, motion } from "motion/react";
 import { MessageCircle } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 // Constants
@@ -33,12 +33,10 @@ export const Chat = () => {
         "[data-radix-scroll-area-viewport]"
       );
       if (scrollContainer) {
-        // Delay scroll slightly to let animation start
-        requestAnimationFrame(() => {
-          scrollContainer.scrollTo({
-            top: scrollContainer.scrollHeight,
-            behavior: "smooth",
-          });
+        // Immediate scroll to match snappy animation
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior: "smooth",
         });
       }
     }
@@ -119,9 +117,7 @@ export const Chat = () => {
               <h3 className="text-neutral-400 text-sm font-medium mb-1">
                 No messages yet
               </h3>
-              <p className="text-neutral-600 text-xs">
-                Start the conversation
-              </p>
+              <p className="text-neutral-600 text-xs">Start the conversation</p>
             </motion.div>
           )}
         </AnimatePresence>
