@@ -194,7 +194,7 @@ export const Chat = () => {
       {/* <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-neutral-900 to-transparent pointer-events-none z-10" /> */}
 
       {/* Input Area - Fixed at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 border-t border-neutral-800/50 bg-neutral-900/95 backdrop-blur-sm p-2">
+      <div className="absolute bottom-0 left-0 right-0 border-t border-neutral-800/50 p-2 pt-3">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
