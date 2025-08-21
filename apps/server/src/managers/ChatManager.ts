@@ -42,6 +42,7 @@ export class ChatManager {
       username: client.username,
       text: sanitizedText,
       timestamp: epochNow(),
+      countryCode: client.location?.countryCode,
     };
 
     this.chatMessages.push(message);

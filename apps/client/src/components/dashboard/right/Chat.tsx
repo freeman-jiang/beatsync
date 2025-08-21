@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { countryCodeEmoji } from "@/lib/country/countryCode";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
@@ -64,7 +65,7 @@ export const Chat = () => {
 
   const getUserName = (clientId: string, username: string) => {
     if (clientId === currentUser?.clientId) return "You";
-    return username || "Anonymous";
+    return username;
   };
 
   // Group messages by time proximity (within 3 minutes) and sender
@@ -127,8 +128,24 @@ export const Chat = () => {
                 >
                   {/* Sender name (only for others' messages and first message in group) */}
                   {!isOwnMessage && (
-                    <span className="text-[10px] text-neutral-500 ml-2 mb-0.5">
-                      {getUserName(group[0].clientId, group[0].username)}
+                    <span className="text-[10px] text-neutral-500 ml-1 mb-0.5">
+                      {(() => {
+                        const username = getUserName(
+                          group[0].clientId,
+                          group[0].username
+                        );
+                        const countryCode = group[0].countryCode;
+
+                        if (countryCode) {
+                          const flagEmoji = countryCodeEmoji(countryCode);
+                          return (
+                            <span title={`Country: ${countryCode}`}>
+                              {flagEmoji} {username}
+                            </span>
+                          );
+                        }
+                        return username;
+                      })()}
                     </span>
                   )}
 

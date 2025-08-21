@@ -25,5 +25,6 @@ export const ChatMessageSchema = z.object({
   username: z.string(),
   text: z.string().max(CHAT_CONSTANTS.MAX_MESSAGE_LENGTH),
   timestamp: z.number(),
+  countryCode: z.string().optional(),
 });
 export type ChatMessageType = z.infer<typeof ChatMessageSchema>;
