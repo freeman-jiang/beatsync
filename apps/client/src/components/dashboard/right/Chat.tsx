@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { formatChatTimestamp } from "@/utils/time";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 // Constants
@@ -107,7 +108,7 @@ export const Chat = () => {
                 TIMESTAMP_GAP_THRESHOLD_MS;
 
             return (
-              <div key={group[0].id} className="space-y-0.5">
+              <div key={`group-${group[0].id}`} className="space-y-0.5">
                 {/* Time divider */}
                 {showTimestamp && (
                   <div className="flex items-center justify-center py-1">
@@ -138,50 +139,62 @@ export const Chat = () => {
                       isOwnMessage ? "items-end" : "items-start"
                     )}
                   >
-                    {group.map((msg, msgIndex) => {
-                      const isFirst = msgIndex === 0;
-                      const isLast = msgIndex === group.length - 1;
-                      const isSingle = group.length === 1;
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {group.map((msg, msgIndex) => {
+                        const isFirst = msgIndex === 0;
+                        const isLast = msgIndex === group.length - 1;
+                        const isSingle = group.length === 1;
 
-                      return (
-                        <div
-                          key={msg.id}
-                          className={cn(
-                            "px-3 py-1.5 text-sm break-words",
-                            isOwnMessage
-                              ? "bg-green-700 text-white"
-                              : "bg-neutral-800 text-neutral-200",
-                            // Corner rounding for message bubbles
-                            isSingle
-                              ? "rounded-2xl"
-                              : [
-                                  isFirst &&
-                                    isOwnMessage &&
-                                    "rounded-2xl rounded-br-md",
-                                  isFirst &&
-                                    !isOwnMessage &&
-                                    "rounded-2xl rounded-bl-md",
-                                  isLast &&
-                                    isOwnMessage &&
-                                    "rounded-2xl rounded-tr-md",
-                                  isLast &&
-                                    !isOwnMessage &&
-                                    "rounded-2xl rounded-tl-md",
-                                  !isFirst &&
-                                    !isLast &&
-                                    isOwnMessage &&
-                                    "rounded-l-2xl rounded-r-md",
-                                  !isFirst &&
-                                    !isLast &&
-                                    !isOwnMessage &&
-                                    "rounded-r-2xl rounded-l-md",
-                                ]
-                          )}
-                        >
-                          <p className="whitespace-pre-wrap">{msg.text}</p>
-                        </div>
-                      );
-                    })}
+                        return (
+                          <motion.div
+                            key={msg.id}
+                            className={cn(
+                              "px-3 py-1.5 text-sm break-words",
+                              isOwnMessage
+                                ? "bg-green-700 text-white"
+                                : "bg-neutral-800 text-neutral-200",
+                              // Corner rounding for message bubbles
+                              isSingle
+                                ? "rounded-2xl"
+                                : [
+                                    isFirst &&
+                                      isOwnMessage &&
+                                      "rounded-2xl rounded-br-md",
+                                    isFirst &&
+                                      !isOwnMessage &&
+                                      "rounded-2xl rounded-bl-md",
+                                    isLast &&
+                                      isOwnMessage &&
+                                      "rounded-2xl rounded-tr-md",
+                                    isLast &&
+                                      !isOwnMessage &&
+                                      "rounded-2xl rounded-tl-md",
+                                    !isFirst &&
+                                      !isLast &&
+                                      isOwnMessage &&
+                                      "rounded-l-2xl rounded-r-md",
+                                    !isFirst &&
+                                      !isLast &&
+                                      !isOwnMessage &&
+                                      "rounded-r-2xl rounded-l-md",
+                                  ]
+                            )}
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 500,
+                              damping: 30,
+                              mass: 0.5,
+                            }}
+                            layout
+                          >
+                            <p className="whitespace-pre-wrap">{msg.text}</p>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
                   </div>
                 </div>
               </div>
