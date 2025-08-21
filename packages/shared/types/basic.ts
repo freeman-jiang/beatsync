@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHAT_CONSTANTS } from "../constants";
 
 export const GRID = {
   SIZE: 100,
@@ -17,3 +18,12 @@ export const AudioSourceSchema = z.object({
   url: z.string(),
 });
 export type AudioSourceType = z.infer<typeof AudioSourceSchema>;
+
+export const ChatMessageSchema = z.object({
+  id: z.number(),
+  clientId: z.string(),
+  username: z.string(),
+  text: z.string().max(CHAT_CONSTANTS.MAX_MESSAGE_LENGTH),
+  timestamp: z.number(),
+});
+export type ChatMessageType = z.infer<typeof ChatMessageSchema>;

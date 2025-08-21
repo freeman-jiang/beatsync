@@ -84,6 +84,25 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
     },
   });
 
+  // Send chat history via broadcast (similar to audio sources)
+  // The isFullSync flag tells existing clients to ignore this update
+  const messages = room.getFullChatHistory();
+  if (messages.length > 0) {
+    sendBroadcast({
+      server,
+      roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: {
+          type: "CHAT_UPDATE",
+          messages: messages,
+          isFullSync: true, // Tells clients this is a full sync, not incremental
+          newestId: room.getNewestChatId(),
+        },
+      },
+    });
+  }
+
   const message = createClientUpdate(roomId);
   sendBroadcast({ server, roomId, message });
 };

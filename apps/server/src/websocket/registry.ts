@@ -2,6 +2,7 @@ import { ClientActionEnum } from "@beatsync/shared";
 import { handleDeleteAudioSources } from "./handlers/handleDeleteAudioSources";
 import { handleLoadDefaultTracks } from "./handlers/handleLoadDefaultTracks";
 import { handleSearchMusic } from "./handlers/handleSearchMusic";
+import { handleSendChatMessage } from "./handlers/handleSendChatMessage";
 import { handleSendIp } from "./handlers/handleSendIp";
 import { handleSetAdmin } from "./handlers/handleSetAdmin";
 import { handleSetGlobalVolume } from "./handlers/setGlobalVolume";
@@ -101,5 +102,10 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_GLOBAL_VOLUME]: {
     handle: handleSetGlobalVolume,
     description: "Set global volume for all clients in the room",
+  },
+
+  [ClientActionEnum.enum.SEND_CHAT_MESSAGE]: {
+    handle: handleSendChatMessage,
+    description: "Send a chat message to all clients in the room",
   },
 };

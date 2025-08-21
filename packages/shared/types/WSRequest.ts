@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHAT_CONSTANTS } from "../constants";
 import { PositionSchema } from "./basic";
 
 // ROOM EVENTS
@@ -29,6 +30,7 @@ export const ClientActionEnum = z.enum([
   "SEARCH_MUSIC", // Search for music
   "STREAM_MUSIC", // Stream music
   "SET_GLOBAL_VOLUME", // Set global volume for all clients
+  "SEND_CHAT_MESSAGE", // Send a chat message
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -131,6 +133,11 @@ export const SetGlobalVolumeSchema = z.object({
   volume: z.number().min(0).max(1), // 0-1 range
 });
 
+export const SendChatMessageSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SEND_CHAT_MESSAGE),
+  text: z.string().max(CHAT_CONSTANTS.MAX_MESSAGE_LENGTH),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -149,6 +156,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SearchMusicSchema,
   StreamMusicSchema,
   SetGlobalVolumeSchema,
+  SendChatMessageSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
