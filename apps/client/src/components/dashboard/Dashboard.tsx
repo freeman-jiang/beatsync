@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGlobalStore } from "@/store/global";
-import { Library, ListMusic, Rotate3D } from "lucide-react";
+import { Library, ListMusic, PartyPopper } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress } from "../ui/SyncProgress";
@@ -79,7 +79,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                   value="spatial"
                   className="flex-1 data-[state=active]:bg-white/5 data-[state=active]:shadow-none rounded-none text-xs h-full gap-1 text-neutral-400 data-[state=active]:text-white transition-all duration-200"
                 >
-                  <Rotate3D size={16} /> Spatial
+                  <PartyPopper className="h-4 w-4" /> Fun
                 </TabsTrigger>
               </TabsList>
 
