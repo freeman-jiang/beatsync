@@ -1,4 +1,5 @@
 import { ChatMessageType, ClientDataType, epochNow } from "@beatsync/shared";
+import sanitizeHtml from "sanitize-html";
 
 /**
  * ChatManager handles all chat-related operations for a room.
@@ -24,8 +25,12 @@ export class ChatManager {
     client: ClientDataType;
     text: string;
   }): ChatMessageType {
-    // Sanitize text - strip HTML tags and trim
-    const sanitizedText = text.replace(/<[^>]*>/g, "").trim();
+    // Sanitize text using sanitize-html to prevent XSS attacks
+    const sanitizedText = sanitizeHtml(text, {
+      allowedTags: [], // No HTML tags allowed
+      allowedAttributes: {}, // No attributes allowed
+      allowedSchemes: [], // No URL schemes allowed (prevents javascript: etc)
+    }).trim();
 
     if (!sanitizedText) {
       throw new Error("Chat message cannot be empty");
