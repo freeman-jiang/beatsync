@@ -12,6 +12,7 @@ interface ChatState {
     newestId: number
   ) => void;
   addMessage: (message: ChatMessageType) => void;
+  reset: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -39,5 +40,12 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: [...state.messages, message],
       newestId: message.id,
     }));
+  },
+
+  reset: () => {
+    set({
+      messages: [],
+      newestId: 0,
+    });
   },
 }));
