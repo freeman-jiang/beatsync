@@ -7,6 +7,7 @@ import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { formatChatTimestamp } from "@/utils/time";
 import { AnimatePresence, motion } from "motion/react";
+import { MessageCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 // Constants
@@ -101,6 +102,31 @@ export const Chat = () => {
         ref={scrollAreaRef}
         className="absolute inset-0 pb-18 px-2 pt-3 h-full"
       >
+        {/* Empty state */}
+        <AnimatePresence>
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: 0.15,
+                ease: "easeOut",
+              }}
+              className="absolute inset-0 flex flex-col items-center justify-center px-4"
+            >
+              <MessageCircle className="w-12 h-12 text-neutral-700 mb-3" />
+              <h3 className="text-neutral-400 text-sm font-medium mb-1">
+                No messages yet
+              </h3>
+              <p className="text-neutral-600 text-xs">
+                Start the conversation
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Messages */}
         <div className="space-y-2">
           {groupedMessages.map((group, groupIndex) => {
             const isOwnMessage = group[0].clientId === currentUser?.clientId;
@@ -162,7 +188,7 @@ export const Chat = () => {
                       isOwnMessage ? "items-end" : "items-start"
                     )}
                   >
-                    <AnimatePresence initial={false} mode="popLayout">
+                    <AnimatePresence mode="popLayout">
                       {group.map((msg, msgIndex) => {
                         const isFirst = msgIndex === 0;
                         const isLast = msgIndex === group.length - 1;
