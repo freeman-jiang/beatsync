@@ -198,7 +198,7 @@ export const Chat = () => {
               onCompositionEnd={() => setIsComposing(false)}
               placeholder="Message"
               className={cn(
-                "w-full resize-none rounded-2xl bg-neutral-800/50 px-4 py-2 text-sm",
+                "w-full resize-none rounded-2xl bg-neutral-800/50 px-4 py-2 text-base sm:text-sm",
                 "placeholder:text-neutral-500 text-neutral-100",
                 "border border-neutral-700/50 focus:border-neutral-600",
                 "focus:outline-none focus:ring-1 focus:ring-neutral-600/50",
