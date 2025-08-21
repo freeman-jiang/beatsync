@@ -1,5 +1,6 @@
 import {
   AudioSourceType,
+  ChatMessageSchema,
   ChatMessageType,
   ClientDataSchema,
   ClientDataType,
@@ -54,6 +55,12 @@ const RoomBackupSchema = z.object({
   audioSources: z.array(AudioSourceSchema),
   globalVolume: z.number().min(0).max(1).default(1.0),
   playbackState: RoomPlaybackStateSchema,
+  chat: z
+    .object({
+      messages: z.array(ChatMessageSchema),
+      nextMessageId: z.number(),
+    })
+    .optional(),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -722,6 +729,10 @@ export class RoomManager {
       audioSources: this.audioSources,
       globalVolume: this.globalVolume,
       playbackState: this.playbackState,
+      chat: {
+        messages: this.chatManager.getFullHistory(),
+        nextMessageId: this.chatManager.getNextMessageId(),
+      },
     };
   }
 
@@ -902,5 +913,17 @@ export class RoomManager {
 
   restorePlaybackState(playbackState: RoomPlaybackState): void {
     this.playbackState = playbackState;
+  }
+
+  /**
+   * Restore chat history from backup
+   */
+  restoreChatHistory(chat: {
+    messages: ChatMessageType[];
+    nextMessageId: number;
+  }): void {
+    if (chat.messages.length > 0) {
+      this.chatManager.restoreMessages(chat.messages, chat.nextMessageId);
+    }
   }
 }

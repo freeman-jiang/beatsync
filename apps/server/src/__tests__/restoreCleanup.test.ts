@@ -18,11 +18,23 @@ mock.module("../lib/r2", () => ({
               { url: "test.mp3" },
             ],
             globalVolume: 1,
+            playbackState: {
+              type: "paused",
+              audioSource: "",
+              serverTimeToExecute: 0,
+              trackPositionSeconds: 0,
+            },
           },
           "test-room-2": {
             clientDatas: [],
             audioSources: [],
             globalVolume: 1,
+            playbackState: {
+              type: "paused",
+              audioSource: "",
+              serverTimeToExecute: 0,
+              trackPositionSeconds: 0,
+            },
           },
         },
       },

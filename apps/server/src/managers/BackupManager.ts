@@ -73,6 +73,14 @@ export class BackupManager {
         // Don't restore any playback state
       }
 
+      // Restore chat history if it exists (for backward compatibility with old backups)
+      if (roomData.chat) {
+        room.restoreChatHistory(roomData.chat);
+        console.log(
+          `Room ${roomId}: Restored ${roomData.chat.messages.length} chat messages`
+        );
+      }
+
       // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
       globalManager.scheduleRoomCleanup(roomId);
       return {

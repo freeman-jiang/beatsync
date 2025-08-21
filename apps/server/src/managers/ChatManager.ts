@@ -68,4 +68,24 @@ export class ChatManager {
     if (this.chatMessages.length === 0) return 0;
     return this.chatMessages[this.chatMessages.length - 1].id;
   }
+
+  /**
+   * Get the next message ID (for backup purposes)
+   */
+  getNextMessageId(): number {
+    return this.nextMessageId;
+  }
+
+  /**
+   * Restore chat messages from backup
+   */
+  restoreMessages(messages: ChatMessageType[], nextMessageId: number): void {
+    // Validate and restore messages
+    this.chatMessages = messages.slice(-this.MAX_CHAT_MESSAGES); // Ensure we don't exceed max
+
+    // Restore the message ID counter
+    if (nextMessageId > 0) {
+      this.nextMessageId = nextMessageId;
+    }
+  }
 }
