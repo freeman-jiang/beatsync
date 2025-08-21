@@ -8,8 +8,8 @@ import { formatChatTimestamp } from "@/utils/time";
 import { useEffect, useRef, useState } from "react";
 
 // Constants
-const MESSAGE_GROUP_TIME_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
-const TIMESTAMP_GAP_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+const MESSAGE_GROUP_TIME_WINDOW_MS = 1 * 60 * 1000; // 1 minute
+const TIMESTAMP_GAP_THRESHOLD_MS = 1 * 60 * 1000; // 1 minute
 const TEXTAREA_MAX_HEIGHT_PX = 120;
 const TEXTAREA_MIN_HEIGHT_PX = 36;
 
@@ -96,13 +96,15 @@ export const Chat = () => {
         <div className="space-y-2">
           {groupedMessages.map((group, groupIndex) => {
             const isOwnMessage = group[0].clientId === currentUser?.clientId;
+
+            // Show timestamp if more than 1 minute gap between messages or if it's the first group
             const showTimestamp =
               groupIndex === 0 ||
               group[0].timestamp -
                 groupedMessages[groupIndex - 1][
                   groupedMessages[groupIndex - 1].length - 1
                 ].timestamp >
-                TIMESTAMP_GAP_THRESHOLD_MS; // Show timestamp if more than 2 minutes gap
+                TIMESTAMP_GAP_THRESHOLD_MS;
 
             return (
               <div key={group[0].id} className="space-y-0.5">
