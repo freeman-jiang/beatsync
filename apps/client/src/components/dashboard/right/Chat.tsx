@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
+import { formatChatTimestamp } from "@/utils/time";
 import { useEffect, useRef, useState } from "react";
 
 export const Chat = () => {
@@ -59,45 +60,6 @@ export const Chat = () => {
     return username || "Anonymous";
   };
 
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const isYesterday = date.toDateString() === yesterday.toDateString();
-
-    if (isToday) {
-      return date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } else if (isYesterday) {
-      return (
-        "Yesterday " +
-        date.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-      );
-    } else {
-      return (
-        date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        }) +
-        " at " +
-        date.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-      );
-    }
-  };
-
   // Group messages by time proximity (within 3 minutes) and sender
   const groupedMessages = messages.reduce((groups, msg, index) => {
     if (index === 0) {
@@ -142,7 +104,7 @@ export const Chat = () => {
                 {showTimestamp && (
                   <div className="flex items-center justify-center py-1">
                     <span className="text-[10px] text-neutral-500 font-medium">
-                      {formatTime(group[0].timestamp)}
+                      {formatChatTimestamp(group[0].timestamp)}
                     </span>
                   </div>
                 )}
