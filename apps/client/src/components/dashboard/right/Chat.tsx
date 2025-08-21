@@ -7,6 +7,12 @@ import { useGlobalStore } from "@/store/global";
 import { formatChatTimestamp } from "@/utils/time";
 import { useEffect, useRef, useState } from "react";
 
+// Constants
+const MESSAGE_GROUP_TIME_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
+const TIMESTAMP_GAP_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+const TEXTAREA_MAX_HEIGHT_PX = 120;
+const TEXTAREA_MIN_HEIGHT_PX = 36;
+
 export const Chat = () => {
   const [message, setMessage] = useState("");
   const [isComposing, setIsComposing] = useState(false);
@@ -34,7 +40,7 @@ export const Chat = () => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
       inputRef.current.style.height =
-        Math.min(inputRef.current.scrollHeight, 120) + "px";
+        Math.min(inputRef.current.scrollHeight, TEXTAREA_MAX_HEIGHT_PX) + "px";
     }
   }, [message]);
 
@@ -69,7 +75,7 @@ export const Chat = () => {
     const lastGroup = groups[groups.length - 1];
     const lastMsg = lastGroup[lastGroup.length - 1];
     const timeDiff = msg.timestamp - lastMsg.timestamp;
-    const isWithinTimeWindow = timeDiff < 3 * 60 * 1000; // 3 minutes
+    const isWithinTimeWindow = timeDiff < MESSAGE_GROUP_TIME_WINDOW_MS; // 3 minutes
 
     if (msg.clientId === lastMsg.clientId && isWithinTimeWindow) {
       lastGroup.push(msg);
@@ -96,7 +102,7 @@ export const Chat = () => {
                 groupedMessages[groupIndex - 1][
                   groupedMessages[groupIndex - 1].length - 1
                 ].timestamp >
-                10 * 60 * 1000; // Show timestamp if more than 10 minutes gap
+                TIMESTAMP_GAP_THRESHOLD_MS; // Show timestamp if more than 2 minutes gap
 
             return (
               <div key={group[0].id} className="space-y-0.5">
@@ -202,7 +208,7 @@ export const Chat = () => {
                 "placeholder:text-neutral-500 text-neutral-100",
                 "border border-neutral-700/50 focus:border-neutral-600",
                 "focus:outline-none focus:ring-1 focus:ring-neutral-600/50",
-                "min-h-[36px] max-h-[120px]",
+                `min-h-[${TEXTAREA_MIN_HEIGHT_PX}px] max-h-[${TEXTAREA_MAX_HEIGHT_PX}px]`,
                 "scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-transparent"
               )}
               rows={1}
