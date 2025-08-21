@@ -85,7 +85,7 @@ export const Chat = () => {
       {/* Messages Area */}
       <ScrollArea
         ref={scrollAreaRef}
-        className="absolute inset-0 pb-14 px-2 pt-3 h-full"
+        className="absolute inset-0 pb-18 px-2 pt-3 h-full"
       >
         <div className="space-y-2">
           {groupedMessages.map((group, groupIndex) => {
