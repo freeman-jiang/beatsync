@@ -32,7 +32,13 @@ export const Chat = () => {
         "[data-radix-scroll-area-viewport]"
       );
       if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        // Delay scroll slightly to let animation start
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTo({
+            top: scrollContainer.scrollHeight,
+            behavior: "smooth",
+          });
+        });
       }
     }
   }, [messages]);
