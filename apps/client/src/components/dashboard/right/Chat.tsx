@@ -4,7 +4,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
-import { useRoomStore } from "@/store/room";
 import { useEffect, useRef, useState } from "react";
 
 export const Chat = () => {
@@ -15,8 +14,7 @@ export const Chat = () => {
 
   const messages = useChatStore((state) => state.messages);
   const sendChatMessage = useGlobalStore((state) => state.sendChatMessage);
-  const currentUser = useRoomStore((state) => state.currentUser);
-  const connectedUsers = useRoomStore((state) => state.connectedUsers);
+  const currentUser = useGlobalStore((state) => state.currentUser);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -56,13 +54,12 @@ export const Chat = () => {
     }
   };
 
-  const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return "You";
-    const user = connectedUsers.find((u) => u.id === userId);
-    return user?.name || "Anonymous";
+  const getUserName = (clientId: string, username: string) => {
+    if (clientId === currentUser?.clientId) return "You";
+    return username || "Anonymous";
   };
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
@@ -109,11 +106,10 @@ export const Chat = () => {
 
     const lastGroup = groups[groups.length - 1];
     const lastMsg = lastGroup[lastGroup.length - 1];
-    const timeDiff =
-      new Date(msg.timestamp).getTime() - new Date(lastMsg.timestamp).getTime();
+    const timeDiff = msg.timestamp - lastMsg.timestamp;
     const isWithinTimeWindow = timeDiff < 3 * 60 * 1000; // 3 minutes
 
-    if (msg.userId === lastMsg.userId && isWithinTimeWindow) {
+    if (msg.clientId === lastMsg.clientId && isWithinTimeWindow) {
       lastGroup.push(msg);
     } else {
       groups.push([msg]);
@@ -131,15 +127,13 @@ export const Chat = () => {
       >
         <div className="space-y-2">
           {groupedMessages.map((group, groupIndex) => {
-            const isOwnMessage = group[0].userId === currentUser?.id;
+            const isOwnMessage = group[0].clientId === currentUser?.clientId;
             const showTimestamp =
               groupIndex === 0 ||
-              new Date(group[0].timestamp).getTime() -
-                new Date(
-                  groupedMessages[groupIndex - 1][
-                    groupedMessages[groupIndex - 1].length - 1
-                  ].timestamp
-                ).getTime() >
+              group[0].timestamp -
+                groupedMessages[groupIndex - 1][
+                  groupedMessages[groupIndex - 1].length - 1
+                ].timestamp >
                 10 * 60 * 1000; // Show timestamp if more than 10 minutes gap
 
             return (
@@ -163,7 +157,7 @@ export const Chat = () => {
                   {/* Sender name (only for others' messages and first message in group) */}
                   {!isOwnMessage && (
                     <span className="text-[10px] text-neutral-500 ml-2 mb-0.5">
-                      {getUserName(group[0].userId)}
+                      {getUserName(group[0].clientId, group[0].username)}
                     </span>
                   )}
 
@@ -183,7 +177,7 @@ export const Chat = () => {
                         <div
                           key={msg.id}
                           className={cn(
-                            "max-w-[75%] px-3 py-1.5 text-sm break-words",
+                            "px-3 py-1.5 text-sm break-words",
                             isOwnMessage
                               ? "bg-green-600 text-white"
                               : "bg-neutral-800 text-neutral-200",
@@ -219,14 +213,6 @@ export const Chat = () => {
                       );
                     })}
                   </div>
-
-                  {/* Delivered indicator (only for own messages, last in group) */}
-                  {isOwnMessage &&
-                    groupIndex === groupedMessages.length - 1 && (
-                      <span className="text-[10px] text-neutral-500 mt-0.5 mr-1">
-                        Delivered
-                      </span>
-                    )}
                 </div>
               </div>
             );
