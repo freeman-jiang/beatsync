@@ -336,7 +336,7 @@ export const UserGrid = () => {
     <div className="flex flex-col overflow-hidden mt-1">
       <div className="flex items-center justify-between pb-3">
         <div className="flex items-center gap-2 font-medium text-sm">
-          <Rotate3D size={18} />
+          <Rotate3D size={16} />
           <span>Spatial Audio</span>
         </div>
         <div className="flex items-center gap-2">

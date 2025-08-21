@@ -30,8 +30,8 @@ export const AudioControls = () => {
 
   return (
     <motion.div className="space-y-2 py-3 mt-1">
-      <div className="flex items-center gap-2 font-medium">
-        <Sparkles size={18} />
+      <div className="flex items-center gap-2 font-medium text-sm">
+        <Sparkles size={16} />
         <span>Audio Effects</span>
       </div>
 
