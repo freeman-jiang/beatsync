@@ -149,7 +149,7 @@ export const Chat = () => {
                           className={cn(
                             "px-3 py-1.5 text-sm break-words",
                             isOwnMessage
-                              ? "bg-green-600 text-white"
+                              ? "bg-green-700 text-white"
                               : "bg-neutral-800 text-neutral-200",
                             // Corner rounding for message bubbles
                             isSingle
