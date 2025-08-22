@@ -101,50 +101,6 @@ describe("Chat Persistence", () => {
     expect(restoredMessages.length).toBe(0);
   });
 
-  it("should sanitize HTML in messages during backup/restore", () => {
-    const roomId = "xss-test-room";
-    const room = new RoomManager(roomId);
-
-    // Add a test client by manually adding to client data
-    // We need to bypass addClient since it expects a WebSocket
-    const testClient = {
-      clientId: "client-1",
-      username: "TestUser",
-      position: { x: 50, y: 50 },
-      isActive: true,
-      isAdmin: false,
-      joinedAt: Date.now(),
-      rtt: 50,
-      lastNtpResponse: Date.now(),
-      disconnectedAt: null,
-    };
-    room.restoreClientData([testClient]);
-
-    // Try to add a message with HTML/XSS
-    const maliciousMessage = room.addChatMessage({
-      clientId: "client-1",
-      text: "<script>alert('XSS')</script>Hello<img src=x onerror=alert('XSS')>",
-    });
-
-    // Message should be sanitized
-    expect(maliciousMessage.text).toBe("Hello");
-
-    // Create backup
-    const backup = room.createBackup();
-
-    // Backup should contain sanitized message
-    expect(backup.chat?.messages[0].text).toBe("Hello");
-
-    // Restore and verify
-    const restoredRoom = new RoomManager(roomId);
-    if (backup.chat) {
-      restoredRoom.restoreChatHistory(backup.chat);
-    }
-
-    const restoredMessages = restoredRoom.getFullChatHistory();
-    expect(restoredMessages[0].text).toBe("Hello");
-  });
-
   it("should enforce message limit during restore", () => {
     const roomId = "overflow-room";
     const room = new RoomManager(roomId);

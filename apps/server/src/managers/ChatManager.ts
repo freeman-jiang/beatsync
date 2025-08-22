@@ -1,9 +1,8 @@
 import { ChatMessageType, ClientDataType, epochNow } from "@beatsync/shared";
-import sanitizeHtml from "sanitize-html";
 
 /**
  * ChatManager handles all chat-related operations for a room.
- * Maintains a rolling buffer of messages and handles sanitization.
+ * Maintains a rolling buffer of messages with simple validation.
  */
 export class ChatManager {
   private chatMessages: ChatMessageType[] = [];
@@ -25,14 +24,8 @@ export class ChatManager {
     client: ClientDataType;
     text: string;
   }): ChatMessageType {
-    // Sanitize text using sanitize-html to prevent XSS attacks
-    const sanitizedText = sanitizeHtml(text, {
-      allowedTags: [], // No HTML tags allowed
-      allowedAttributes: {}, // No attributes allowed
-      allowedSchemes: [], // No URL schemes allowed (prevents javascript: etc)
-    }).trim();
-
-    if (!sanitizedText) {
+    // Minimal validation - React handles XSS protection on the client
+    if (!text) {
       throw new Error("Chat message cannot be empty");
     }
 
@@ -40,7 +33,7 @@ export class ChatManager {
       id: this.nextMessageId++,
       clientId: client.clientId,
       username: client.username,
-      text: sanitizedText,
+      text: text,
       timestamp: epochNow(),
       countryCode: client.location?.countryCode,
     };

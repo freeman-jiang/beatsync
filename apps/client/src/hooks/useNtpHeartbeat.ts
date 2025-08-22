@@ -20,18 +20,6 @@ export const useNtpHeartbeat = ({
       clearTimeout(ntpTimerRef.current);
     }
 
-    // Check if we have a pending request that timed out
-    if (
-      lastNtpRequestTime.current &&
-      Date.now() - lastNtpRequestTime.current >
-        NTP_CONSTANTS.RESPONSE_TIMEOUT_MS
-    ) {
-      console.error("NTP request timed out - connection may be stale");
-      // Notify parent component that connection is stale
-      onConnectionStale?.();
-      return;
-    }
-
     // Determine interval based on whether we have initial measurements
     const currentMeasurements = useGlobalStore.getState().ntpMeasurements;
     const interval =
@@ -40,6 +28,19 @@ export const useNtpHeartbeat = ({
         : NTP_CONSTANTS.STEADY_STATE_INTERVAL_MS;
 
     ntpTimerRef.current = window.setTimeout(() => {
+      // Check if we have a pending request that timed out BEFORE resetting timer
+      if (
+        lastNtpRequestTime.current &&
+        Date.now() - lastNtpRequestTime.current >
+          NTP_CONSTANTS.RESPONSE_TIMEOUT_MS
+      ) {
+        console.error("NTP request timed out - connection may be stale");
+        // Notify parent component that connection is stale
+        onConnectionStale?.();
+        return; // Don't send another request or schedule next
+      }
+
+      // Only reset timer and send request if the previous one didn't timeout
       lastNtpRequestTime.current = Date.now();
       sendNTPRequest();
       scheduleNextNtpRequest(); // Schedule the next one

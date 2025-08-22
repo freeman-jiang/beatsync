@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { audioContextManager } from "@/lib/audioContextManager";
 import { getClientId } from "@/lib/clientId";
 import { extractFileNameFromUrl } from "@/lib/utils";
 import {
@@ -22,7 +23,7 @@ import {
   SetAudioSourcesType,
   SpatialConfigType,
 } from "@beatsync/shared";
-import { Mutex } from "async-mutex";
+import { Mutex, Semaphore } from "async-mutex";
 import posthog from "posthog-js";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -276,28 +277,17 @@ const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   return waitTimeMilliseconds / 1000;
 };
 
-const loadAudioSourceUrl = async ({
-  url,
-  audioContext,
-}: {
-  url: string;
-  audioContext: AudioContext;
-}) => {
+const loadAudioSourceUrl = async ({ url }: { url: string }) => {
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  const audioBuffer = await audioContextManager.decodeAudioData(arrayBuffer);
   return {
     audioBuffer,
   };
 };
 
-// Web audio API
-const initializeAudioContext = () => {
-  const audioContext = new AudioContext();
-  return audioContext;
-};
-
 const initializationMutex = new Mutex();
+const loadingSemaphore = new Semaphore(3); // Max 3 concurrent audio loads
 
 // Selector for canMutate
 export const useCanMutate = () => {
@@ -317,9 +307,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   // Load audio buffer for a source
   const loadAudioBuffer = async (url: string) => {
     try {
-      const state = get();
-      const { audioContext } = getAudioPlayer(state);
-      const { audioBuffer } = await loadAudioSourceUrl({ url, audioContext });
+      const { audioBuffer } = await loadAudioSourceUrl({ url });
 
       // Update the source with loaded buffer
       set((currentState) => ({
@@ -358,46 +346,43 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   const _initializeAudio = async () => {
     console.log("initializeAudio()");
 
-    // Create fresh audio context
-    const audioContext = initializeAudioContext();
+    // Get singleton audio context and gain node
+    const audioContext = audioContextManager.getContext();
+    const gainNode = audioContextManager.getMasterGain();
 
-    // Add state change listener to detect iOS suspensions
-    audioContext.onstatechange = () => {
-      console.log(`AudioContext state changed to: ${audioContext.state}`);
+    // Set up state change callback for iOS suspensions
+    audioContextManager.setStateChangeCallback((state) => {
+      console.log(`AudioContext state changed to: ${state}`);
 
-      if (audioContext.state === "suspended") {
-        const state = get();
+      if (state === "suspended") {
+        const currentState = get();
 
         // Stop playback cleanly if playing
-        if (state.isPlaying && state.audioPlayer) {
+        if (currentState.isPlaying && currentState.audioPlayer) {
           try {
-            state.audioPlayer.sourceNode.stop();
-            // state.broadcastPause();
+            currentState.audioPlayer.sourceNode.stop();
           } catch (e) {
             // Ignore errors if already stopped
           }
-          // set({ isPlaying: false });
         }
 
         // Reuse the init system UI - user will need to click "Start System" again
         console.log("AudioContext suspended by iOS");
         set({
           isInitingSystem: true,
-          // isSynced: false, // Force re-sync to show SyncProgress UI
           hasUserStartedSystem: false, // Reset user start system state
         });
       }
-    };
+    });
 
-    // Create master gain node for volume control
-    const gainNode = audioContext.createGain();
+    // Set initial volume
     const state = get();
-    gainNode.gain.value = state.globalVolume; // Use global volume
-    const sourceNode = audioContext.createBufferSource();
-    sourceNode.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    audioContextManager.setMasterGain(state.globalVolume);
 
-    // Initialize empty state first
+    // Create initial source node (will be replaced on play)
+    const sourceNode = audioContextManager.createBufferSource();
+
+    // Initialize audio player state
     set({
       audioPlayer: {
         audioContext,
@@ -474,16 +459,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         // Mark that user has started the system
         set({ hasUserStartedSystem: true });
 
-        const audioContext = state.audioPlayer?.audioContext;
-        // Modern browsers require user interaction before playing audio
-        // If context is suspended, we need to resume it
-        if (audioContext && audioContext.state === "suspended") {
-          try {
-            await audioContext.resume();
-            console.log("AudioContext resumed via user gesture");
-          } catch (err) {
-            console.warn("Failed to resume AudioContext", err);
-          }
+        try {
+          await audioContextManager.resume();
+          console.log("AudioContext resumed via user gesture");
+        } catch (err) {
+          console.warn("Failed to resume AudioContext", err);
         }
 
         const { socket } = getSocket(state);
@@ -848,6 +828,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Stop any existing source node before creating a new one
       try {
+        sourceNode.onended = null;
+        sourceNode.disconnect();
         sourceNode.stop();
       } catch (_) {}
 
@@ -891,8 +873,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         return;
       }
 
-      // Create a new source node
-      const newSourceNode = audioContext.createBufferSource();
+      // Create a new source node using singleton
+      const newSourceNode = audioContextManager.createBufferSource();
       newSourceNode.buffer = audioBuffer;
       newSourceNode.connect(gainNode);
 
@@ -1154,7 +1136,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     applyFinalGain: (rampTime = 0.1) => {
       const state = get();
-      const { audioContext, gainNode } = getAudioPlayer(state);
 
       // Calculate final gain
       let finalGain = state.globalVolume;
@@ -1166,17 +1147,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         finalGain = state.globalVolume * spatialGain;
       }
 
-      // Apply with smooth ramping
-      const now = audioContext.currentTime;
-
-      // Cancel any scheduled values
-      gainNode.gain.cancelScheduledValues(now);
-
-      // Set the current value
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-
-      // Ramp to the new value over the specified time
-      gainNode.gain.linearRampToValueAtTime(finalGain, now + rampTime);
+      // Use singleton's setMasterGain with ramping
+      audioContextManager.setMasterGain(finalGain, rampTime);
     },
 
     getAudioDuration: ({ url }) => {
@@ -1280,18 +1252,30 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         }
       }
 
-      // Load all other sources in parallel (don't await)
+      // Load all other sources with semaphore control (max 3 concurrent)
       if (otherSourcesToLoad.length > 0) {
         console.log(
-          `Loading ${otherSourcesToLoad.length} additional audio sources in background`
-        );
-        const otherLoadPromises = otherSourcesToLoad.map((as) =>
-          loadAudioBuffer(as.source.url)
+          `Loading ${otherSourcesToLoad.length} additional audio sources with max 3 concurrent`
         );
 
-        // Don't await - let them load in background
-        Promise.all(otherLoadPromises).catch((error) => {
-          console.error("Error loading additional audio sources:", error);
+        const loadPromises = otherSourcesToLoad.map(async (as) => {
+          const [, release] = await loadingSemaphore.acquire();
+          try {
+            await loadAudioBuffer(as.source.url);
+            console.log(`Audio source ${as.source.url} loaded`);
+          } catch (error) {
+            console.error(
+              `Error loading audio source ${as.source.url}:`,
+              error
+            );
+          } finally {
+            release();
+          }
+        });
+
+        // Fire and forget - don't block on background loads
+        Promise.all(loadPromises).catch((error) => {
+          console.error("Error during background audio loading:", error);
         });
       }
     },
@@ -1303,6 +1287,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Stop any playing audio
       if (state.isPlaying && state.audioPlayer) {
         try {
+          state.audioPlayer.sourceNode.onended = null; // Remove handler
+          state.audioPlayer.sourceNode.disconnect(); // Disconnect from graph
           state.audioPlayer.sourceNode.stop();
         } catch (e) {
           // Ignore errors if already stopped
@@ -1314,17 +1300,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         state.socket.close();
       }
 
-      // Close the old audio context if it exists
-      if (state.audioPlayer?.audioContext) {
-        state.audioPlayer.audioContext.close().catch(() => {});
-      }
+      // DON'T close the AudioContext - keep singleton alive!
+      // The AudioContext persists for the app lifetime
 
-      // Reset state to initial values but preserve cache
+      // Reset state to initial values
       set({
         ...initialState,
       });
 
-      // Reinitialize audio from scratch
+      // Reinitialize audio player state (but reuse the same context)
       initializeAudioExclusively();
     },
     setReconnectionInfo: (info) => set({ reconnectionInfo: info }),

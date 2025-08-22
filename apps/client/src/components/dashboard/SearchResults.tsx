@@ -9,6 +9,7 @@ import { ClientActionEnum, TrackType } from "@beatsync/shared";
 import { Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
+import { useRef } from "react";
 import { toast } from "sonner";
 
 interface SearchResultsProps {
@@ -23,6 +24,9 @@ export function SearchResults({
   const isMobile = useIsMobile();
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
+
+  // Track which tracks are currently being streamed to prevent duplicates
+  const streamingTracksRef = useRef<Set<number>>(new Set());
   const isLoadingMoreResults = useGlobalStore(
     (state) => state.isLoadingMoreResults
   );
@@ -70,8 +74,24 @@ export function SearchResults({
       return;
     }
 
+    // Check if this track is already being streamed
+    if (streamingTracksRef.current.has(track.id)) {
+      console.log(
+        `Track ${track.id} is already being streamed, skipping duplicate request`
+      );
+      return; // Silently ignore duplicate requests
+    }
+
     try {
       const formattedTrackName = formatTrackName(track);
+
+      // Mark this track as being streamed
+      streamingTracksRef.current.add(track.id);
+
+      // Remove from tracking set after a delay (3 seconds should be enough for the request to complete)
+      setTimeout(() => {
+        streamingTracksRef.current.delete(track.id);
+      }, 3000);
 
       // Track streaming event
       posthog.capture("stream_track", {
@@ -102,6 +122,8 @@ export function SearchResults({
     } catch (error) {
       console.error("Failed to add track:", error);
       toast.error("Failed to add track to queue");
+      // Remove from tracking set on error
+      streamingTracksRef.current.delete(track.id);
     }
   };
 
@@ -336,7 +358,7 @@ export function SearchResults({
                 ease: "easeInOut",
               }}
               className="group hover:bg-neutral-800 px-3 py-2 transition-all duration-200 cursor-pointer flex items-center gap-3 rounded-md"
-              onMouseDown={() => handleAddTrack(track)}
+              onClick={() => handleAddTrack(track)}
             >
               {/* Album Art */}
               <div className="relative flex-shrink-0">
@@ -373,15 +395,11 @@ export function SearchResults({
                 {formatTime(track.duration)}
               </div>
 
-              {/* Add Button */}
+              {/* Add Button (visual only - parent handles click) */}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddTrack(track);
-                }}
-                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none"
               >
                 <Plus className="h-3 w-3" />
               </Button>

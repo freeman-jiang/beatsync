@@ -157,6 +157,7 @@ export const WebSocketManager = ({
     // - Server restart
     // So we should try to reconnect.
     ws.onclose = () => {
+      console.log("Websocket closed unexpectedly");
       // Stop NTP heartbeat
       stopHeartbeat();
 

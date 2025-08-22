@@ -17,11 +17,17 @@ export const handleStreamMusic: HandlerFunction<
     return;
   }
 
-  // Generate unique job ID for tracking
-  const jobId = `${message.trackId}-${Date.now()}`;
+  // Check if this track is already being streamed
+  const trackId = message.trackId.toString();
+  if (room.hasActiveStreamJob(trackId)) {
+    console.log(
+      `Track ${trackId} is already being streamed for room ${roomId}, ignoring duplicate request`
+    );
+    return;
+  }
 
   // Add job to room and broadcast updated count
-  room.addStreamJob(jobId, message.trackId.toString());
+  room.addStreamJob(trackId);
   sendBroadcast({
     server,
     roomId,
@@ -89,7 +95,7 @@ export const handleStreamMusic: HandlerFunction<
     console.error("Error in handleStreamMusic:", error);
   } finally {
     // Job completed or failed - remove from tracking and notify clients
-    room.removeStreamJob(jobId);
+    room.removeStreamJob(trackId);
     sendBroadcast({
       server,
       roomId,

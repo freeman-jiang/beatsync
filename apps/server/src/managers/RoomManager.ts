@@ -100,10 +100,8 @@ export class RoomManager {
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "ADMIN_ONLY";
   private globalVolume: number = 1.0; // Default 100% volume
-  private activeStreamJobs = new Map<
-    string,
-    { trackId: string; status: string }
-  >();
+  // Map of trackId to job status
+  private activeStreamJobs = new Map<string, { status: string }>();
   private chatManager: ChatManager;
 
   constructor(
@@ -142,23 +140,33 @@ export class RoomManager {
 
     const { username, clientId } = ws.data;
 
-    // Check if this username has cached admin status
-    const cachedClient = this.clientData.get(clientId);
-
-    // The first client to join a room will always be an admin, otherwise they are an admin if they were an admin in the past
-    const isAdmin = cachedClient?.isAdmin || this.clientData.size === 0;
-
-    // 1) Set client data
-    this.clientData.set(clientId, {
+    // Check if this client has cached data from a previous connection
+    const clientData: ClientDataType = {
       joinedAt: Date.now(),
       username,
       clientId,
-      isAdmin,
+      isAdmin: false,
       rtt: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
-    });
-    // 2) Set ws connection (actually adds to room)
+    };
+
+    const cachedClient = this.clientData.get(clientId);
+
+    // Restore some specific fields.
+    if (cachedClient) {
+      clientData.username = cachedClient.username;
+      clientData.location = cachedClient.location;
+      clientData.isAdmin = cachedClient.isAdmin;
+      clientData.joinedAt = cachedClient.joinedAt;
+    }
+
+    // Always ensure that the first client to join an empty room becomes admin regardless
+    if (this.wsConnections.size === 0) {
+      clientData.isAdmin = true;
+    }
+
+    this.clientData.set(clientId, clientData);
     this.wsConnections.set(clientId, ws);
 
     positionClientsInCircle(this.getClients());
@@ -174,8 +182,7 @@ export class RoomManager {
    * Remove a client from the room
    */
   removeClient(clientId: string): void {
-    // Actually remove the client from both maps
-    this.clientData.delete(clientId);
+    // Only remove from wsConnections, keep clientData for rejoin scenarios
     this.wsConnections.delete(clientId);
 
     const activeClients = this.getClients();
@@ -376,13 +383,18 @@ export class RoomManager {
 
   /**
    * Stream job management methods
+   * Idempotently adds a stream job for a track if not already active.
    */
-  addStreamJob(jobId: string, trackId: string): void {
-    this.activeStreamJobs.set(jobId, { trackId, status: "active" });
+  addStreamJob(trackId: string): void {
+    this.activeStreamJobs.set(trackId, { status: "active" });
   }
 
-  removeStreamJob(jobId: string): void {
-    this.activeStreamJobs.delete(jobId);
+  removeStreamJob(trackId: string): void {
+    this.activeStreamJobs.delete(trackId);
+  }
+
+  hasActiveStreamJob(trackId: string): boolean {
+    return this.activeStreamJobs.has(trackId);
   }
 
   getActiveStreamJobCount(): number {
@@ -885,7 +897,7 @@ export class RoomManager {
         }
       });
 
-      // Remove stale clients
+      // Close stale client connections
       staleClients.forEach((clientId) => {
         const client = this.clientData.get(clientId);
         if (client) {
@@ -893,24 +905,28 @@ export class RoomManager {
             `🔌 Disconnecting stale client ${clientId} from room ${this.roomId}`
           );
           // Close the WebSocket connection
+          // The onClose handler will call removeClient() when the connection actually closes
           try {
             const ws = this.wsConnections.get(clientId);
             if (!ws) {
               console.error(
                 `❌ No WebSocket connection found for client ${clientId} in room ${this.roomId}`
               );
+              // If there's no WebSocket, we should clean up the orphaned client data
+              this.removeClient(clientId);
               return;
             }
+            // Close the WebSocket - this will trigger the onClose handler
+            // which will properly remove the client from the room
             ws.close(1000, "Connection timeout - no heartbeat response");
-            this.wsConnections.delete(clientId);
           } catch (error) {
             console.error(
               `Error closing WebSocket for client ${clientId}:`,
               error
             );
+            // If closing failed, still try to clean up
+            this.removeClient(clientId);
           }
-          // Remove from room (the close event handler should also call removeClient)
-          this.removeClient(clientId);
         }
       });
     }, NTP_CONSTANTS.STEADY_STATE_INTERVAL_MS);

@@ -19,8 +19,10 @@ const TEXTAREA_MIN_HEIGHT_PX = 36;
 export const Chat = () => {
   const [message, setMessage] = useState("");
   const [isComposing, setIsComposing] = useState(false);
+  const [inputAreaHeight, setInputAreaHeight] = useState(60); // Default height for input area
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputAreaRef = useRef<HTMLDivElement>(null);
 
   const messages = useChatStore((state) => state.messages);
   const sendChatMessage = useGlobalStore((state) => state.sendChatMessage);
@@ -42,12 +44,16 @@ export const Chat = () => {
     }
   }, [messages]);
 
-  // Auto-resize textarea
+  // Auto-resize textarea and update input area height
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
       inputRef.current.style.height =
         Math.min(inputRef.current.scrollHeight, TEXTAREA_MAX_HEIGHT_PX) + "px";
+    }
+    // Update input area height for dynamic padding
+    if (inputAreaRef.current) {
+      setInputAreaHeight(inputAreaRef.current.offsetHeight);
     }
   }, [message]);
 
@@ -98,7 +104,8 @@ export const Chat = () => {
       {/* Messages Area */}
       <ScrollArea
         ref={scrollAreaRef}
-        className="absolute inset-0 pb-18 px-2 pt-3 h-full"
+        className="absolute inset-0 px-2 pt-3 h-full"
+        style={{ paddingBottom: `${inputAreaHeight + 10}px` }}
       >
         {/* Empty state */}
         <AnimatePresence>
@@ -252,7 +259,10 @@ export const Chat = () => {
       {/* <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-neutral-900 to-transparent pointer-events-none z-10" /> */}
 
       {/* Input Area - Fixed at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 border-t border-neutral-800/50 p-2 pt-3">
+      <div
+        ref={inputAreaRef}
+        className="absolute bottom-0 left-0 right-0 border-t border-neutral-800/50 p-2 pt-3"
+      >
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -266,8 +276,8 @@ export const Chat = () => {
               className={cn(
                 "w-full resize-none rounded-2xl bg-neutral-800/50 px-4 py-2 text-base sm:text-sm",
                 "placeholder:text-neutral-500 text-neutral-100",
-                "border border-neutral-700/50 focus:border-neutral-600",
-                "focus:outline-none focus:ring-1 focus:ring-neutral-600/50",
+                "border border-neutral-700/50",
+                "focus:outline-none",
                 `min-h-[${TEXTAREA_MIN_HEIGHT_PX}px] max-h-[${TEXTAREA_MAX_HEIGHT_PX}px]`,
                 "scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-transparent"
               )}

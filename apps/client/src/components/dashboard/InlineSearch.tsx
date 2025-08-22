@@ -50,9 +50,19 @@ export function InlineSearch() {
     };
   }, []);
 
-  // Add keyboard shortcut for ⌘K to toggle focus (only when user can mutate)
+  // Add keyboard shortcuts for ⌘K to toggle focus and ESC to dismiss
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ESC key to dismiss search results
+      if (e.key === "Escape") {
+        if (showResults) {
+          e.preventDefault();
+          (document.activeElement as HTMLElement)?.blur();
+        }
+        return;
+      }
+
+      // ⌘K to toggle focus (only when user can mutate)
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
 
@@ -73,7 +83,7 @@ export function InlineSearch() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [setFocus, isFocused, canMutate]);
+  }, [setFocus, isFocused, canMutate, showResults]);
 
   // Dismiss search results when input becomes empty
   React.useEffect(() => {
