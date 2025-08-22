@@ -1,6 +1,7 @@
 import { ClientActionEnum } from "@beatsync/shared";
 import { handleDeleteAudioSources } from "./handlers/handleDeleteAudioSources";
 import { handleLoadDefaultTracks } from "./handlers/handleLoadDefaultTracks";
+import { handleReorderAudioSources } from "./handlers/handleReorderAudioSources";
 import { handleSearchMusic } from "./handlers/handleSearchMusic";
 import { handleSendChatMessage } from "./handlers/handleSendChatMessage";
 import { handleSendIp } from "./handlers/handleSendIp";
@@ -72,6 +73,11 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.DELETE_AUDIO_SOURCES]: {
     handle: handleDeleteAudioSources,
     description: "Delete audio sources with room prefix (non-default only)",
+  },
+
+  [ClientActionEnum.enum.REORDER_AUDIO_SOURCES]: {
+    handle: handleReorderAudioSources,
+    description: "Reorder audio sources in the room queue",
   },
 
   [ClientActionEnum.enum.SET_ADMIN]: {

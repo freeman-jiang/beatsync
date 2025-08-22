@@ -200,6 +200,43 @@
       height: 30%;
     }
   }
+
+  /* Drag and drop animations */
+  @keyframes drag-lift {
+    0% {
+      transform: scale(1) rotate(0deg);
+    }
+    100% {
+      transform: scale(1.02) rotate(2deg);
+    }
+  }
+
+  @keyframes drag-drop {
+    0% {
+      transform: scale(1.02) rotate(2deg);
+    }
+    50% {
+      transform: scale(0.98) rotate(-1deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  @keyframes drag-placeholder {
+    0% {
+      opacity: 0.3;
+      transform: scale(0.95);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.02);
+    }
+    100% {
+      opacity: 0.3;
+      transform: scale(0.95);
+    }
+  }
 }
 
 @theme inline {
