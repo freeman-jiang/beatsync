@@ -289,6 +289,38 @@ export class RoomManager {
     };
   }
 
+  reorderAudioSources(urls: string[]): AudioSourceType[] {
+    // Create a map of URL to audio source for quick lookup
+    const sourceMap = new Map(
+      this.audioSources.map((source) => [source.url, source])
+    );
+
+    // Create new array with sources in the specified order
+    const reorderedSources: AudioSourceType[] = [];
+    const processedUrls = new Set<string>();
+
+    // Add sources in the specified order
+    for (const url of urls) {
+      const source = sourceMap.get(url);
+      if (source) {
+        reorderedSources.push(source);
+        processedUrls.add(url);
+      }
+    }
+
+    // Add any remaining sources that weren't in the urls array
+    for (const source of this.audioSources) {
+      if (!processedUrls.has(source.url)) {
+        reorderedSources.push(source);
+      }
+    }
+
+    this.audioSources = reorderedSources;
+    console.log(`Reordered ${reorderedSources.length} audio sources in room ${this.roomId}`);
+    
+    return this.audioSources;
+  }
+
   /**
    * Get all clients in the room
    */

@@ -27,6 +27,7 @@ export const ClientActionEnum = z.enum([
   "SEND_IP", // Send IP to server
   "LOAD_DEFAULT_TRACKS", // Load default tracks into empty queue
   "DELETE_AUDIO_SOURCES", // Delete audio sources from the room queue (non-default only)
+  "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
   "SEARCH_MUSIC", // Search for music
   "STREAM_MUSIC", // Stream music
   "SET_GLOBAL_VOLUME", // Set global volume for all clients
@@ -92,6 +93,11 @@ const DeleteAudioSourcesSchema = z.object({
   urls: z.array(z.string()).min(1),
 });
 
+const ReorderAudioSourcesSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REORDER_AUDIO_SOURCES),
+  urls: z.array(z.string()).min(1), // Array of URLs in the new order  
+});
+
 const SetAdminSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_ADMIN),
   clientId: z.string(), // The client to set admin status for
@@ -153,6 +159,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SendLocationSchema,
   LoadDefaultTracksSchema,
   DeleteAudioSourcesSchema,
+  ReorderAudioSourcesSchema,
   SearchMusicSchema,
   StreamMusicSchema,
   SetGlobalVolumeSchema,
@@ -163,6 +170,7 @@ export type PlayActionType = z.infer<typeof PlayActionSchema>;
 export type PauseActionType = z.infer<typeof PauseActionSchema>;
 export type ReorderClientType = z.infer<typeof ReorderClientSchema>;
 export type SetListeningSourceType = z.infer<typeof SetListeningSourceSchema>;
+export type ReorderAudioSourcesType = z.infer<typeof ReorderAudioSourcesSchema>;
 
 // Mapped type to access request types by their type field
 export type ExtractWSRequestFrom = {
