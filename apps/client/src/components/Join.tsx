@@ -5,13 +5,14 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { Input } from "@/components/ui/input";
 import { SOCIAL_LINKS } from "@/constants";
 import { fetchActiveRooms } from "@/lib/api";
 import { generateName } from "@/lib/randomNames";
 import { validateFullRoomId, validatePartialRoomId } from "@/lib/room";
 import { useRoomStore } from "@/store/room";
 import { useQuery } from "@tanstack/react-query";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Shuffle, User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
@@ -30,6 +31,8 @@ export const Join = () => {
   const posthog = usePostHog();
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [useCustomName, setUseCustomName] = useState(false);
+  const [customUsername, setCustomUsername] = useState("");
   const setUsername = useRoomStore((state) => state.setUsername);
   const username = useRoomStore((state) => state.username);
 
@@ -45,10 +48,44 @@ export const Join = () => {
   });
 
   useEffect(() => {
-    // Set a random username when component mounts
-    const generatedName = generateName();
-    setUsername(generatedName);
-  }, [setValue, setUsername, posthog]);
+    // Set a random username when component mounts (only if not using custom name)
+    if (!useCustomName) {
+      const generatedName = generateName();
+      setUsername(generatedName);
+    }
+  }, [setValue, setUsername, posthog, useCustomName]);
+
+  // Validate username
+  const validateUsername = (name: string): boolean => {
+    if (!name || name.trim().length === 0) return false;
+    if (name.length > 50) return false;
+    // Allow alphanumeric characters, spaces, hyphens, and underscores
+    const validPattern = /^[a-zA-Z0-9\s\-_]+$/;
+    return validPattern.test(name);
+  };
+
+  // Handle custom username change
+  const handleCustomUsernameChange = (value: string) => {
+    setCustomUsername(value);
+    if (useCustomName && validateUsername(value)) {
+      setUsername(value.trim());
+    }
+  };
+
+  // Toggle between custom and auto-generated name
+  const toggleNameMode = () => {
+    if (useCustomName) {
+      // Switching to auto-generated
+      setUseCustomName(false);
+      const generatedName = generateName();
+      setUsername(generatedName);
+      setCustomUsername("");
+    } else {
+      // Switching to custom
+      setUseCustomName(true);
+      setUsername(customUsername || "");
+    }
+  };
 
   const { data: numActiveUsers } = useQuery({
     queryKey: ["active-rooms"],
@@ -77,6 +114,7 @@ export const Join = () => {
     posthog.capture("join_room_attempt", {
       room_id: data.roomId,
       username,
+      username_mode: useCustomName ? "custom" : "auto_generated",
     });
 
     console.log("Joining room with data:", {
@@ -96,6 +134,7 @@ export const Join = () => {
     posthog.capture("create_room", {
       room_id: newRoomId,
       username,
+      username_mode: useCustomName ? "custom" : "auto_generated",
     });
 
     router.push(`/room/${newRoomId}`);
@@ -109,6 +148,7 @@ export const Join = () => {
     posthog.capture("regenerate_username", {
       previous_username: username,
       new_username: newName,
+      mode: "auto_generated",
     });
   };
 
@@ -224,46 +264,98 @@ export const Join = () => {
             )}
 
             <motion.div
-              className="flex items-center justify-center mt-5"
+              className="flex flex-col items-center justify-center mt-5 space-y-3"
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.25 }}
             >
-              <div className="text-sm text-neutral-400">
-                You&apos;ll join as{" "}
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={username}
-                    className="text-primary font-medium inline-block"
-                    initial={{
-                      opacity: 0,
-                      filter: "blur(8px)",
-                    }}
-                    animate={{
-                      opacity: 1,
-                      filter: "blur(0px)",
-                    }}
-                    exit={{
-                      opacity: 0,
-                      filter: "blur(8px)",
-                    }}
-                    transition={{
-                      duration: 0.2,
-                    }}
+              {/* Username Mode Toggle */}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={toggleNameMode}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-neutral-500 hover:text-neutral-300 h-6 px-2"
+                  disabled={isJoining || isCreating}
+                >
+                  {useCustomName ? (
+                    <>
+                      <Shuffle className="w-3 h-3 mr-1" />
+                      Auto
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-3 h-3 mr-1" />
+                      Custom
+                    </>
+                  )}
+                </Button>
+                {!useCustomName && (
+                  <Button
+                    type="button"
+                    onClick={handleRegenerateName}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-neutral-500 hover:text-neutral-300 h-6 px-2"
+                    disabled={isJoining || isCreating}
                   >
-                    {username}
-                  </motion.span>
-                </AnimatePresence>
+                    <Shuffle className="w-3 h-3 mr-1" />
+                    Shuffle
+                  </Button>
+                )}
               </div>
-              <Button
-                type="button"
-                onClick={handleRegenerateName}
-                variant="ghost"
-                className="text-xs text-neutral-500 hover:text-neutral-300 ml-2 h-6 px-2"
-                disabled={isJoining || isCreating}
-              >
-                Regenerate
-              </Button>
+
+              {/* Username Display/Input */}
+              {useCustomName ? (
+                <div className="w-full max-w-xs">
+                  <Input
+                    type="text"
+                    placeholder="Enter custom room name"
+                    value={customUsername}
+                    onChange={(e) => handleCustomUsernameChange(e.target.value)}
+                    className="text-center text-sm bg-neutral-800/50 border-neutral-700 focus:border-primary/70 text-white placeholder:text-neutral-500"
+                    maxLength={50}
+                    disabled={isJoining || isCreating}
+                  />
+                  {customUsername && !validateUsername(customUsername) && (
+                    <motion.p
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="text-xs text-red-500 text-center mt-1"
+                    >
+                      Name must be 1-50 characters, letters, numbers, spaces, hyphens, and underscores only
+                    </motion.p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-neutral-400">
+                  You&apos;ll join as{" "}
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={username}
+                      className="text-primary font-medium inline-block"
+                      initial={{
+                        opacity: 0,
+                        filter: "blur(8px)",
+                      }}
+                      animate={{
+                        opacity: 1,
+                        filter: "blur(0px)",
+                      }}
+                      exit={{
+                        opacity: 0,
+                        filter: "blur(8px)",
+                      }}
+                      transition={{
+                        duration: 0.2,
+                      }}
+                    >
+                      {username}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+              )}
             </motion.div>
 
             <div className="flex flex-col gap-3 mt-5">
