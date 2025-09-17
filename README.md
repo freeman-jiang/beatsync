@@ -1,6 +1,6 @@
-# Beatsync
+# Jamside
 
-Beatsync is a high-precision web audio player built for multi-device playback. The official app is [beatsync.gg](https://www.beatsync.gg/).
+Jamside is a high-precision web audio player built for multi-device playback. The official app is [jamside.gg](https://www.jamside.gg/).
 
 https://github.com/user-attachments/assets/2aa385a7-2a07-4ab5-80b1-fda553efc57b
 

@@ -12,7 +12,7 @@ import { generateName } from "@/lib/randomNames";
 import { validateFullRoomId, validatePartialRoomId } from "@/lib/room";
 import { useRoomStore } from "@/store/room";
 import { useQuery } from "@tanstack/react-query";
-import { PlusCircle, Shuffle, User } from "lucide-react";
+import { LogIn, PlusCircle, Shuffle, User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
@@ -41,11 +41,16 @@ export const Join = () => {
     formState: { errors },
     control,
     setValue,
+    watch,
   } = useForm<JoinFormData>({
     defaultValues: {
       roomId: "",
     },
   });
+
+  // Watch the room code input to determine button state
+  const watchedRoomId = watch("roomId");
+  const hasRoomCode = watchedRoomId && watchedRoomId.length > 0;
 
   useEffect(() => {
     // Set a random username when component mounts (only if not using custom name)
@@ -189,7 +194,7 @@ export const Join = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.13 }}
           >
-            Join a Beatsync Room
+            Join a Jamhood Room
           </motion.h2>
 
           <motion.p
@@ -227,14 +232,13 @@ export const Join = () => {
                       if (validatePartialRoomId(value)) {
                         field.onChange(value);
 
-                        // Auto-submit when 6 digits are entered
-                        if (value.length === 6) {
-                          // handleSubmit(onSubmit)();
-                          // Small delay to ensure UI updates before submission
-                          setTimeout(() => {
-                            handleSubmit(onSubmit)();
-                          }, 100);
-                        }
+                        // Auto-submit disabled - user must click "Join room" button
+                        // if (value.length === 6 && validateFullRoomId(value) && !isJoining) {
+                        //   // Small delay to ensure UI updates before submission
+                        //   setTimeout(() => {
+                        //     handleSubmit(onSubmit)();
+                        //   }, 100);
+                        // }
                       }
                     }}
                     className="gap-2"
@@ -359,41 +363,44 @@ export const Join = () => {
             </motion.div>
 
             <div className="flex flex-col gap-3 mt-5">
-              <motion.button
-                type="button"
-                className="px-5 py-2 bg-primary text-primary-foreground rounded-full font-medium text-sm tracking-wide cursor-pointer w-full hover:shadow-lg hover:shadow-zinc-50/50 transition-shadow duration-500 flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                whileHover={{
-                  scale: 1.015,
-                }}
-                whileTap={{ scale: 0.985 }}
-                transition={{ duration: 0.3 }}
-                onClick={handleCreateRoom}
-                disabled={isJoining || isCreating}
-              >
-                {isCreating ? (
-                  <motion.div
-                    transition={{
-                      repeat: Infinity,
-                      duration: 1,
-                      ease: "linear",
-                    }}
-                  >
-                    <PlusCircle size={16} className="mr-2" />
-                  </motion.div>
-                ) : (
-                  <PlusCircle size={16} className="mr-2" />
-                )}
-                <span>{isCreating ? "Creating..." : "Create new room"}</span>
-              </motion.button>
-
-              {/* <motion.button
-                  className="px-5 py-2 rounded-full font-medium text-sm tracking-wide cursor-pointer w-full hover:shadow-md hover:shadow-zinc-600/40 transition-shadow duration-500 flex items-center justify-center bg-neutral-800 text-white"
+              {hasRoomCode ? (
+                // Join Room Button - when room code is entered
+                <motion.button
+                  type="submit"
+                  className="px-0.5 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-medium text-xs tracking-wide cursor-pointer w-auto flex items-center justify-center shadow-lg hover:bg-white/20 transition-all duration-300"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   whileHover={{
-                    scale: 1.015,
+                    scale: 1.02,
+                  }}
+                  whileTap={{ scale: 0.985 }}
+                  transition={{ duration: 0.3 }}
+                  disabled={isJoining || isCreating}
+                >
+                  {isJoining ? (
+                    <motion.div
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1,
+                        ease: "linear",
+                      }}
+                    >
+                      <LogIn size={16} className="mr-2" />
+                    </motion.div>
+                  ) : (
+                    <LogIn size={16} className="mr-2" />
+                  )}
+                  <span>{isJoining ? "Joining..." : "Join room"}</span>
+                </motion.button>
+              ) : (
+                // Create Room Button - when no room code is entered
+                <motion.button
+                  type="button"
+                  className="px-0.5 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-medium text-xs tracking-wide cursor-pointer w-auto flex items-center justify-center shadow-lg hover:bg-white/20 transition-all duration-300"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  whileHover={{
+                    scale: 1.02,
                   }}
                   whileTap={{ scale: 0.985 }}
                   transition={{ duration: 0.3 }}
@@ -414,7 +421,8 @@ export const Join = () => {
                     <PlusCircle size={16} className="mr-2" />
                   )}
                   <span>{isCreating ? "Creating..." : "Create new room"}</span>
-                </motion.button> */}
+                </motion.button>
+              )}
             </div>
           </form>
 
