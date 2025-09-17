@@ -166,11 +166,30 @@ export const Join = () => {
       <AnnouncementBanner />
       <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto mt-20 lg:mt-24">
         <motion.div
-          className="flex flex-col items-center justify-center p-6 bg-neutral-900 rounded-lg border border-neutral-800 shadow-xl mx-auto"
+          className="relative flex flex-col items-center justify-center p-6 rounded-lg border border-white/20 shadow-xl mx-auto overflow-hidden"
+          style={{
+            backgroundImage: 'url("/grad.gif")',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed'
+          }}
           initial={{ opacity: 0, y: 10, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
+          {/* Multi-layer glass morphism overlay system */}
+          {/* Base gradient overlay for GIF blending */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/30 rounded-lg"></div>
+
+          {/* Main glass morphism overlay */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-md rounded-lg"></div>
+
+          {/* Subtle inner glow effect */}
+          <div className="absolute inset-2 bg-white/5 backdrop-blur-sm rounded-md"></div>
+
+          {/* Content container with proper z-index */}
+          <div className="relative z-20 w-full">
           {numActiveUsers && numActiveUsers > 0 ? (
             <motion.div
               className="flex items-center gap-1.5 mb-3"
@@ -189,7 +208,7 @@ export const Join = () => {
             </motion.div>
           ) : null}
           <motion.h2
-            className="text-base font-medium tracking-tight mb-1 text-white"
+            className="text-base font-medium tracking-tight mb-1 text-white text-center"
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.13 }}
@@ -362,12 +381,12 @@ export const Join = () => {
               )}
             </motion.div>
 
-            <div className="flex flex-col gap-3 mt-5">
+            <div className="flex flex-col gap-3 mt-5 items-center">
               {hasRoomCode ? (
                 // Join Room Button - when room code is entered
                 <motion.button
                   type="submit"
-                  className="px-0.5 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-medium text-xs tracking-wide cursor-pointer w-auto flex items-center justify-center shadow-lg hover:bg-white/20 transition-all duration-300"
+                  className="px-2 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-medium text-xs tracking-tight cursor-pointer flex items-center justify-center shadow-lg hover:bg-white/20 transition-all duration-300"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   whileHover={{
@@ -396,7 +415,7 @@ export const Join = () => {
                 // Create Room Button - when no room code is entered
                 <motion.button
                   type="button"
-                  className="px-0.5 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-medium text-xs tracking-wide cursor-pointer w-auto flex items-center justify-center shadow-lg hover:bg-white/20 transition-all duration-300"
+                  className="px-2 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-medium text-xs tracking-tight cursor-pointer flex items-center justify-center shadow-lg hover:bg-white/20 transition-all duration-300"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   whileHover={{
@@ -470,6 +489,7 @@ export const Join = () => {
               <span>GitHub</span>
             </a>
           </motion.div>
+          </div>
         </motion.div>
 
         {/* Active Rooms Section */}
