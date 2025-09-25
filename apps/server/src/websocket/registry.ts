@@ -1,11 +1,11 @@
 import { ClientActionEnum } from "@beatsync/shared";
+import { handleAudioSourceLoaded } from "./handlers/handleAudioSourceLoaded";
 import { handleDeleteAudioSources } from "./handlers/handleDeleteAudioSources";
 import { handleLoadDefaultTracks } from "./handlers/handleLoadDefaultTracks";
 import { handleSearchMusic } from "./handlers/handleSearchMusic";
 import { handleSendChatMessage } from "./handlers/handleSendChatMessage";
 import { handleSendIp } from "./handlers/handleSendIp";
 import { handleSetAdmin } from "./handlers/handleSetAdmin";
-import { handleSetGlobalVolume } from "./handlers/setGlobalVolume";
 import { handleSetPlaybackControls } from "./handlers/handleSetPlaybackControls";
 import { handleStreamMusic } from "./handlers/handleStreamMusic";
 import { handleMoveClient } from "./handlers/moveClient";
@@ -13,6 +13,7 @@ import { handleNTPRequest } from "./handlers/ntpRequest";
 import { handlePause } from "./handlers/pause";
 import { handlePlay } from "./handlers/play";
 import { handleReorderClient } from "./handlers/reorderClient";
+import { handleSetGlobalVolume } from "./handlers/setGlobalVolume";
 import { handleSetListeningSource } from "./handlers/setListeningSource";
 import { handleStartSpatialAudio } from "./handlers/startSpatialAudio";
 import { handleStopSpatialAudio } from "./handlers/stopSpatialAudio";
@@ -20,6 +21,10 @@ import { handleSync } from "./handlers/sync";
 import { WebsocketRegistry } from "./types";
 
 export const WS_REGISTRY: WebsocketRegistry = {
+  [ClientActionEnum.enum.AUDIO_SOURCE_LOADED]: {
+    handle: handleAudioSourceLoaded,
+    description: "Audio source loaded event",
+  },
   [ClientActionEnum.enum.NTP_REQUEST]: {
     handle: handleNTPRequest,
     description: "Time synchronization request for NTP-based sync",

@@ -190,7 +190,7 @@ export class RoomManager {
         type: "ROOM_EVENT",
         event: {
           type: "LOAD_AUDIO_SOURCE",
-          sources: audioSource,
+          audioSourceToPlay: audioSource,
         },
       },
     });
@@ -206,7 +206,13 @@ export class RoomManager {
       return false;
     }
 
-    return this.pendingPlay.clientsLoaded.size === this.getClients().length;
+    const clientCount = this.getClients().length;
+    // Don't start playback if there are no clients
+    if (clientCount === 0) {
+      return false;
+    }
+
+    return this.pendingPlay.clientsLoaded.size === clientCount;
   }
 
   /**
@@ -223,9 +229,17 @@ export class RoomManager {
     // Add client to loaded set
     this.pendingPlay.clientsLoaded.add(clientId);
 
+    const loadedCount = this.pendingPlay.clientsLoaded.size;
+    const totalCount = this.getClients().length;
+    console.log(
+      `Room ${this.roomId}: ${loadedCount}/${totalCount} clients loaded audio`
+    );
+
     // Check if all active clients have loaded
     if (this.allClientsLoadedPendingSource()) {
-      console.log(`All clients loaded. Starting playback.`);
+      console.log(
+        `Room ${this.roomId}: All clients loaded. Starting playback.`
+      );
       this.executeScheduledPlay(server);
     }
   }

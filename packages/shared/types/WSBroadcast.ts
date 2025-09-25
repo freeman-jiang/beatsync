@@ -44,7 +44,7 @@ export type ChatUpdateType = z.infer<typeof ChatUpdateSchema>;
 // Load audio source update event
 const LoadAudioSourceSchema = z.object({
   type: z.literal("LOAD_AUDIO_SOURCE"),
-  sources: AudioSourceSchema,
+  audioSourceToPlay: AudioSourceSchema,
 });
 export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
 
