@@ -253,11 +253,11 @@ export const Player = () => {
           <Slider
             value={[sliderPosition]}
             min={0}
-            max={trackDuration}
+            max={trackDuration || 1} // Prevent max=0 which causes rendering issues
             step={0.01}
             onValueChange={handleSliderChange}
             onValueCommit={handleSliderCommit}
-            disabled={!canMutate}
+            disabled={!canMutate || trackDuration <= 0}
             className={cn(!canMutate && "opacity-50")}
           />
           <span className="text-xs text-muted-foreground min-w-11 text-right select-none">
