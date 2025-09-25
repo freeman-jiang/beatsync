@@ -36,10 +36,17 @@ export type SetAudioSourcesType = z.infer<typeof SetAudioSourcesSchema>;
 const ChatUpdateSchema = z.object({
   type: z.literal("CHAT_UPDATE"),
   messages: z.array(ChatMessageSchema),
-  isFullSync: z.boolean(),  // true = replace all, false = append
-  newestId: z.number(),      // Highest message ID included
+  isFullSync: z.boolean(), // true = replace all, false = append
+  newestId: z.number(), // Highest message ID included
 });
 export type ChatUpdateType = z.infer<typeof ChatUpdateSchema>;
+
+// Load audio source update event
+const LoadAudioSourceSchema = z.object({
+  type: z.literal("LOAD_AUDIO_SOURCE"),
+  sources: AudioSourceSchema,
+});
+export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
 
 const RoomEventSchema = z.object({
   type: z.literal("ROOM_EVENT"),
@@ -48,6 +55,7 @@ const RoomEventSchema = z.object({
     SetAudioSourcesSchema,
     SetPlaybackControlsSchema,
     ChatUpdateSchema,
+    LoadAudioSourceSchema,
   ]),
 });
 

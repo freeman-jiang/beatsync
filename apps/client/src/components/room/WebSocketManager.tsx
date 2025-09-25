@@ -194,6 +194,8 @@ export const WebSocketManager = ({
         } else if (event.type === "CHAT_UPDATE") {
           // Handle chat messages
           setMessages(event.messages, event.isFullSync, event.newestId);
+        } else if (event.type === "LOAD_AUDIO_SOURCE") {
+          //  TODO: Handle load audio source
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action

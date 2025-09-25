@@ -80,11 +80,21 @@ const INITIAL_PLAYBACK_STATE: RoomPlaybackState = {
   trackPositionSeconds: 0,
 };
 
+interface PendingPlayState {
+  clientsLoaded: Set<string>;
+  timeout: NodeJS.Timeout;
+  playAction: PlayActionType;
+  initiatorClientId: string;
+  server: Server;
+}
+
 /**
  * RoomManager handles all operations for a single room.
  * Each room has its own instance of RoomManager.
  */
 export class RoomManager {
+  private static readonly AUDIO_LOAD_TIMEOUT_MS = 3000; // 3 seconds max wait for audio loading
+
   private clientData = new Map<string, ClientDataType>(); // map of clientId -> client data
   private wsConnections = new Map<string, ServerWebSocket<WSData>>(); // map of clientId -> ws
   private audioSources: AudioSourceType[] = [];
@@ -104,6 +114,8 @@ export class RoomManager {
   private activeStreamJobs = new Map<string, { status: string }>();
   private chatManager: ChatManager;
 
+  // Audio loading state for synchronized playback
+  private pendingPlay?: PendingPlayState;
   constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
@@ -117,6 +129,150 @@ export class RoomManager {
    */
   getRoomId(): string {
     return this.roomId;
+  }
+
+  clearAudioLoadingState(): void {
+    if (!this.pendingPlay) return;
+    // Clear the timeout
+    if (this.pendingPlay.timeout) {
+      clearTimeout(this.pendingPlay.timeout);
+    }
+
+    // Clear the pending play
+    this.pendingPlay = undefined;
+  }
+
+  /**
+   * Initiate audio source loading for all clients before playback
+   */
+  initiateAudioSourceLoad(
+    playAction: PlayActionType,
+    initiatorClientId: string,
+    server: Server
+  ): void {
+    // Clear any existing loading state
+    this.clearAudioLoadingState();
+
+    // Find the audio source to load
+    const audioSource = this.audioSources.find(
+      (source) => source.url === playAction.audioSource
+    );
+
+    if (!audioSource) {
+      console.warn(
+        `Cannot load non-existent audio source: ${playAction.audioSource}`
+      );
+      return;
+    }
+
+    // Set up timeout to execute play even if some clients don't respond
+    const timeout = setTimeout(() => {
+      console.log(
+        `Audio loading timeout reached after ${RoomManager.AUDIO_LOAD_TIMEOUT_MS}ms. Proceeding with play.`
+      );
+      this.executeScheduledPlay(server);
+    }, RoomManager.AUDIO_LOAD_TIMEOUT_MS);
+
+    // Store pending play state
+    this.pendingPlay = {
+      clientsLoaded: new Set([initiatorClientId]),
+      timeout,
+      playAction,
+      initiatorClientId,
+      server,
+    };
+
+    // Broadcast LOAD_AUDIO_SOURCE to all clients
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: {
+          type: "LOAD_AUDIO_SOURCE",
+          sources: audioSource,
+        },
+      },
+    });
+
+    console.log(
+      `Initiated audio loading for ${audioSource.url} in room ${this.roomId}`
+    );
+  }
+
+  allClientsLoadedPendingSource(): boolean {
+    if (!this.pendingPlay) {
+      console.warn(`Room ${this.roomId}: No pending play state found`);
+      return false;
+    }
+
+    return this.pendingPlay.clientsLoaded.size === this.getClients().length;
+  }
+
+  /**
+   * Process when a client reports they've loaded the audio source
+   */
+  processClientLoadedAudioSource(clientId: string, server: Server): void {
+    if (!this.pendingPlay) {
+      console.warn(
+        `Room ${this.roomId}: Client ${clientId} reported audio source loaded, but no pending play state found`
+      );
+      return;
+    }
+
+    // Add client to loaded set
+    this.pendingPlay.clientsLoaded.add(clientId);
+
+    // Check if all active clients have loaded
+    if (this.allClientsLoadedPendingSource()) {
+      console.log(`All clients loaded. Starting playback.`);
+      this.executeScheduledPlay(server);
+    }
+  }
+
+  /**
+   * Execute the scheduled play after audio loading is complete
+   * Could be called by either the timeout or explicitly because all clients loaded
+   */
+  private executeScheduledPlay(server: Server): void {
+    if (!this.pendingPlay) {
+      return;
+    }
+
+    const { playAction } = this.pendingPlay;
+
+    // Clear everything here
+    this.clearAudioLoadingState();
+
+    // Use dynamic scheduling based on max client RTT
+    const serverTimeToExecute = this.getScheduledExecutionTime();
+
+    // Update playback state
+    const success = this.updatePlaybackSchedulePlay(
+      playAction,
+      serverTimeToExecute
+    );
+
+    if (success) {
+      // Send the scheduled play action
+      sendBroadcast({
+        server,
+        roomId: this.roomId,
+        message: {
+          type: "SCHEDULED_ACTION",
+          scheduledAction: playAction,
+          serverTimeToExecute,
+        },
+      });
+
+      console.log(
+        `Executed scheduled play for ${playAction.audioSource} in room ${this.roomId}`
+      );
+    } else {
+      console.warn(
+        `Failed to execute play - track may have been removed: ${playAction.audioSource}`
+      );
+    }
   }
 
   getAudioSources(): AudioSourceType[] {
@@ -210,6 +366,21 @@ export class RoomManager {
     } else {
       // Stop heartbeat checking if no clients remain
       this.stopHeartbeatChecking();
+    }
+
+    // Check if we were waiting for this client to load audio
+    if (this.pendingPlay) {
+      // Remove client from loaded set if they were there
+      this.pendingPlay.clientsLoaded.delete(clientId);
+
+      // Recheck if all remaining clients have loaded
+      if (this.allClientsLoadedPendingSource()) {
+        console.log(
+          `Client left during loading. All remaining clients loaded. Starting playback.`
+        );
+        // Use the stored server reference
+        this.executeScheduledPlay(this.pendingPlay.server);
+      }
     }
 
     // Notify that client count changed
@@ -885,6 +1056,7 @@ export class RoomManager {
                 `❌ No WebSocket connection found for client ${clientId} in room ${this.roomId}`
               );
               // If there's no WebSocket, we should clean up the orphaned client data
+              // Note: we don't have server reference here, so loading state won't be checked
               this.removeClient(clientId);
               return;
             }
@@ -897,6 +1069,7 @@ export class RoomManager {
               error
             );
             // If closing failed, still try to clean up
+            // Note: we don't have server reference here, so loading state won't be checked
             this.removeClient(clientId);
           }
         }
