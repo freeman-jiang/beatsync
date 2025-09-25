@@ -212,12 +212,40 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
 
                   {/* Duration & Delete Button */}
                   <div className="ml-4 flex items-center gap-2">
-                    <div className="text-xs text-neutral-500 select-none">
+                    <motion.div
+                      className="text-xs text-neutral-500 select-none min-w-[3rem] text-right"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                    >
                       {!isLoading &&
-                        formatTime(
-                          getAudioDuration({ url: sourceState.source.url })
-                        )}
-                    </div>
+                      sourceState.status === "loaded" &&
+                      isSelected ? (
+                        <motion.span
+                          key="duration"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                        >
+                          {formatTime(
+                            getAudioDuration({ url: sourceState.source.url })
+                          )}
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="placeholder"
+                          className="text-neutral-700"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                        >
+                          --:--
+                        </motion.span>
+                      )}
+                    </motion.div>
 
                     {/* Direct delete button */}
                     {canMutate && (
