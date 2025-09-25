@@ -333,31 +333,43 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   // Helper function to manage LRU cache
   const addURLToLRU = (url: string) => {
     const state = get();
+    const queue = [...state.bufferAccessQueue];
 
-    // Short circuit if:
-    // Already in queue
-    if (state.bufferAccessQueue.includes(url)) {
-      return;
+    // Remove URL if it exists (to move it to front)
+    const existingIndex = queue.indexOf(url);
+    if (existingIndex > -1) {
+      queue.splice(existingIndex, 1);
     }
 
-    // Move URL to front (remove if exists, then prepend)
-    const queue = [url, ...state.bufferAccessQueue];
+    // Add URL to front
+    queue.unshift(url);
 
-    // Evict buffers
+    // Determine which URLs to evict (if any)
+    const urlsToEvict: string[] = [];
     while (queue.length > MAX_CACHED_BUFFERS) {
       const urlToEvict = queue.pop();
-      console.log(`[LRU Cache] Evicting ${urlToEvict}`);
-      set((currentState) => ({
-        audioSources: currentState.audioSources.map((as) =>
-          urlToEvict === as.source.url
-            ? { ...as, status: "idle", buffer: undefined }
-            : as
-        ),
-        bufferAccessQueue: queue.slice(0, MAX_CACHED_BUFFERS),
-      }));
+      if (urlToEvict) {
+        // Don't evict the currently selected/playing track
+        if (urlToEvict !== state.selectedAudioUrl) {
+          urlsToEvict.push(urlToEvict);
+          console.log(`[LRU Cache] Evicting ${urlToEvict}`);
+        } else {
+          // If we tried to evict the playing track, keep it at the end
+          queue.push(urlToEvict);
+          break;
+        }
+      }
     }
 
-    set({ bufferAccessQueue: queue });
+    // Apply all changes in one atomic update
+    set((currentState) => ({
+      bufferAccessQueue: queue,
+      audioSources: currentState.audioSources.map((as) =>
+        urlsToEvict.includes(as.source.url)
+          ? { ...as, status: "idle", buffer: undefined }
+          : as
+      ),
+    }));
   };
 
   // Load audio buffer for a source
