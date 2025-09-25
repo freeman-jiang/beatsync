@@ -31,6 +31,9 @@ import { create } from "zustand";
 
 export const MAX_NTP_MEASUREMENTS = NTP_CONSTANTS.MAX_MEASUREMENTS;
 
+// LRU Cache configuration for audio buffers
+const MAX_CACHED_BUFFERS = 3;
+
 // https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch02.html
 
 interface AudioPlayerState {
@@ -72,6 +75,7 @@ export type AudioSourceState = z.infer<typeof AudioSourceStateSchema>;
 interface GlobalStateValues {
   // Audio Sources
   audioSources: AudioSourceState[]; // Playlist with loading states
+  bufferAccessQueue: string[]; // Track URL access order for LRU eviction
   isInitingSystem: boolean;
   hasUserStartedSystem: boolean; // Track if user has clicked "Start System" at least once
   selectedAudioUrl: string;
@@ -216,6 +220,7 @@ interface GlobalState extends GlobalStateValues {
 const initialState: GlobalStateValues = {
   // Audio Sources
   audioSources: [],
+  bufferAccessQueue: [],
 
   // Audio playback state
   isPlaying: false,
@@ -325,6 +330,36 @@ export const useCanMutate = () => {
 };
 
 export const useGlobalStore = create<GlobalState>((set, get) => {
+  // Helper function to manage LRU cache
+  const addURLToLRU = (url: string) => {
+    const state = get();
+
+    // Short circuit if:
+    // Already in queue
+    if (state.bufferAccessQueue.includes(url)) {
+      return;
+    }
+
+    // Move URL to front (remove if exists, then prepend)
+    const queue = [url, ...state.bufferAccessQueue];
+
+    // Evict buffers
+    while (queue.length > MAX_CACHED_BUFFERS) {
+      const urlToEvict = queue.pop();
+      console.log(`[LRU Cache] Evicting ${urlToEvict}`);
+      set((currentState) => ({
+        audioSources: currentState.audioSources.map((as) =>
+          urlToEvict === as.source.url
+            ? { ...as, status: "idle", buffer: undefined }
+            : as
+        ),
+        bufferAccessQueue: queue.slice(0, MAX_CACHED_BUFFERS),
+      }));
+    }
+
+    set({ bufferAccessQueue: queue });
+  };
+
   // Load audio buffer for a source
   const loadAudioSource = async (url: string) => {
     try {
@@ -332,6 +367,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const existing = state.audioSources.find((as) => as.source.url === url);
       if (existing && existing.status === "loaded") {
+        // Update LRU queue when accessing an already loaded buffer
+        addURLToLRU(url);
+
         const { socket } = getSocket(state);
         sendWSRequest({
           ws: socket,
@@ -360,6 +398,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
             : as
         ),
       }));
+
+      // Update LRU queue after successfully loading a new buffer
+      addURLToLRU(url);
 
       // Send message to server that the source is loaded
       const { socket } = getSocket(state);
@@ -1250,7 +1291,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       const state = get();
 
-      // Create new audioSources array (TODO: decide if we want to keep loaded sources loaded)
+      // Clean up buffer access queue - remove URLs that are no longer in the playlist
+      const newUrls = new Set(sources.map((s) => s.url));
+      const updatedQueue = state.bufferAccessQueue.filter((url) =>
+        newUrls.has(url)
+      );
+
+      // Create new audioSources array (preserving loaded buffers for tracks still in playlist)
       const newAudioSources: AudioSourceState[] = sources.map((source) => {
         // Try to preserve the status of the currently playing/selected track
         if (
@@ -1270,8 +1317,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         };
       });
 
-      // Update state immediately to show all sources (with idle states)
-      set({ audioSources: newAudioSources });
+      // Update state immediately to show all sources (with idle states) and cleaned queue
+      set({ audioSources: newAudioSources, bufferAccessQueue: updatedQueue });
 
       // If currentAudioSource is provided from server, update selectedAudioUrl and start loading it
       if (currentAudioSource) {
