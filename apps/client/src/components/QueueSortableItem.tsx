@@ -115,7 +115,7 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
       <motion.div
         {...listeners}
         className="p-1"
-        initial={{ opacity: 0 }}
+        initial={{ opacity: 0.25 }}
         whileHover={{ opacity: 1 }}
         style={{ cursor: "grab" }}
       >
