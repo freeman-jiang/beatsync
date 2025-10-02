@@ -1133,4 +1133,13 @@ export class RoomManager {
       this.chatManager.restoreMessages(chat.messages, chat.nextMessageId);
     }
   }
+
+  reorderAudioSource(newOrder: AudioSourceType[]): void | Error {
+    if( newOrder.length !== this.audioSources.length) {
+      console.warn(`Attempted to reorder audio sources with mismatched length in room ${this.roomId}`);
+      return new Error(`Mismatched audio sources length`);
+    }
+
+    this.audioSources = newOrder;
+  }
 }
