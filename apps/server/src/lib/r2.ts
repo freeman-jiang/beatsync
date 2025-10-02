@@ -23,7 +23,7 @@ const S3_CONFIG = {
 };
 
 const r2Client = new S3Client({
-  region: "ap-south-1",
+  region: "auto",
   endpoint: S3_CONFIG.ENDPOINT,
   credentials: {
     accessKeyId: S3_CONFIG.ACCESS_KEY_ID,
