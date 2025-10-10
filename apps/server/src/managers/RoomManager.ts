@@ -302,6 +302,27 @@ export class RoomManager {
   }
 
   /**
+   * Resolve name conflicts by auto-appending numbers if needed
+   */
+  private resolveNameConflict(desiredUsername: string): string {
+    const existingUsernames = this.getClients().map(client => client.username.toLowerCase());
+    let resolvedUsername = desiredUsername;
+
+    // Check if the desired username conflicts
+    if (existingUsernames.includes(desiredUsername.toLowerCase())) {
+      // Find the next available numbered suffix
+      let counter = 2;
+      while (existingUsernames.includes(`${desiredUsername}${counter}`.toLowerCase())) {
+        counter++;
+      }
+      resolvedUsername = `${desiredUsername}${counter}`;
+      console.log(`Resolved name conflict: "${desiredUsername}" -> "${resolvedUsername}" in room ${this.roomId}`);
+    }
+
+    return resolvedUsername;
+  }
+
+  /**
    * Add a client to the room
    */
   addClient(ws: ServerWebSocket<WSData>): void {
@@ -310,10 +331,13 @@ export class RoomManager {
 
     const { username, clientId } = ws.data;
 
+    // Resolve name conflicts before adding client
+    const resolvedUsername = this.resolveNameConflict(username);
+
     // Check if this client has cached data from a previous connection
     const clientData: ClientDataType = {
       joinedAt: Date.now(),
-      username,
+      username: resolvedUsername,
       clientId,
       isAdmin: false,
       rtt: 0,
