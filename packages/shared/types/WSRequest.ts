@@ -32,6 +32,7 @@ export const ClientActionEnum = z.enum([
   "SET_GLOBAL_VOLUME", // Set global volume for all clients
   "SEND_CHAT_MESSAGE", // Send a chat message,
   "AUDIO_SOURCE_LOADED", // Audio source loaded in response to a LOAD_AUDIO_SOURCE request
+  "REORDER_AUDIO_SOURCES" // Reorder audio sources in the room queue
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -144,6 +145,11 @@ export const AudioSourceLoadedSchema = z.object({
   source: AudioSourceSchema,
 });
 
+export const ReorderAudioSourcesSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REORDER_AUDIO_SOURCES),
+  reorderedAudioSources: z.array(AudioSourceSchema).min(1),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -164,12 +170,14 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetGlobalVolumeSchema,
   SendChatMessageSchema,
   AudioSourceLoadedSchema,
+  ReorderAudioSourcesSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
 export type PauseActionType = z.infer<typeof PauseActionSchema>;
 export type ReorderClientType = z.infer<typeof ReorderClientSchema>;
 export type SetListeningSourceType = z.infer<typeof SetListeningSourceSchema>;
+export type ReorderAudioSourcesType = z.infer<typeof ReorderAudioSourcesSchema>;
 
 // Mapped type to access request types by their type field
 export type ExtractWSRequestFrom = {

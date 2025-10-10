@@ -11,6 +11,7 @@ import {
 import { sendWSRequest } from "@/utils/ws";
 import {
   AudioSourceSchema,
+  AudioSourceType,
   ClientActionEnum,
   ClientDataType,
   GlobalVolumeConfigType,
@@ -213,6 +214,7 @@ interface GlobalState extends GlobalStateValues {
 
   // Audio source methods
   handleLoadAudioSource: (sources: LoadAudioSourceType) => void;
+  broadcastReorder: (urls: AudioSourceType[]) => void;
 }
 
 // Define initial state values
@@ -791,6 +793,19 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
     },
 
+    broadcastReorder: (newOrder: AudioSourceType[]) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.REORDER_AUDIO_SOURCES,
+          reorderedAudioSources: newOrder,
+        },
+      });
+    },
+
     startSpatialAudio: () => {
       const state = get();
       const { socket } = getSocket(state);
@@ -1298,10 +1313,27 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
 
       // Clean up buffer access queue - remove URLs that are no longer in the playlist
-      const newUrls = new Set(sources.map((s) => s.url));
-      const updatedQueue = state.bufferAccessQueue.filter((url) =>
-        newUrls.has(url)
-      );
+      // const newUrls = new Set(sources.map((s) => s.url));
+      // const updatedQueue = state.bufferAccessQueue.filter((url) =>
+      //   newUrls.has(url)
+      // );
+
+      // Build completely new queue based on sources order
+      const newQueue: string[] = [];
+      
+      // Add current/selected track first (highest priority)
+      if (currentAudioSource && sources.some(s => s.url === currentAudioSource)) {
+        newQueue.push(currentAudioSource);
+      } else if (state.selectedAudioUrl && sources.some(s => s.url === state.selectedAudioUrl)) {
+        newQueue.push(state.selectedAudioUrl);
+      }
+      
+      // Add remaining tracks in playlist order
+      sources.forEach(source => {
+        if (!newQueue.includes(source.url)) {
+          newQueue.push(source.url);
+        }
+      });
 
       // Create new audioSources array (preserving loaded buffers for tracks still in playlist)
       const newAudioSources: AudioSourceState[] = sources.map((source) => {
@@ -1324,7 +1356,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
 
       // Update state immediately to show all sources (with idle states) and cleaned queue
-      set({ audioSources: newAudioSources, bufferAccessQueue: updatedQueue });
+      set({ audioSources: newAudioSources, bufferAccessQueue: newQueue });
 
       // If currentAudioSource is provided from server, update selectedAudioUrl and start loading it
       if (currentAudioSource) {
