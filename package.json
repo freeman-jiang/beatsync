@@ -11,7 +11,11 @@
     "docker:run": "docker rm -f beatsync-server 2>/dev/null || true && docker run --name beatsync-server -p 8080:8080 --env-file apps/server/.env beatsync",
     "docker:prod": "bun run docker:build && bun run docker:run",
     "docker:stop": "docker stop beatsync-server",
-    "docker:clean": "docker rm -f beatsync-server 2>/dev/null || true && docker system prune -f"
+    "docker:clean": "docker rm -f beatsync-server 2>/dev/null || true && docker system prune -f",
+    "pm2:start": "pm2 start pm2.config.js",
+    "pm2:stop": "pm2 stop beatsync-server",
+    "pm2:restart": "pm2 restart beatsync-server",
+    "pm2:logs": "pm2 logs beatsync-server"
   },
   "workspaces": [
     "apps/*",
