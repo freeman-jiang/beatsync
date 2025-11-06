@@ -17,6 +17,7 @@ import { handleSetGlobalVolume } from "./handlers/setGlobalVolume";
 import { handleSetListeningSource } from "./handlers/setListeningSource";
 import { handleStartSpatialAudio } from "./handlers/startSpatialAudio";
 import { handleStopSpatialAudio } from "./handlers/stopSpatialAudio";
+import { handleReorderAudioSources } from "./handlers/handleReorderAudioSources";
 import { handleSync } from "./handlers/sync";
 import { WebsocketRegistry } from "./types";
 
@@ -112,5 +113,9 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SEND_CHAT_MESSAGE]: {
     handle: handleSendChatMessage,
     description: "Send a chat message to all clients in the room",
+  },
+  [ClientActionEnum.enum.REORDER_AUDIO_SOURCES]: {
+    handle: handleReorderAudioSources,
+    description: "Reorder audio sources in the room queue",
   },
 };
