@@ -28,7 +28,7 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
   const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
   const isPlaying = useGlobalStore((state) => state.isPlaying);
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({id});
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({id});
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -84,24 +84,45 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
         
         },
       }}
-      transition={{
-        layout: {
-          type: "spring",
-          stiffness: 400,
-          damping: 45,
-          mass: 1,
-        },
-        opacity: {
-          duration: 0.3,
-          delay: Math.min(0.05 * index, 0.3), // Cap maximum delay at 300ms
-          ease: "easeOut",
-        },
-        y: {
-          duration: 0.3,
-          delay: Math.min(0.05 * index, 0.3), // Cap maximum delay at 300ms
-          ease: "easeOut",
-        },
-      }}
+      transition={
+        isDragging
+          ? {
+              // Fast animation while dragging
+              layout: {
+                duration: 0.15,
+                ease: "backOut"
+              },
+              opacity: {
+                duration: 0.3,
+                delay: Math.min(0.05 * index, 0.3),
+                ease: "easeOut",
+              },
+              y: {
+                duration: 0.3,
+                delay: Math.min(0.05 * index, 0.3),
+                ease: "easeOut",
+              },
+            }
+          : {
+              // Smooth spring for non-dragged items
+              layout: {
+                type: "spring",
+                stiffness: 400,
+                damping: 45,
+                mass: 1,
+              },
+              opacity: {
+                duration: 0.3,
+                delay: Math.min(0.05 * index, 0.3),
+                ease: "easeOut",
+              },
+              y: {
+                duration: 0.3,
+                delay: Math.min(0.05 * index, 0.3),
+                ease: "easeOut",
+              },
+            }
+      }
       className={cn(
         "flex items-center pl-2 pr-4 py-3 rounded-md group transition-colors select-none",
         isSelected
