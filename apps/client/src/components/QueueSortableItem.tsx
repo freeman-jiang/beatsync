@@ -129,7 +129,8 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
           ? "text-white hover:bg-neutral-700/20"
           : "text-neutral-300 hover:bg-neutral-700/20",
         !canMutate && "text-white/50",
-        (isLoading || isError) && "opacity-60 cursor-not-allowed"
+        (isLoading || isError) && "opacity-60 cursor-not-allowed",
+        isDragging && "bg-neutral-700/20"
       )}
       onClick={() => handleItemClick(sourceState)}
     >
@@ -139,8 +140,9 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
           {...listeners}
           className="p-1"
           initial={{ opacity: 0.25 }}
+          animate={{ opacity: isDragging ? 1 : 0.25 }}
           whileHover={{ opacity: 1 }}
-          style={{ cursor: "grab" }}
+          style={{ cursor: "grab", touchAction: "none" }}
         >
           <GripVertical className="size-4" />
         </motion.div>

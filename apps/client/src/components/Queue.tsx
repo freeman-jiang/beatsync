@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { AnimatePresence, motion } from "motion/react";
 import LoadDefaultTracksButton from "./LoadDefaultTracksButton";
-import { closestCenter, DndContext, DragEndEvent} from "@dnd-kit/core";
+import { closestCenter, DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors} from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy} from "@dnd-kit/sortable";
 import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { QueueSortableItem } from "./QueueSortableItem";
@@ -14,6 +14,16 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
   const broadcastReorder = useGlobalStore((state) => state.broadcastReorder);
   const canMutate = useCanMutate();
   // socket handled by child button component when needed
+
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
 
   function handleDragEnd(event: DragEndEvent): void {
     if (!canMutate) return;
@@ -35,7 +45,7 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
       <div className="space-y-1">
         {audioSources.length > 0 ? (
           canMutate ? (
-            <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}>
               <SortableContext items={audioSources.map((src) => src.source.url)} strategy={verticalListSortingStrategy} >
                 <AnimatePresence initial={true}>
                   {/* Ensure keys are stable and unique even if duplicates attempted */}
