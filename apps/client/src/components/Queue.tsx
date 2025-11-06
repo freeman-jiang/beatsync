@@ -34,18 +34,29 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
       {/* <h2 className="text-xl font-bold mb-2 select-none">Beatsync</h2> */}
       <div className="space-y-1">
         {audioSources.length > 0 ? (
-          <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}>
-            <SortableContext items={audioSources.map((src) => src.source.url)} strategy={verticalListSortingStrategy} >
-              <AnimatePresence initial={true}>
-                {/* Ensure keys are stable and unique even if duplicates attempted */}
-                {audioSources.map((sourceState, index) => {
-                  return (
-                    <QueueSortableItem key={sourceState.source.url} id={sourceState.source.url} sourceState={sourceState} index={index} canMutate={canMutate} />
-                  );
-                })}
-              </AnimatePresence>
-            </SortableContext>
-          </DndContext>
+          canMutate ? (
+            <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}>
+              <SortableContext items={audioSources.map((src) => src.source.url)} strategy={verticalListSortingStrategy} >
+                <AnimatePresence initial={true}>
+                  {/* Ensure keys are stable and unique even if duplicates attempted */}
+                  {audioSources.map((sourceState, index) => {
+                    return (
+                      <QueueSortableItem key={sourceState.source.url} id={sourceState.source.url} sourceState={sourceState} index={index} canMutate={canMutate} />
+                    );
+                  })}
+                </AnimatePresence>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <AnimatePresence initial={true}>
+              {/* Read-only view for non-admins */}
+              {audioSources.map((sourceState, index) => {
+                return (
+                  <QueueSortableItem key={sourceState.source.url} id={sourceState.source.url} sourceState={sourceState} index={index} canMutate={canMutate} />
+                );
+              })}
+            </AnimatePresence>
+          )
         ) : (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}

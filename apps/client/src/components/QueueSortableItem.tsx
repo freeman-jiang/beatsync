@@ -112,16 +112,18 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
       )}
       onClick={() => handleItemClick(sourceState)}
     >
-      {/* Drag handle */}
-      <motion.div
-        {...listeners}
-        className="p-1"
-        initial={{ opacity: 0.25 }}
-        whileHover={{ opacity: 1 }}
-        style={{ cursor: "grab" }}
-      >
-        <GripVertical className="size-4" />
-      </motion.div>
+      {/* Drag handle - only shown for users who can mutate */}
+      {canMutate && (
+        <motion.div
+          {...listeners}
+          className="p-1"
+          initial={{ opacity: 0.25 }}
+          whileHover={{ opacity: 1 }}
+          style={{ cursor: "grab" }}
+        >
+          <GripVertical className="size-4" />
+        </motion.div>
+      )}
 
       {/* Track number / Play icon */}
       <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center relative cursor-default select-none">
