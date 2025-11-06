@@ -13,8 +13,8 @@ export const AnnouncementBanner = () => {
       <div className="relative">
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
-            <span className="font-semibold">{"Sep 25, 2025: "}</span>
-            Fix memory crashes on mobile by loading tracks on demand.
+            <span className="font-semibold">{"Nov 6, 2025: "}</span>
+            Add ability to reorder the music queue.
             {/* <a
               href="#"
               className="ml-3 inline-flex items-center text-white underline hover:no-underline font-semibold"
