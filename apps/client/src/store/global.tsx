@@ -797,6 +797,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const { socket } = getSocket(state);
 
+      // Optimistically update local state immediately to prevent snap-back animation
+      const newAudioSources: AudioSourceState[] = newOrder.map((source) => {
+        // Preserve existing state (buffer, status) for each track
+        const existing = state.audioSources.find(
+          (as) => as.source.url === source.url
+        );
+        return existing || { source, status: "idle" };
+      });
+
+      set({ audioSources: newAudioSources });
+
       sendWSRequest({
         ws: socket,
         request: {
