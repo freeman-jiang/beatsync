@@ -1,9 +1,12 @@
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
-import { AudioSourceState,  useGlobalStore } from "@/store/global";
+import { AudioSourceState, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum } from "@beatsync/shared";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   AlertCircle,
+  GripVertical,
   Loader2,
   MinusIcon,
   // MoreHorizontal, // Keeping for potential future use
@@ -11,8 +14,6 @@ import {
   Play,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useSortable } from "@dnd-kit/sortable";
-import {CSS} from "@dnd-kit/utilities";
 
 export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
     id: string;
@@ -119,7 +120,7 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
         whileHover={{ opacity: 1 }}
         style={{ cursor: "grab" }}
       >
-        ⠿
+        <GripVertical className="size-4" />
       </motion.div>
 
       {/* Track number / Play icon */}
