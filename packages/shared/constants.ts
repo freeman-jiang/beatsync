@@ -9,7 +9,8 @@ export const NTP_CONSTANTS = {
   // Steady state interval after initial measurements
   STEADY_STATE_INTERVAL_MS: STEADY_STATE_INTERVAL_MS,
   // Timeout before considering connection stale
-  RESPONSE_TIMEOUT_MS: 1.5 * STEADY_STATE_INTERVAL_MS,
+  // Increased to 12x (30s) to prevent disconnects during file picker selection or slow network (Issue #93)
+  RESPONSE_TIMEOUT_MS: 12 * STEADY_STATE_INTERVAL_MS,
   // Maximum number of NTP measurements to collect initially
   MAX_MEASUREMENTS: 40,
 } as const;
