@@ -1,6 +1,6 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { requireRoom } from "../middlewares";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleSync: HandlerFunction<
   ExtractWSRequestFrom["SYNC"]

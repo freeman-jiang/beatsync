@@ -52,7 +52,7 @@ export async function getBlobStats(): Promise<BlobStats> {
     if (allObjects) {
       allObjects.forEach((obj) => {
         if (obj.Key) {
-          const match = obj.Key.match(/^room-([^\/]+)\//);
+          const match = /^room-([^\/]+)\//.exec(obj.Key);
           if (match) {
             const roomId = match[1];
             if (!roomsInStorage.has(roomId)) {

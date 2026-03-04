@@ -1,4 +1,5 @@
-import { ChatMessageType, ClientDataType, epochNow } from "@beatsync/shared";
+import type { ChatMessageType, ClientDataType} from "@beatsync/shared";
+import { epochNow } from "@beatsync/shared";
 
 /**
  * ChatManager handles all chat-related operations for a room.
@@ -6,7 +7,7 @@ import { ChatMessageType, ClientDataType, epochNow } from "@beatsync/shared";
  */
 export class ChatManager {
   private chatMessages: ChatMessageType[] = [];
-  private nextMessageId: number = 1;
+  private nextMessageId = 1;
   private readonly MAX_CHAT_MESSAGES = 300;
   private readonly roomId: string;
 

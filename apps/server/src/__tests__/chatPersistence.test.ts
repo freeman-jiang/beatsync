@@ -1,4 +1,4 @@
-import { ChatMessageType } from "@beatsync/shared";
+import type { ChatMessageType } from "@beatsync/shared";
 import { describe, expect, it } from "bun:test";
 import { ChatManager } from "../managers/ChatManager";
 import { RoomManager } from "../managers/RoomManager";

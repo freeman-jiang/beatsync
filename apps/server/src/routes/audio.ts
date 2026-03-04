@@ -1,9 +1,9 @@
 import { GetAudioSchema } from "@beatsync/shared";
-import { Server } from "bun";
 import { errorResponse } from "../utils/responses";
+import type { BunServer } from "../utils/websocket";
 import { getPublicAudioUrl } from "../lib/r2";
 
-export const handleGetAudio = async (req: Request, _server: Server) => {
+export const handleGetAudio = async (req: Request, _server: BunServer) => {
   try {
     // Check if it's a POST request
     if (req.method !== "POST") {
@@ -12,7 +12,7 @@ export const handleGetAudio = async (req: Request, _server: Server) => {
 
     // Check content type
     const contentType = req.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
+    if (!contentType?.includes("application/json")) {
       return errorResponse("Content-Type must be application/json", 400);
     }
 

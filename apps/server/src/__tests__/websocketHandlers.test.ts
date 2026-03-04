@@ -1,10 +1,10 @@
 import { describe, expect, it, beforeEach, mock } from "bun:test";
 import { handleOpen } from "../routes/websocketHandlers";
 import { globalManager } from "../managers/GlobalManager";
-import { Server } from "bun";
+import type { BunServer } from "../utils/websocket";
 
 // Track messages sent via sendBroadcast
-let broadcastMessages: Array<{ server: any; roomId: string; message: any }> = [];
+let broadcastMessages: { server: any; roomId: string; message: any }[] = [];
 
 // Mock the sendBroadcast and sendUnicast functions  
 mock.module("../utils/responses", () => ({
@@ -50,7 +50,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       const mockServer = {
         publish: mock(() => {}),
-      } as unknown as Server;
+      } as unknown as BunServer;
 
       // Simulate client connection
       handleOpen(mockWs as any, mockServer);
@@ -91,7 +91,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       const mockServer = {
         publish: mock(() => {}),
-      } as unknown as Server;
+      } as unknown as BunServer;
 
       // Clear broadcast messages before this test
       broadcastMessages = [];
@@ -140,7 +140,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       const mockServer = {
         publish: mock(() => {}),
-      } as unknown as Server;
+      } as unknown as BunServer;
 
       // Clear broadcast messages
       broadcastMessages = [];
@@ -185,7 +185,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       const mockServer = {
         publish: mock(() => {}),
-      } as unknown as Server;
+      } as unknown as BunServer;
 
       // Verify room doesn't exist yet
       expect(globalManager.hasRoom(roomId)).toBe(false);

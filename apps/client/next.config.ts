@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactCompiler: true,
   images: {
     remotePatterns: [
       {
@@ -28,6 +28,7 @@ const nextConfig: NextConfig = {
   },
   // This is required to support PostHog trailing slash API requests
   skipTrailingSlashRedirect: true,
+  allowedDevOrigins: ["local.beatsync.gg"],
 };
 
 export default nextConfig;

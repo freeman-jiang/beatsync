@@ -54,7 +54,7 @@ export async function generatePresignedUploadUrl(
   roomId: string,
   fileName: string,
   contentType: string,
-  expiresIn: number = 3600 // 1 hour
+  expiresIn = 3600 // 1 hour
 ): Promise<string> {
   const key = createKey(roomId, fileName);
 
@@ -290,7 +290,7 @@ async function deleteIndividualObjects(
  * Tries batch delete first, falls back to individual deletes for GCS compatibility
  */
 export async function deleteObjectsWithPrefix(
-  prefix: string = ""
+  prefix = ""
 ): Promise<{ deletedCount: number }> {
   try {
     const objects = await listObjectsWithPrefix(prefix, {
@@ -396,7 +396,7 @@ export async function uploadBytes(
   bytes: Uint8Array | ArrayBuffer,
   roomId: string,
   fileName: string,
-  contentType: string = "audio/mpeg"
+  contentType = "audio/mpeg"
 ): Promise<string> {
   const key = createKey(roomId, fileName);
 
@@ -534,7 +534,7 @@ export interface OrphanCleanupResult {
  */
 export async function cleanupOrphanedRooms(
   activeRoomIds: Set<string>,
-  performDeletion: boolean = false
+  performDeletion = false
 ): Promise<OrphanCleanupResult> {
   const result: OrphanCleanupResult = {
     orphanedRooms: [],
@@ -567,7 +567,7 @@ export async function cleanupOrphanedRooms(
 
     roomObjects.forEach((obj) => {
       if (obj.Key) {
-        const match = obj.Key.match(/^room-([^\/]+)\//);
+        const match = /^room-([^\/]+)\//.exec(obj.Key);
         if (match) {
           const roomId = match[1];
           if (!roomsInR2.has(roomId)) {

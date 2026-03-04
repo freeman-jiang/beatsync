@@ -1,8 +1,8 @@
-import { SendChatMessageSchema } from "@beatsync/shared/types/WSRequest";
-import { Server, ServerWebSocket } from "bun";
-import { z } from "zod";
+import type { SendChatMessageSchema } from "@beatsync/shared/types/WSRequest";
+import type { ServerWebSocket } from "bun";
+import type { z } from "zod";
 import { sendBroadcast } from "../../utils/responses";
-import { WSData } from "../../utils/websocket";
+import type { BunServer, WSData } from "../../utils/websocket";
 import { requireRoom } from "../middlewares";
 
 export async function handleSendChatMessage({
@@ -12,7 +12,7 @@ export async function handleSendChatMessage({
 }: {
   ws: ServerWebSocket<WSData>;
   message: z.infer<typeof SendChatMessageSchema>;
-  server: Server;
+  server: BunServer;
 }) {
   const { room } = requireRoom(ws);
 

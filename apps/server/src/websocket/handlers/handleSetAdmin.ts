@@ -1,7 +1,7 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { sendBroadcast } from "../../utils/responses";
 import { requireRoomAdmin } from "../middlewares";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleSetAdmin: HandlerFunction<
   ExtractWSRequestFrom["SET_ADMIN"]

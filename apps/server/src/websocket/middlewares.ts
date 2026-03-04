@@ -1,7 +1,8 @@
 import { PlaybackControlsPermissionsEnum } from "@beatsync/shared";
-import { ServerWebSocket } from "bun";
-import { globalManager, RoomManager } from "../managers";
-import { WSData } from "../utils/websocket";
+import type { ServerWebSocket } from "bun";
+import type { RoomManager } from "../managers";
+import { globalManager } from "../managers";
+import type { WSData } from "../utils/websocket";
 
 export const requireRoom = (
   ws: ServerWebSocket<WSData>

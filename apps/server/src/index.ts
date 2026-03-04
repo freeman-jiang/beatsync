@@ -12,10 +12,10 @@ import {
   handleOpen,
 } from "./routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "./utils/responses";
-import { WSData } from "./utils/websocket";
+import type { WSData } from "./utils/websocket";
 
 // Bun.serve with WebSocket support
-const server = Bun.serve<WSData, undefined>({
+const server = Bun.serve<WSData>({
   hostname: "0.0.0.0",
   port: 8080,
   async fetch(req, server) {

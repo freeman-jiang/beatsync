@@ -19,7 +19,7 @@ import { handleStartSpatialAudio } from "./handlers/startSpatialAudio";
 import { handleStopSpatialAudio } from "./handlers/stopSpatialAudio";
 import { handleReorderAudioSources } from "./handlers/handleReorderAudioSources";
 import { handleSync } from "./handlers/sync";
-import { WebsocketRegistry } from "./types";
+import type { WebsocketRegistry } from "./types";
 
 export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.AUDIO_SOURCE_LOADED]: {

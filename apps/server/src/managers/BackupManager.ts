@@ -9,10 +9,11 @@ import {
   validateAudioFileExists,
 } from "../lib/r2";
 import { globalManager } from "./GlobalManager";
-import {
+import type {
   RoomBackupType,
-  ServerBackupSchema,
-  ServerBackupType,
+  ServerBackupType} from "./RoomManager";
+import {
+  ServerBackupSchema
 } from "./RoomManager";
 
 interface RoomRestoreResult {
@@ -266,7 +267,7 @@ export class BackupManager {
   /**
    * Clean up old backups (keep last N backups)
    */
-  static async cleanupOldBackups(keepCount: number = 5): Promise<void> {
+  static async cleanupOldBackups(keepCount = 5): Promise<void> {
     try {
       // Get all backup files sorted by name (newest first)
       const backupFiles = await getSortedFilesWithPrefix(

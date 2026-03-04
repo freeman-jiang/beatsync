@@ -25,15 +25,6 @@
   scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
 }
 
-/* Hide scrollbar when not needed */
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  visibility: auto;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:vertical:only-child {
-  visibility: hidden;
-}
-
 /* Scrollbar styling for Firefox */
 .scrollbar-thumb-rounded-md {
   scrollbar-width: thin;

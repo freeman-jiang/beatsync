@@ -1,10 +1,11 @@
+import type {
+  UploadCompleteResponseType,
+  UploadUrlResponseType} from "@beatsync/shared";
 import {
   GetUploadUrlSchema,
-  UploadCompleteResponseType,
-  UploadCompleteSchema,
-  UploadUrlResponseType,
+  UploadCompleteSchema
 } from "@beatsync/shared";
-import { Server } from "bun";
+import type { BunServer } from "../utils/websocket";
 import {
   createKey,
   generateAudioFileName,
@@ -77,7 +78,7 @@ export const handleGetPresignedURL = async (req: Request) => {
 };
 
 // Endpoint to confirm successful upload and broadcast to room
-export const handleUploadComplete = async (req: Request, server: Server) => {
+export const handleUploadComplete = async (req: Request, server: BunServer) => {
   try {
     if (req.method !== "POST") {
       return errorResponse("Method not allowed", 405);

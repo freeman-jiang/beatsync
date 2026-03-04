@@ -1,13 +1,14 @@
+import type {
+  WSBroadcastType} from "@beatsync/shared";
 import {
   ClientActionEnum,
   epochNow,
-  WSBroadcastType,
   WSRequestSchema,
 } from "@beatsync/shared";
-import { Server, ServerWebSocket } from "bun";
+import type { ServerWebSocket } from "bun";
 import { globalManager } from "../managers";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
-import { WSData } from "../utils/websocket";
+import type { BunServer, WSData } from "../utils/websocket";
 import { dispatchMessage } from "../websocket/dispatch";
 
 const createClientUpdate = (roomId: string) => {
@@ -22,7 +23,7 @@ const createClientUpdate = (roomId: string) => {
   return message;
 };
 
-export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
+export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   console.log(
     `WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`
   );
@@ -110,7 +111,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: Server) => {
 export const handleMessage = async (
   ws: ServerWebSocket<WSData>,
   message: string | Buffer,
-  server: Server
+  server: BunServer
 ) => {
   const t1 = epochNow(); // Always calculate this immediately
   const { roomId, username } = ws.data;
@@ -144,7 +145,7 @@ export const handleMessage = async (
 
 export const handleClose = async (
   ws: ServerWebSocket<WSData>,
-  server: Server
+  server: BunServer
 ) => {
   try {
     console.log(

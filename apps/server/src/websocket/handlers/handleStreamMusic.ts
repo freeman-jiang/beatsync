@@ -1,9 +1,9 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { generateAudioFileName, uploadBytes } from "../../lib/r2";
 import { globalManager } from "../../managers";
 import { MUSIC_PROVIDER_MANAGER } from "../../managers/MusicProviderManager";
 import { sendBroadcast } from "../../utils/responses";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleStreamMusic: HandlerFunction<
   ExtractWSRequestFrom["STREAM_MUSIC"]

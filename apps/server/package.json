@@ -2,27 +2,37 @@
   "name": "server",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "dev:log": "rm -f ../../logs/server.log && bun run --hot src/index.ts 2>&1 | tee ../../logs/server.log",
     "start": "bun run src/index.ts",
     "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
     "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.828.0",
+    "@aws-sdk/client-s3": "^3.1001.0",
     "@beatsync/shared": "workspace:*",
-    "dotenv": "^16.5.0",
-    "hono": "^4.7.2",
-    "nanoid": "^5.1.5",
-    "p-limit": "^6.2.0",
+    "dotenv": "^17.3.1",
+    "hono": "^4.12.4",
+    "nanoid": "^5.1.6",
+    "p-limit": "^7.3.0",
     "sanitize-filename": "^1.6.3",
-    "zod": "^3.24.2"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/sinon": "^17.0.4",
-    "sinon": "^21.0.0"
+    "@eslint/js": "^9",
+    "@types/bun": "^1.3.10",
+    "@types/sinon": "^21.0.0",
+    "eslint": "9.22.0",
+    "eslint-config-prettier": "^10.1.8",
+    "sinon": "^21.0.1",
+    "typescript-eslint": "^8.56.1"
   }
 }

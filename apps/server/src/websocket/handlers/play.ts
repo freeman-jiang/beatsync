@@ -1,6 +1,6 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { requireCanMutate } from "../middlewares";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handlePlay: HandlerFunction<
   ExtractWSRequestFrom["PLAY"]

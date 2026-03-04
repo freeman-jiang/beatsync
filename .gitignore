@@ -9,5 +9,10 @@ apps/server/uploads/*
 .DS_Store
 .vercel
 
+# Dev logs
+logs/
+
 # Local dev
 local/
+
+.vscode/

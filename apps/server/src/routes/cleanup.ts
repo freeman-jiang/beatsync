@@ -1,4 +1,5 @@
-import { cleanupOrphanedRooms, OrphanCleanupResult } from "../lib/r2";
+import type { OrphanCleanupResult } from "../lib/r2";
+import { cleanupOrphanedRooms } from "../lib/r2";
 import { globalManager } from "../managers";
 import { errorResponse, jsonResponse } from "../utils/responses";
 

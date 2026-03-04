@@ -1,4 +1,5 @@
-import { ClientDataType, GRID } from "@beatsync/shared";
+import type { ClientDataType} from "@beatsync/shared";
+import { GRID } from "@beatsync/shared";
 
 /**
  * Positions clients in a circle around a center point

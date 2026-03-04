@@ -1,7 +1,8 @@
-import { epochNow, ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
+import { epochNow } from "@beatsync/shared";
 import { sendUnicast } from "../../utils/responses";
 import { requireRoom } from "../middlewares";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleNTPRequest: HandlerFunction<
   ExtractWSRequestFrom["NTP_REQUEST"]

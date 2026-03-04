@@ -96,7 +96,7 @@ describe("R2 Logic Tests", () => {
       ];
 
       // Simulate our object preparation logic
-      const objectsToDelete = objects.map(obj => ({ Key: obj.Key! }));
+      const objectsToDelete = objects.map(obj => ({ Key: obj.Key }));
 
       expect(objectsToDelete).toHaveLength(2);
       expect(objectsToDelete[0]).toEqual({ Key: "room-123/audio.mp3" });

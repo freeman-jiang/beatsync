@@ -1,8 +1,8 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { listObjectsWithPrefix } from "../../lib/r2";
 import { sendBroadcast } from "../../utils/responses";
 import { requireCanMutate } from "../middlewares";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleLoadDefaultTracks: HandlerFunction<
   ExtractWSRequestFrom["LOAD_DEFAULT_TRACKS"]

@@ -9,6 +9,10 @@
       "persistent": true,
       "cache": false
     },
+    "dev:log": {
+      "persistent": true,
+      "cache": false
+    },
     "start": {
       "dependsOn": ["build"],
       "outputs": [".next/**"]

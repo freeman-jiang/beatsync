@@ -1,6 +1,6 @@
-import { WSRequestType } from "@beatsync/shared";
-import { Server, ServerWebSocket } from "bun";
-import { WSData } from "../utils/websocket";
+import type { WSRequestType } from "@beatsync/shared";
+import type { ServerWebSocket } from "bun";
+import type { BunServer, WSData } from "../utils/websocket";
 import { WS_REGISTRY } from "./registry";
 
 /**
@@ -20,7 +20,7 @@ export async function dispatchMessage({
 }: {
   ws: ServerWebSocket<WSData>;
   message: WSRequestType;
-  server: Server;
+  server: BunServer;
 }): Promise<void> {
   const handler = WS_REGISTRY[message.type];
 

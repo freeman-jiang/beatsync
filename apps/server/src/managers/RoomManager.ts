@@ -1,30 +1,31 @@
-import {
+import type {
   AudioSourceType,
-  ChatMessageSchema,
   ChatMessageType,
-  ClientDataSchema,
   ClientDataType,
   DiscoveryRoomType,
-  epochNow,
-  NTP_CONSTANTS,
   PauseActionType,
   PlayActionType,
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
   PositionType,
   RoomType,
-  WSBroadcastType,
+  WSBroadcastType} from "@beatsync/shared";
+import {
+  ChatMessageSchema,
+  ClientDataSchema,
+  epochNow,
+  NTP_CONSTANTS
 } from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
-import { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
-import { Server, ServerWebSocket } from "bun";
+import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
+import type { ServerWebSocket } from "bun";
 import { z } from "zod";
 import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "../config";
 import { deleteObjectsWithPrefix } from "../lib/r2";
 import { calculateGainFromDistanceToSource } from "../spatial";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
 import { positionClientsInCircle } from "../utils/spatial";
-import { WSData } from "../utils/websocket";
+import type { BunServer, WSData } from "../utils/websocket";
 import { ChatManager } from "./ChatManager";
 
 interface RoomData {
@@ -85,7 +86,7 @@ interface PendingPlayState {
   timeout: NodeJS.Timeout;
   playAction: PlayActionType;
   initiatorClientId: string;
-  server: Server;
+  server: BunServer;
 }
 
 /**
@@ -109,7 +110,7 @@ export class RoomManager {
   private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
   private playbackControlsPermissions: PlaybackControlsPermissionsType =
     "ADMIN_ONLY";
-  private globalVolume: number = 1.0; // Default 100% volume
+  private globalVolume = 1.0; // Default 100% volume
   // Map of trackId to job status
   private activeStreamJobs = new Map<string, { status: string }>();
   private chatManager: ChatManager;
@@ -148,7 +149,7 @@ export class RoomManager {
   initiateAudioSourceLoad(
     playAction: PlayActionType,
     initiatorClientId: string,
-    server: Server
+    server: BunServer
   ): void {
     // Clear any existing loading state
     this.clearAudioLoadingState();
@@ -218,7 +219,7 @@ export class RoomManager {
   /**
    * Process when a client reports they've loaded the audio source
    */
-  processClientLoadedAudioSource(clientId: string, server: Server): void {
+  processClientLoadedAudioSource(clientId: string, server: BunServer): void {
     if (!this.pendingPlay) {
       console.warn(
         `Room ${this.roomId}: Client ${clientId} reported audio source loaded, but no pending play state found`
@@ -248,7 +249,7 @@ export class RoomManager {
    * Execute the scheduled play after audio loading is complete
    * Could be called by either the timeout or explicitly because all clients loaded
    */
-  private executeScheduledPlay(server: Server): void {
+  private executeScheduledPlay(server: BunServer): void {
     if (!this.pendingPlay) {
       return;
     }
@@ -641,7 +642,7 @@ export class RoomManager {
   /**
    * Reorder clients, moving the specified client to the front
    */
-  reorderClients(clientId: string, server: Server): ClientDataType[] {
+  reorderClients(clientId: string, server: BunServer): ClientDataType[] {
     const clients = this.getClients();
     const clientIndex = clients.findIndex(
       (client) => client.clientId === clientId
@@ -671,7 +672,7 @@ export class RoomManager {
   /**
    * Move a client to a new position
    */
-  moveClient(clientId: string, position: PositionType, server: Server): void {
+  moveClient(clientId: string, position: PositionType, server: BunServer): void {
     const client = this.clientData.get(clientId);
     if (!client) return;
 
@@ -685,7 +686,7 @@ export class RoomManager {
   /**
    * Update the listening source position
    */
-  updateListeningSource(position: PositionType, server: Server): void {
+  updateListeningSource(position: PositionType, server: BunServer): void {
     this.listeningSource = position;
     this._calculateGainsAndBroadcast(server);
   }
@@ -693,7 +694,7 @@ export class RoomManager {
   /**
    * Set global volume for all clients
    */
-  setGlobalVolume(volume: number, server: Server): void {
+  setGlobalVolume(volume: number, server: BunServer): void {
     this.globalVolume = Math.max(0, Math.min(1, volume)); // Clamp 0-1
 
     sendBroadcast({
@@ -714,7 +715,7 @@ export class RoomManager {
   /**
    * Start spatial audio interval
    */
-  startSpatialAudio(server: Server): void {
+  startSpatialAudio(server: BunServer): void {
     // Don't start if already running
     if (this.intervalId) return;
 
@@ -983,7 +984,7 @@ export class RoomManager {
   /**
    * Calculate gains and broadcast to all clients
    */
-  private _calculateGainsAndBroadcast(server: Server): void {
+  private _calculateGainsAndBroadcast(server: BunServer): void {
     const clients = this.getClients();
 
     const gains = Object.fromEntries(

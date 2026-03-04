@@ -1,4 +1,4 @@
-import { DiscoverRoomsType } from "@beatsync/shared";
+import type { DiscoverRoomsType } from "@beatsync/shared";
 import { RoomManager } from "./RoomManager";
 
 /**
@@ -11,9 +11,9 @@ export class GlobalManager {
   private rooms = new Map<string, RoomManager>();
 
   // Active user count cache
-  private activeUserCount: number = 0;
-  private isDirty: boolean = true;
-  private isCalculating: boolean = false;
+  private activeUserCount = 0;
+  private isDirty = true;
+  private isCalculating = false;
 
   /**
    * Get a room by its ID

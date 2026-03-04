@@ -98,36 +98,37 @@ export const Player = () => {
   );
 
   // Handle slider release - seek to that position
-  const handleSliderCommit = useCallback(
-    (value: number[]) => {
-      if (!canMutate) return;
-      const newPosition = value[0];
-      setIsDragging(false);
-
-      // Update refs to match the committed position
-      currentPositionRef.current = newPosition;
-
-      // If currently playing, broadcast play at new position
-      // If paused, just update position without playing
-      if (isPlaying) {
-        broadcastPlay(newPosition);
-      } else {
-        setSliderPosition(newPosition);
-      }
-    },
-    [canMutate, broadcastPlay, isPlaying]
-  );
-
-  const handlePlay = useCallback(() => {
+  const handleSliderCommit = (value: number[]) => {
     if (!canMutate) return;
-    if (isPlaying) {
-      broadcastPause();
+    const newPosition = value[0];
+    setIsDragging(false);
+
+    // Update refs to match the committed position
+    currentPositionRef.current = newPosition;
+
+    // Read fresh state to avoid stale closures with React Compiler
+    const { isPlaying: currentlyPlaying, broadcastPlay: play } =
+      useGlobalStore.getState();
+
+    // If currently playing, broadcast play at new position
+    // If paused, just update position without playing
+    if (currentlyPlaying) {
+      play(newPosition);
     } else {
-      // Use ref value for most accurate position when resuming
-      const position = currentPositionRef.current || sliderPosition;
-      broadcastPlay(position);
+      setSliderPosition(newPosition);
     }
-  }, [canMutate, isPlaying, broadcastPause, broadcastPlay, sliderPosition]);
+  };
+
+  const handlePlay = () => {
+    if (!canMutate) return;
+    const state = useGlobalStore.getState();
+    if (state.isPlaying) {
+      state.broadcastPause();
+    } else {
+      const position = currentPositionRef.current || sliderPosition;
+      state.broadcastPlay(position);
+    }
+  };
 
   const handleSkipBack = useCallback(() => {
     if (!canMutate) return;
@@ -169,7 +170,7 @@ export const Player = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [handlePlay, canMutate]);
+  });
 
   return (
     <div className="w-full flex justify-center">

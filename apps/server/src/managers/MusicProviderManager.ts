@@ -4,7 +4,7 @@ import {
   StreamResponseSchema,
   TrackParamsSchema,
 } from "@beatsync/shared/";
-import { z } from "zod";
+import type { z } from "zod";
 
 export class MusicProviderManager {
   private providerUrl: string | undefined;
@@ -23,7 +23,7 @@ export class MusicProviderManager {
 
   async search(
     query: string,
-    offset: number = 0
+    offset = 0
   ): Promise<z.infer<typeof RawSearchResponseSchema>> {
     try {
       const { q, offset: validOffset } = SearchParamsSchema.parse({

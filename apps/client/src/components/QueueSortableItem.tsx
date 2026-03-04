@@ -22,8 +22,7 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
     canMutate: boolean;
 }) => {
   const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
-  const getSelectedTrack = useGlobalStore((state) => state.getSelectedTrack);
-  const selectedAudioId = useGlobalStore((state) => state.selectedAudioUrl);
+  const selectedAudioUrl = useGlobalStore((state) => state.selectedAudioUrl);
   const changeAudioSource = useGlobalStore((state) => state.changeAudioSource);
   const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
@@ -35,8 +34,7 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
     transition,
   };
 
-  const selectedTrack = getSelectedTrack();
-  const isSelected = selectedTrack?.source.url === sourceState.source.url;
+  const isSelected = selectedAudioUrl === sourceState.source.url;
   const isPlayingThis = isSelected && isPlaying;
   const isLoading = sourceState.status === "loading";
   const isError = sourceState.status === "error";
@@ -56,7 +54,7 @@ export const QueueSortableItem = ({ id, sourceState, index, canMutate } : {
     }
 
     const source = sourceState.source;
-    if (source.url === selectedAudioId) {
+    if (source.url === selectedAudioUrl) {
       if (isPlaying) {
         broadcastPause();
       } else {

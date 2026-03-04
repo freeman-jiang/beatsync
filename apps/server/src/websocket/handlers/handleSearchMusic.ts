@@ -1,7 +1,7 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { MUSIC_PROVIDER_MANAGER } from "../../managers/MusicProviderManager";
 import { sendUnicast } from "../../utils/responses";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleSearchMusic: HandlerFunction<
   ExtractWSRequestFrom["SEARCH_MUSIC"]

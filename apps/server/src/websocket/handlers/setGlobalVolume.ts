@@ -1,6 +1,6 @@
-import { ExtractWSRequestFrom } from "@beatsync/shared/types/WSRequest";
+import type { ExtractWSRequestFrom } from "@beatsync/shared/types/WSRequest";
 import { requireCanMutate } from "../middlewares";
-import { HandlerFunction } from "../types";
+import type { HandlerFunction } from "../types";
 
 export const handleSetGlobalVolume: HandlerFunction<
   ExtractWSRequestFrom["SET_GLOBAL_VOLUME"]
