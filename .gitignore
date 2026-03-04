@@ -8,3 +8,6 @@ node_modules
 apps/server/uploads/*
 .DS_Store
 .vercel
+
+# Local dev
+local/
