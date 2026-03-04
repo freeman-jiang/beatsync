@@ -133,7 +133,7 @@ export async function validateAudioFileExists(
 
     await r2Client.send(command);
     return true; // File exists
-  } catch (error) {
+  } catch {
     console.error(`Error validating audio file ${audioUrl}:`);
     return false;
   }
@@ -144,13 +144,14 @@ export async function validateAudioFileExists(
  */
 export function generateAudioFileName(originalName: string): string {
   // Extract extension
-  const extension = originalName.split(".").pop() || "mp3";
+  const extensionRaw = originalName.split(".").pop();
+  const extension = extensionRaw && extensionRaw.length > 0 ? extensionRaw : "mp3";
 
   // Remove extension from name for processing
   const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
 
   // Remove slashes from the original name
-  const nameWithoutSlashes = nameWithoutExt.replace(/[\/\\]/g, "-");
+  const nameWithoutSlashes = nameWithoutExt.replace(/[/\\]/g, "-");
 
   // Sanitize filename using the library
   let safeName = sanitize(nameWithoutSlashes, { replacement: "*" });
@@ -250,7 +251,7 @@ async function deleteBatchObjects(
 
     // Count successful deletions
     const batchDeletedCount =
-      batch.length - (deleteResponse.Errors?.length || 0);
+      batch.length - (deleteResponse.Errors?.length ?? 0);
     deletedCount += batchDeletedCount;
 
     // Collect errors instead of throwing immediately
@@ -278,7 +279,7 @@ async function deleteIndividualObjects(
       await deleteObject(obj.Key);
       deletedCount++;
     } catch (error) {
-      errors.push(`Failed to delete ${obj.Key}: ${error}`);
+      errors.push(`Failed to delete ${obj.Key}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -355,7 +356,7 @@ export async function deleteObjectsWithPrefix(
       throw error;
     }
   } catch (error) {
-    const errorMessage = `Failed to delete objects with prefix "${prefix}": ${error}`;
+    const errorMessage = `Failed to delete objects with prefix "${prefix}": ${error instanceof Error ? error.message : String(error)}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
@@ -436,7 +437,7 @@ export async function uploadJSON(key: string, data: object): Promise<void> {
 /**
  * Download and parse JSON data from R2
  */
-export async function downloadJSON<T = any>(key: string): Promise<T | null> {
+export async function downloadJSON<T = unknown>(key: string): Promise<T | null> {
   try {
     const command = new GetObjectCommand({
       Bucket: S3_CONFIG.BUCKET_NAME,
@@ -476,9 +477,9 @@ export async function getLatestFileWithPrefix(
   // Sort by key name (descending) to get the latest
   const sorted = objects
     .filter((obj) => obj.Key)
-    .sort((a, b) => (b.Key || "").localeCompare(a.Key || ""));
+    .sort((a, b) => (b.Key ?? "").localeCompare(a.Key ?? ""));
 
-  return sorted[0]?.Key || null;
+  return sorted[0]?.Key ?? null;
 }
 
 /**
@@ -512,7 +513,7 @@ export async function getSortedFilesWithPrefix(
       if (extension && !obj.Key.endsWith(extension)) return false;
       return true;
     })
-    .sort((a, b) => (b.Key || "").localeCompare(a.Key || ""))
+    .sort((a, b) => (b.Key ?? "").localeCompare(a.Key ?? ""))
     .map((obj) => obj.Key!);
 }
 
@@ -567,7 +568,7 @@ export async function cleanupOrphanedRooms(
 
     roomObjects.forEach((obj) => {
       if (obj.Key) {
-        const match = /^room-([^\/]+)\//.exec(obj.Key);
+        const match = /^room-([^/]+)\//.exec(obj.Key);
         if (match) {
           const roomId = match[1];
           if (!roomsInR2.has(roomId)) {
@@ -608,7 +609,7 @@ export async function cleanupOrphanedRooms(
 
     // Calculate total files to be deleted
     orphanedRooms.forEach((roomId) => {
-      result.totalFiles += roomsInR2.get(roomId)?.length || 0;
+      result.totalFiles += roomsInR2.get(roomId)?.length ?? 0;
     });
 
     console.log(`  📊 Total files to delete: ${result.totalFiles}`);
@@ -627,7 +628,7 @@ export async function cleanupOrphanedRooms(
           );
           totalDeleted += deleteResult.deletedCount;
         } catch (error) {
-          const errorMsg = `Failed to delete room-${roomId}: ${error}`;
+          const errorMsg = `Failed to delete room-${roomId}: ${error instanceof Error ? error.message : String(error)}`;
           console.error(`    ❌ ${errorMsg}`);
           result.errors!.push(errorMsg);
         }

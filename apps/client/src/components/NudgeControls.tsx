@@ -25,6 +25,7 @@ export const NudgeControls: React.FC<NudgeControlsProps> = ({
     },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's watch() API is incompatible with React Compiler memoization by design
   const nudgeAmount = watch("nudgeAmount");
 
   const handleNudgeAmountChange = (newAmount: number) => {

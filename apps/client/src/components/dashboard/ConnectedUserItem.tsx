@@ -25,50 +25,50 @@ export interface ConnectedUserItemProps {
   onSetAdmin: (clientId: string, isAdmin: boolean) => void;
 }
 
+// Location content shared between Tooltip and Popover - extracted outside render
+const LocationContent = ({ client }: { client: ClientDataType }) => (
+  <div className="space-y-1.5">
+    <div className="flex items-center gap-2">
+      <div className="w-3 flex justify-center">
+        {client.isAdmin ? (
+          <Crown
+            className="h-2.5 w-2.5 text-yellow-500"
+            fill="currentColor"
+          />
+        ) : (
+          <User className="h-3 w-3 text-muted-foreground" />
+        )}
+      </div>
+      <p className="font-medium text-xs text-foreground">
+        {client.username}
+      </p>
+    </div>
+    {client.location ? (
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <div className="w-3 flex justify-center">
+            <span className="text-sm">{client.location.flagEmoji}</span>
+          </div>
+          <span className="text-foreground/70">
+            {`${client.location.city}, ${client.location.region} • ${client.location.country}`}
+          </span>
+        </div>
+      </div>
+    ) : (
+      <div className="flex items-center gap-2">
+        <div className="w-3"></div>
+        <p className="text-xs text-muted-foreground/60 italic">
+          No location data
+        </p>
+      </div>
+    )}
+  </div>
+);
+
 export const ConnectedUserItem = memo<ConnectedUserItemProps>(
   ({ client, isCurrentUser, isAdmin, onSetAdmin }) => {
     const isMobile = useIsMobile();
     const [showLocation, setShowLocation] = useState(false);
-
-    // Location content shared between Tooltip and Popover
-    const LocationContent = () => (
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-3 flex justify-center">
-            {client.isAdmin ? (
-              <Crown
-                className="h-2.5 w-2.5 text-yellow-500"
-                fill="currentColor"
-              />
-            ) : (
-              <User className="h-3 w-3 text-muted-foreground" />
-            )}
-          </div>
-          <p className="font-medium text-xs text-foreground">
-            {client.username}
-          </p>
-        </div>
-        {client.location ? (
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-3 flex justify-center">
-                <span className="text-sm">{client.location.flagEmoji}</span>
-              </div>
-              <span className="text-foreground/70">
-                {`${client.location.city}, ${client.location.region} • ${client.location.country}`}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="w-3"></div>
-            <p className="text-xs text-muted-foreground/60 italic">
-              No location data
-            </p>
-          </div>
-        )}
-      </div>
-    );
 
     const avatarContent = (
       <div className="relative">
@@ -129,7 +129,7 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(
               align="center"
               className="bg-background/95 backdrop-blur-sm border-border/50 px-3 py-2 font-mono w-auto"
             >
-              <LocationContent />
+              <LocationContent client={client} />
             </PopoverContent>
           </Popover>
         ) : (
@@ -142,7 +142,7 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(
                 collisionPadding={8}
                 className="bg-background/95 backdrop-blur-sm border-border/50 px-3 py-2 font-mono"
               >
-                <LocationContent />
+                <LocationContent client={client} />
               </TooltipContent>
             </TooltipPortal>
           </Tooltip>

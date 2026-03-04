@@ -10,7 +10,7 @@ import type { HandlerFunction } from "../types";
 
 export const handleStopSpatialAudio: HandlerFunction<
   ExtractWSRequestFrom["STOP_SPATIAL_AUDIO"]
-> = async ({ ws, message, server }) => {
+> = async ({ ws, server }) => {
   // Stop the spatial audio interval if it exists
   const { room } = requireCanMutate(ws); // do nothing if no room exists
 

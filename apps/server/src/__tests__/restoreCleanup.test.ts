@@ -1,12 +1,14 @@
+import type { ServerWebSocket } from "bun";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { BackupManager } from "../managers/BackupManager";
 import { globalManager } from "../managers/GlobalManager";
+import type { WSData } from "../utils/websocket";
 
 // Mock the R2 operations
 mock.module("../lib/r2", () => ({
   deleteObjectsWithPrefix: mock(async () => ({ deletedCount: 0 })),
   uploadJSON: mock(async () => {}),
-  downloadJSON: mock(async (key: string) => {
+  downloadJSON: mock(async (_key: string) => {
     // Return test backup data
     return {
       timestamp: Date.now() - 60000, // 1 minute ago
@@ -61,18 +63,11 @@ describe("Restore Cleanup", () => {
   });
 
   it("should schedule cleanup for restored rooms with no active connections", async () => {
-    let cleanupScheduled = false;
-    let cleanupRoomId = "";
-
     // Spy on room cleanup scheduling
-    const originalScheduleCleanup =
-      globalManager.getOrCreateRoom("test").scheduleCleanup;
     globalManager.getOrCreateRoom("test").scheduleCleanup = function (
-      callback,
-      delay
+      _callback,
+      _delay
     ) {
-      cleanupScheduled = true;
-      cleanupRoomId = this.getRoomId();
       // Don't actually schedule the timer in tests
     };
 
@@ -133,7 +128,7 @@ describe("Restore Cleanup", () => {
       send: mock(() => {}),
     };
 
-    room.addClient(mockWs as any);
+    room.addClient(mockWs as unknown as ServerWebSocket<WSData>);
 
     // Wait to ensure cleanup would have fired if not cancelled
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -183,7 +178,7 @@ describe("Restore Cleanup", () => {
     };
 
     // Manually add ghost to clientData map
-    (room as any).clientData.set("ghost-1", ghostClient);
+    (room as unknown as { clientData: Map<string, typeof ghostClient> }).clientData.set("ghost-1", ghostClient);
 
     // Room should not be empty (has a ghost)
     expect(room.getClients().length).toBe(0); // Ghost client has no WebSocket so it won't be returned

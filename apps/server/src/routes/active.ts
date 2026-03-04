@@ -1,4 +1,4 @@
-import { jsonResponse, errorResponse } from "../utils/responses";
+import { jsonResponse } from "../utils/responses";
 import { globalManager } from "../managers/GlobalManager";
 import type { GetActiveRoomsType } from "@beatsync/shared";
 

@@ -139,7 +139,7 @@ export const UserGrid = () => {
   );
 
   // Add animation sync timestamp
-  const [animationSyncKey, setAnimationSyncKey] = useState(Date.now());
+  const [animationSyncKey, setAnimationSyncKey] = useState(() => Date.now());
 
   // Reference to track last execution time
   const lastLogTimeRef = useRef(0);
@@ -160,7 +160,10 @@ export const UserGrid = () => {
 
   // Update animation sync key when clients change
   useEffect(() => {
-    setAnimationSyncKey(Date.now());
+    // Use queueMicrotask to avoid synchronous setState in effect body
+    queueMicrotask(() => {
+      setAnimationSyncKey(Date.now());
+    });
   }, [clients]);
 
   // Function to update listening source position

@@ -37,13 +37,15 @@ export function InlineSearch() {
       defaultValues: { query: "" },
     });
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's watch() API is incompatible with React Compiler memoization by design
   const watchedQuery = watch("query");
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
+    const ref = blurTimeoutRef;
     return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
+      if (ref.current) {
+        clearTimeout(ref.current);
       }
     };
   }, []);

@@ -100,6 +100,7 @@ export const ActiveRooms = () => {
                         )}
                       >
                         {flagSvgURL ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- external SVG flag URLs not compatible with next/image optimization
                           <img
                             src={flagSvgURL}
                             alt="Country flag"

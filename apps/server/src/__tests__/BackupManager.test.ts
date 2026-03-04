@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { globalManager } from "../managers/GlobalManager";
+import type { RoomManager } from "../managers/RoomManager";
 
 // Mock the r2 module before importing BackupManager
 mock.module("../lib/r2", () => ({
@@ -137,7 +138,7 @@ describe("BackupManager (Simplified Tests)", () => {
       // room-c is left empty
 
       // Collect backup states (like BackupManager does)
-      const backupData: Record<string, any> = {};
+      const backupData: Record<string, ReturnType<RoomManager["createBackup"]>> = {};
       globalManager.forEachRoom((room, roomId) => {
         backupData[roomId] = room.createBackup();
       });

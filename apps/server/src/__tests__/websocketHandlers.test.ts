@@ -1,14 +1,16 @@
+import type { WSBroadcastType } from "@beatsync/shared";
+import type { ServerWebSocket } from "bun";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
 import { handleOpen } from "../routes/websocketHandlers";
 import { globalManager } from "../managers/GlobalManager";
-import type { BunServer } from "../utils/websocket";
+import type { BunServer, WSData } from "../utils/websocket";
 
 // Track messages sent via sendBroadcast
-let broadcastMessages: { server: any; roomId: string; message: any }[] = [];
+let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];
 
-// Mock the sendBroadcast and sendUnicast functions  
+// Mock the sendBroadcast and sendUnicast functions
 mock.module("../utils/responses", () => ({
-  sendBroadcast: mock(({ server, roomId, message }: { server: any; roomId: string; message: any }) => {
+  sendBroadcast: mock(({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
     broadcastMessages.push({ server, roomId, message });
   }),
   sendUnicast: mock(() => {}),
@@ -53,7 +55,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       } as unknown as BunServer;
 
       // Simulate client connection
-      handleOpen(mockWs as any, mockServer);
+      handleOpen(mockWs as unknown as ServerWebSocket<WSData>, mockServer);
 
       // Verify SET_AUDIO_SOURCES was broadcast
       const audioSourcesMessage = broadcastMessages.find((msg) => {
@@ -66,8 +68,11 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       expect(audioSourcesMessage).toBeTruthy();
 
       // Verify the audio sources content
-      expect(audioSourcesMessage!.message.event.sources).toHaveLength(2);
-      expect(audioSourcesMessage!.message.event.sources).toEqual([
+      const msg = audioSourcesMessage!.message;
+      if (msg.type !== "ROOM_EVENT" || msg.event.type !== "SET_AUDIO_SOURCES")
+        throw new Error("Expected SET_AUDIO_SOURCES");
+      expect(msg.event.sources).toHaveLength(2);
+      expect(msg.event.sources).toEqual([
         { url: "https://example.com/song1.mp3" },
         { url: "https://example.com/song2.mp3" },
       ]);
@@ -97,7 +102,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       broadcastMessages = [];
 
       // Simulate client connection
-      handleOpen(mockWs as any, mockServer);
+      handleOpen(mockWs as unknown as ServerWebSocket<WSData>, mockServer);
 
       // Verify no SET_AUDIO_SOURCES was broadcast
       const audioSourcesMessage = broadcastMessages.find((msg) => {
@@ -146,8 +151,8 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       broadcastMessages = [];
 
       // Both clients connect
-      handleOpen(mockWs1 as any, mockServer);
-      handleOpen(mockWs2 as any, mockServer);
+      handleOpen(mockWs1 as unknown as ServerWebSocket<WSData>, mockServer);
+      handleOpen(mockWs2 as unknown as ServerWebSocket<WSData>, mockServer);
 
       // Count how many SET_AUDIO_SOURCES broadcasts were sent
       const audioSourcesMessages = broadcastMessages.filter((msg) => {
@@ -161,9 +166,12 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       expect(audioSourcesMessages).toHaveLength(2);
       
       // Verify the content of audio sources
-      for (const msg of audioSourcesMessages) {
-        expect(msg.message.event.sources).toHaveLength(1);
-        expect(msg.message.event.sources[0].url).toBe(
+      for (const entry of audioSourcesMessages) {
+        const m = entry.message;
+        if (m.type !== "ROOM_EVENT" || m.event.type !== "SET_AUDIO_SOURCES")
+          throw new Error("Expected SET_AUDIO_SOURCES");
+        expect(m.event.sources).toHaveLength(1);
+        expect(m.event.sources[0].url).toBe(
           "https://example.com/shared.mp3"
         );
       }
@@ -191,7 +199,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       expect(globalManager.hasRoom(roomId)).toBe(false);
 
       // Connect client
-      handleOpen(mockWs as any, mockServer);
+      handleOpen(mockWs as unknown as ServerWebSocket<WSData>, mockServer);
 
       // Verify room was created and client was added
       expect(globalManager.hasRoom(roomId)).toBe(true);

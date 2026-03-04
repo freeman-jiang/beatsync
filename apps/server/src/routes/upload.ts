@@ -94,7 +94,7 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
       );
     }
 
-    const { roomId, originalName, publicUrl } = parseResult.data;
+    const { roomId, publicUrl } = parseResult.data;
 
     // Check if room exists
     const room = globalManager.getRoom(roomId);
@@ -108,7 +108,7 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
     const sources = room.addAudioSource({ url: publicUrl });
 
     console.log(
-      `✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${sources}`
+      `✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${JSON.stringify(sources)}`
     );
 
     // Broadcast to room that new audio is available

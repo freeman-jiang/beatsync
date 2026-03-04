@@ -82,7 +82,8 @@ const LocalIPFinder = () => {
   };
 
   useEffect(() => {
-    getLocalIP();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState is called inside async callbacks, not synchronously in the effect body
+    void getLocalIP();
   }, []);
 
   return (

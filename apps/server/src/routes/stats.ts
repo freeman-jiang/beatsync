@@ -4,7 +4,6 @@ import { formatBytes, getBlobStats } from "../utils/blobStats";
 import { corsHeaders } from "../utils/responses";
 
 export async function handleStats(): Promise<Response> {
-  const cpus = os.cpus();
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
   const usedMemory = totalMemory - freeMemory;
@@ -41,7 +40,7 @@ export async function handleStats(): Promise<Response> {
       username: client.username,
       isAdmin: client.isAdmin,
       rtt: client.rtt,
-      location: client.location || null,
+      location: client.location ?? null,
     }));
 
     return {

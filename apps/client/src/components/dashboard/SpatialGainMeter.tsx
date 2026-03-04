@@ -19,7 +19,8 @@ export const SpatialGainMeter = () => {
       // Reset to default when disabled
       targetGainRef.current = 1;
       currentGainRef.current = 1;
-      setGainValue(1);
+      // Use queueMicrotask to avoid synchronous setState in effect body
+      queueMicrotask(() => setGainValue(1));
       return;
     }
 

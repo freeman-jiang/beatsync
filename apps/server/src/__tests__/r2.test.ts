@@ -11,7 +11,7 @@ describe("R2 Logic Tests", () => {
       ];
 
       // Test folder detection logic (what our code uses)
-      const isFolder = (obj: any) => obj.Key?.endsWith("/") && obj.Size === 0;
+      const isFolder = (obj: { Key?: string; Size?: number }) => obj.Key?.endsWith("/") && obj.Size === 0;
       const nonFolders = objects.filter(obj => !isFolder(obj));
       const folders = objects.filter(obj => isFolder(obj));
 
@@ -28,7 +28,7 @@ describe("R2 Logic Tests", () => {
       ];
 
       // Simulate our filtering logic
-      const filterObjects = (objects: any[], includeFolders: boolean) => {
+      const filterObjects = (objects: { Key?: string; Size?: number }[], includeFolders: boolean) => {
         if (includeFolders) {
           return objects.filter(obj => obj.Key);
         } else {
@@ -56,7 +56,7 @@ describe("R2 Logic Tests", () => {
       ];
 
       // Test our error detection logic
-      const isNotImplementedError = (error: any) => {
+      const isNotImplementedError = (error: unknown) => {
         return (
           (error instanceof Error && error.message.includes("NotImplemented")) ||
           (error && typeof error === "object" && "Code" in error && error.Code === "NotImplemented")
@@ -73,7 +73,7 @@ describe("R2 Logic Tests", () => {
   describe("Delete operation logic", () => {
     it("should handle batch delete results correctly", () => {
       // Simulate batch delete response processing
-      const processBatchResult = (batchLength: number, errors: any[] = []) => {
+      const processBatchResult = (batchLength: number, errors: { Key: string; Message: string }[] = []) => {
         const deletedCount = batchLength - errors.length;
         return { deletedCount, errors };
       };

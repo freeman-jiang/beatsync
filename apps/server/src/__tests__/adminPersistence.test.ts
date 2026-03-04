@@ -35,7 +35,7 @@ function createMockWs(
     subscribe: mock(() => {}),
     send: mock(() => {}),
     close: mock(() => {}),
-  } as any;
+  } as unknown as ServerWebSocket<WSData>;
 }
 
 describe("Admin Persistence", () => {

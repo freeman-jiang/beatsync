@@ -9,7 +9,7 @@ import { useGlobalStore } from "@/store/global";
 import { formatChatTimestamp } from "@/utils/time";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Constants
 const MESSAGE_GROUP_TIME_WINDOW_MS = 1 * 60 * 1000; // 1 minute
@@ -26,7 +26,7 @@ export const Chat = () => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
-  const messageCountSnapshot = useRef(0);
+  const [messageCountSnapshot, setMessageCountSnapshot] = useState(0);
 
   const currentMessages = useChatStore((state) => state.messages);
   const sendChatMessage = useGlobalStore((state) => state.sendChatMessage);
@@ -34,7 +34,7 @@ export const Chat = () => {
 
   // Calculate new messages since user started scrolling
   const newMessageCount = isUserScrolling
-    ? currentMessages.length - messageCountSnapshot.current
+    ? currentMessages.length - messageCountSnapshot
     : 0;
 
   // State transition detection: Capture message count when scrolling starts
@@ -44,10 +44,10 @@ export const Chat = () => {
   ) => {
     if (!wasScrolling && isScrolling) {
       // User started scrolling - snapshot the current message count
-      messageCountSnapshot.current = currentMessages.length;
+      setMessageCountSnapshot(currentMessages.length);
     } else if (wasScrolling && !isScrolling) {
       // User stopped scrolling - update snapshot to current count
-      messageCountSnapshot.current = currentMessages.length;
+      setMessageCountSnapshot(currentMessages.length);
     }
   };
 
@@ -56,6 +56,22 @@ export const Chat = () => {
     onTransition: handleScrollTransition,
   });
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const scrollContainer = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    );
+    if (scrollContainer) {
+      scrollContainer.scrollTo({
+        top: scrollContainer.scrollHeight,
+        behavior,
+      });
+      // Reset scrolling state and update all refs consistently
+      setIsUserScrolling(false);
+      setMessageCountSnapshot(currentMessages.length);
+      prevMessageCountRef.current = currentMessages.length;
+    }
+  }, [currentMessages.length]);
+
   // Auto-scroll to bottom when new messages arrive (only if not manually scrolling)
   useEffect(() => {
     // Only auto-scroll if new messages were actually added
@@ -63,19 +79,20 @@ export const Chat = () => {
 
     if (hasNewMessages) {
       if (!isUserScrolling) {
-        // Auto-scroll to bottom for new messages
-        scrollToBottom("smooth");
+        // Use queueMicrotask to avoid synchronous setState in effect body
+        queueMicrotask(() => scrollToBottom("smooth"));
       } else {
         // Update prevMessageCountRef even when scrolling to track total messages
         prevMessageCountRef.current = currentMessages.length;
       }
     }
-  }, [currentMessages, isUserScrolling]);
+  }, [currentMessages, isUserScrolling, scrollToBottom]);
 
   // Scroll to bottom on mount
   useEffect(() => {
-    scrollToBottom("auto");
-  }, []);
+    // Use queueMicrotask to avoid synchronous setState in effect body
+    queueMicrotask(() => scrollToBottom("auto"));
+  }, [scrollToBottom]);
 
   // Handle scroll events to detect user scrolling
   useEffect(() => {
@@ -129,22 +146,6 @@ export const Chat = () => {
     if (e.key === "Enter" && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSend();
-    }
-  };
-
-  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    const scrollContainer = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]"
-    );
-    if (scrollContainer) {
-      scrollContainer.scrollTo({
-        top: scrollContainer.scrollHeight,
-        behavior,
-      });
-      // Reset scrolling state and update all refs consistently
-      setIsUserScrolling(false);
-      messageCountSnapshot.current = currentMessages.length;
-      prevMessageCountRef.current = currentMessages.length;
     }
   };
 

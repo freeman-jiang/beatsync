@@ -1,6 +1,7 @@
+import type { ServerWebSocket } from "bun";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { RoomManager } from "../managers/RoomManager";
 import { globalManager } from "../managers/GlobalManager";
+import type { WSData } from "../utils/websocket";
 
 // Mock the deleteObjectsWithPrefix to avoid R2 calls
 mock.module("../lib/r2", () => ({
@@ -58,7 +59,7 @@ describe("Room Cleanup Timer", () => {
       send: mock(() => {}),
     };
 
-    room.addClient(mockWs as any);
+    room.addClient(mockWs as unknown as ServerWebSocket<WSData>);
 
     // Cleanup should have been cancelled
     expect(cleanupCalled).toBe(false);
@@ -113,7 +114,7 @@ describe("Room Cleanup Timer", () => {
       subscribe: mock(() => {}),
       send: mock(() => {}),
     };
-    room.addClient(mockWs1 as any);
+    room.addClient(mockWs1 as unknown as ServerWebSocket<WSData>);
 
     // Remove the client (room becomes empty)
     room.removeClient("client-1");
@@ -138,7 +139,7 @@ describe("Room Cleanup Timer", () => {
       subscribe: mock(() => {}),
       send: mock(() => {}),
     };
-    room.addClient(mockWs2 as any);
+    room.addClient(mockWs2 as unknown as ServerWebSocket<WSData>);
 
     // Wait a bit to ensure cleanup would have been called if not cancelled
     await new Promise((resolve) => setTimeout(resolve, 100));

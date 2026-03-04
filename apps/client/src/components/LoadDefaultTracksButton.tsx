@@ -23,11 +23,14 @@ export const LoadDefaultTracksButton = ({
   // Stop loading when queue is populated
   useEffect(() => {
     if (isLoading && audioSources.length > 0) {
-      setIsLoading(false);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      // Use queueMicrotask to avoid synchronous setState in effect body
+      queueMicrotask(() => {
+        setIsLoading(false);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      });
     }
   }, [audioSources.length, isLoading]);
 

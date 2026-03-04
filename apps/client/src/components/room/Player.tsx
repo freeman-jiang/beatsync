@@ -14,8 +14,6 @@ import { Slider } from "../ui/slider";
 
 export const Player = () => {
   const canMutate = useCanMutate();
-  const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
-  const broadcastPause = useGlobalStore((state) => state.broadcastPause);
   const isPlaying = useGlobalStore((state) => state.isPlaying);
   const getCurrentTrackPosition = useGlobalStore(
     (state) => state.getCurrentTrackPosition
@@ -42,8 +40,11 @@ export const Player = () => {
   useEffect(() => {
     if (!isPlaying) {
       const newPosition = currentTime;
-      setSliderPosition(newPosition);
       currentPositionRef.current = newPosition;
+      // Use queueMicrotask to avoid synchronous setState in effect body
+      queueMicrotask(() => {
+        setSliderPosition(newPosition);
+      });
     }
   }, [currentTime, isPlaying]);
 

@@ -348,6 +348,7 @@ export function SearchResults({
             >
               {/* Album Art */}
               <div className="relative flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element -- external album art URLs with onError fallback, not compatible with next/image */}
                 <img
                   src={track.album.image.thumbnail || track.album.image.small}
                   alt={track.album.title}

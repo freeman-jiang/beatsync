@@ -44,15 +44,13 @@ export const SyncProgress = ({
   );
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
-  // Message state based on current progress phase
-  const [message, setMessage] = useState("Loading...");
+  // Derive message from current state instead of using effect + setState
+  const message = isLoading ? loadingMessage : "Synchronizing time...";
 
   // Effect to handle initial loading animation (0-20%)
   useEffect(() => {
     // In loading phase, animate progress from 0 to 20%
     if (isLoading) {
-      setMessage(loadingMessage);
-
       const initialLoadInterval = setInterval(() => {
         setAnimatedProgress((prev) => {
           // Cap at 0.19 (19%) to visually indicate we're still loading
@@ -65,16 +63,16 @@ export const SyncProgress = ({
     }
 
     // In syncing phase, scale progress from 20% to 100%
-    setMessage("Synchronizing time...");
-
-    // If sync is complete, set to 100%
-    if (isSyncComplete) {
-      setAnimatedProgress(1);
-    } else {
-      // Otherwise, scale the syncProgress to 20%-100% range
-      setAnimatedProgress(0.1 + syncProgress * 0.9);
-    }
-  }, [isLoading, syncProgress, isSyncComplete, loadingMessage]);
+    // Use queueMicrotask to avoid synchronous setState in effect body
+    queueMicrotask(() => {
+      if (isSyncComplete) {
+        setAnimatedProgress(1);
+      } else {
+        // Otherwise, scale the syncProgress to 20%-100% range
+        setAnimatedProgress(0.1 + syncProgress * 0.9);
+      }
+    });
+  }, [isLoading, syncProgress, isSyncComplete]);
 
   // Normalize progress to ensure it's between 0 and 1
   const normalizedProgress = Math.min(Math.max(animatedProgress, 0), 1);

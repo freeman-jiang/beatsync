@@ -45,14 +45,14 @@ export async function getBlobStats(): Promise<BlobStats> {
     // Group objects by room and calculate sizes
     const roomsInStorage = new Map<
       string,
-      { files: any[]; totalSize: number }
+      { files: { Key?: string; Size?: number }[]; totalSize: number }
     >();
     let totalStorageSize = 0;
 
     if (allObjects) {
       allObjects.forEach((obj) => {
         if (obj.Key) {
-          const match = /^room-([^\/]+)\//.exec(obj.Key);
+          const match = /^room-([^/]+)\//.exec(obj.Key);
           if (match) {
             const roomId = match[1];
             if (!roomsInStorage.has(roomId)) {
@@ -60,8 +60,8 @@ export async function getBlobStats(): Promise<BlobStats> {
             }
             const room = roomsInStorage.get(roomId)!;
             room.files.push(obj);
-            room.totalSize += obj.Size || 0;
-            totalStorageSize += obj.Size || 0;
+            room.totalSize += obj.Size ?? 0;
+            totalStorageSize += obj.Size ?? 0;
           }
         }
       });
@@ -77,11 +77,11 @@ export async function getBlobStats(): Promise<BlobStats> {
     roomsInStorage.forEach((roomData, roomId) => {
       // Extract filename from the key (room-{roomId}/{filename})
       const files = roomData.files.map((obj) => {
-        const filename = obj.Key.split("/").pop() || "";
+        const filename = (obj.Key ?? "").split("/").pop() ?? "";
         return {
-          key: obj.Key,
-          size: formatBytes(obj.Size || 0),
-          sizeBytes: obj.Size || 0,
+          key: obj.Key ?? "",
+          size: formatBytes(obj.Size ?? 0),
+          sizeBytes: obj.Size ?? 0,
           publicUrl: getPublicAudioUrl(roomId, filename),
         };
       });
@@ -104,7 +104,7 @@ export async function getBlobStats(): Promise<BlobStats> {
     const orphanedCount = Object.keys(orphanedRoomDetails).length;
 
     return {
-      totalObjects: allObjects?.length || 0,
+      totalObjects: allObjects?.length ?? 0,
       totalRooms: roomsInStorage.size,
       totalSize: formatBytes(totalStorageSize),
       totalSizeBytes: totalStorageSize,
@@ -114,7 +114,7 @@ export async function getBlobStats(): Promise<BlobStats> {
     };
   } catch (error) {
     return {
-      error: `Failed to check blob storage: ${error}`,
+      error: `Failed to check blob storage: ${error instanceof Error ? error.message : String(error)}`,
       totalObjects: 0,
       totalRooms: 0,
       totalSize: "0 B",

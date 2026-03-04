@@ -94,6 +94,7 @@ export const RoomQRCode = () => {
               <div className="w-full lg:px-8">
                 <div className="w-full h-full" style={{ height: "auto" }}>
                   {qrCodeDataUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- data URL from QR code generation, not a remote image
                     <img
                       src={qrCodeDataUrl}
                       alt="Room QR Code"

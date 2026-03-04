@@ -35,6 +35,6 @@ export async function handleCleanup(req: Request) {
 
   } catch (error) {
     console.error("\n❌ Cleanup failed:", error);
-    return errorResponse(`Cleanup failed: ${error}`, 500);
+    return errorResponse(`Cleanup failed: ${error instanceof Error ? error.message : String(error)}`, 500);
   }
 }

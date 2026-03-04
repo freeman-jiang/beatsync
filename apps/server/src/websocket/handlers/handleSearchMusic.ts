@@ -9,7 +9,7 @@ export const handleSearchMusic: HandlerFunction<
   try {
     const data = await MUSIC_PROVIDER_MANAGER.search(
       message.query,
-      message.offset || 0
+      message.offset ?? 0
     );
 
     sendUnicast({

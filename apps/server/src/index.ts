@@ -55,7 +55,7 @@ const server = Bun.serve<WSData>({
         default:
           return errorResponse("Not found", 404);
       }
-    } catch (err) {
+    } catch {
       return errorResponse("Internal server error", 500);
     }
   },

@@ -1,5 +1,4 @@
 import type { GetDefaultAudioType } from "@beatsync/shared";
-import { AudioSourceType } from "@beatsync/shared";
 import { listObjectsWithPrefix } from "../lib/r2";
 import { jsonResponse, errorResponse } from "../utils/responses";
 

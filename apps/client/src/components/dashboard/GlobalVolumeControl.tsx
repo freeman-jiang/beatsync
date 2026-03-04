@@ -81,14 +81,13 @@ export const GlobalVolumeControl = ({
     [sendGlobalVolumeUpdate]
   );
 
-  // Get appropriate volume icon
-  const getVolumeIcon = (volume: number) => {
-    if (volume === 0) return VolumeX;
-    if (volume < 50) return Volume1;
-    return Volume2;
-  };
-
-  const VolumeIcon = getVolumeIcon(displayVolume * 100);
+  // Get appropriate volume icon - rendered as element to avoid creating components during render
+  const volumeIcon = useMemo(() => {
+    const volume = displayVolume * 100;
+    if (volume === 0) return <VolumeX className="h-4 w-4" />;
+    if (volume < 50) return <Volume1 className="h-4 w-4" />;
+    return <Volume2 className="h-4 w-4" />;
+  }, [displayVolume]);
 
   // Handle slider change (while dragging) - send updates continuously
   const handleSliderChange = useCallback(
@@ -151,7 +150,7 @@ export const GlobalVolumeControl = ({
               )}
               disabled={!canMutate}
             >
-              <VolumeIcon className="h-4 w-4" />
+              {volumeIcon}
             </button>
             <Slider
               value={[displayVolume * 100]}
@@ -196,7 +195,7 @@ export const GlobalVolumeControl = ({
           sendGlobalVolumeUpdate(newVolume);
         }}
       >
-        <VolumeIcon className="h-4 w-4" />
+        {volumeIcon}
       </button>
       <div className="w-24 flex items-center">
         <Slider

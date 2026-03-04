@@ -9,7 +9,7 @@ export const corsHeaders = {
 };
 
 // Helper functions for common responses
-export const jsonResponse = (data: any, status = 200) =>
+export const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: corsHeaders,

@@ -1,4 +1,4 @@
-import { deleteObjectsWithPrefix, listObjectsWithPrefix } from "./r2";
+import { listObjectsWithPrefix } from "./r2";
 
 const main = async () => {
   const objects = await listObjectsWithPrefix("");
@@ -6,11 +6,6 @@ const main = async () => {
 
   // Delete all objects
   // console.log(await deleteObjectsWithPrefix(""));
-};
-
-const deleteAllObjects = async () => {
-  const result = await deleteObjectsWithPrefix("");
-  console.log("Delete result:", result);
 };
 
 main();

@@ -13,6 +13,10 @@ export const useNtpHeartbeat = ({
   const lastNtpRequestTime = useRef<number | null>(null);
   const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
 
+  // Store the schedule function in a ref to allow self-referencing without
+  // declaring a variable before its useCallback definition
+  const scheduleRef = useRef<() => void>(() => {});
+
   // Schedule next NTP request
   const scheduleNextNtpRequest = useCallback(() => {
     // Cancel any existing timeout
@@ -43,9 +47,14 @@ export const useNtpHeartbeat = ({
       // Only reset timer and send request if the previous one didn't timeout
       lastNtpRequestTime.current = Date.now();
       sendNTPRequest();
-      scheduleNextNtpRequest(); // Schedule the next one
+      scheduleRef.current(); // Schedule the next one via ref
     }, interval);
   }, [sendNTPRequest, onConnectionStale]);
+
+  // Keep scheduleRef in sync with the latest callback via useEffect
+  useEffect(() => {
+    scheduleRef.current = scheduleNextNtpRequest;
+  }, [scheduleNextNtpRequest]);
 
   // Start the heartbeat when socket opens
   const startHeartbeat = useCallback(() => {

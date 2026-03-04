@@ -48,7 +48,7 @@ export const handleStreamMusic: HandlerFunction<
     const streamUrl = streamResponse.data.url;
 
     // Use provided track name or fallback to track ID
-    const originalName = message.trackName || `track-${message.trackId}`;
+    const originalName = message.trackName ?? `track-${message.trackId}`;
 
     // Download the audio file
     console.log(`Downloading audio from: ${streamUrl}`);
@@ -65,7 +65,7 @@ export const handleStreamMusic: HandlerFunction<
     const arrayBuffer = await response.arrayBuffer();
 
     // Get content type from response headers, fallback to audio/mpeg
-    const contentType = response.headers.get("content-type") || "audio/mpeg";
+    const contentType = response.headers.get("content-type") ?? "audio/mpeg";
 
     // Upload directly to R2
     console.log(`Uploading to R2: room-${roomId}/${fileName}`);
