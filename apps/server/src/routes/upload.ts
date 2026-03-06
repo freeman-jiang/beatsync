@@ -1,15 +1,15 @@
 import type { UploadCompleteResponseType, UploadUrlResponseType } from "@beatsync/shared";
 import { GetUploadUrlSchema, UploadCompleteSchema } from "@beatsync/shared";
-import type { BunServer } from "../utils/websocket";
+import type { BunServer } from "@/utils/websocket";
 import {
   createKey,
   generateAudioFileName,
   generatePresignedUploadUrl,
   getPublicAudioUrl,
   validateR2Config,
-} from "../lib/r2";
-import { globalManager } from "../managers";
-import { errorResponse, jsonResponse, sendBroadcast } from "../utils/responses";
+} from "@/lib/r2";
+import { globalManager } from "@/managers";
+import { errorResponse, jsonResponse, sendBroadcast } from "@/utils/responses";
 
 // New endpoint to get presigned upload URL
 export const handleGetPresignedURL = async (req: Request) => {

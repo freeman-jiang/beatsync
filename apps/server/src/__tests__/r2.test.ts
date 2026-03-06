@@ -12,8 +12,8 @@ describe("R2 Logic Tests", () => {
 
       // Test folder detection logic (what our code uses)
       const isFolder = (obj: { Key?: string; Size?: number }) => obj.Key?.endsWith("/") && obj.Size === 0;
-      const nonFolders = objects.filter(obj => !isFolder(obj));
-      const folders = objects.filter(obj => isFolder(obj));
+      const nonFolders = objects.filter((obj) => !isFolder(obj));
+      const folders = objects.filter((obj) => isFolder(obj));
 
       expect(nonFolders).toHaveLength(2);
       expect(folders).toHaveLength(2);
@@ -30,11 +30,9 @@ describe("R2 Logic Tests", () => {
       // Simulate our filtering logic
       const filterObjects = (objects: { Key?: string; Size?: number }[], includeFolders: boolean) => {
         if (includeFolders) {
-          return objects.filter(obj => obj.Key);
+          return objects.filter((obj) => obj.Key);
         } else {
-          return objects.filter(
-            obj => obj.Key && !obj.Key.endsWith("/") && obj.Size && obj.Size > 0
-          );
+          return objects.filter((obj) => obj.Key && !obj.Key.endsWith("/") && obj.Size && obj.Size > 0);
         }
       };
 
@@ -96,7 +94,7 @@ describe("R2 Logic Tests", () => {
       ];
 
       // Simulate our object preparation logic
-      const objectsToDelete = objects.map(obj => ({ Key: obj.Key }));
+      const objectsToDelete = objects.map((obj) => ({ Key: obj.Key }));
 
       expect(objectsToDelete).toHaveLength(2);
       expect(objectsToDelete[0]).toEqual({ Key: "room-123/audio.mp3" });

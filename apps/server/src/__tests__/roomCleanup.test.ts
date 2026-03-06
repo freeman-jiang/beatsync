@@ -1,7 +1,7 @@
 import type { ServerWebSocket } from "bun";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { globalManager } from "../managers/GlobalManager";
-import type { WSData } from "../utils/websocket";
+import { globalManager } from "@/managers/GlobalManager";
+import type { WSData } from "@/utils/websocket";
 
 // Mock the deleteObjectsWithPrefix to avoid R2 calls
 void mock.module("../lib/r2", () => ({

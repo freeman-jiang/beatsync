@@ -1,6 +1,6 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { requireRoom } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { requireRoom } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
 export const handleSync: HandlerFunction<ExtractWSRequestFrom["SYNC"]> = ({ ws }) => {
   // Handle sync request from new client

@@ -1,13 +1,15 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { generateAudioFileName, uploadBytes } from "../../lib/r2";
-import { globalManager } from "../../managers";
-import { MUSIC_PROVIDER_MANAGER } from "../../managers/MusicProviderManager";
-import { sendBroadcast } from "../../utils/responses";
-import type { HandlerFunction } from "../types";
+import { generateAudioFileName, uploadBytes } from "@/lib/r2";
+import { globalManager } from "@/managers";
+import { MUSIC_PROVIDER_MANAGER } from "@/managers/MusicProviderManager";
+import { sendBroadcast } from "@/utils/responses";
+import type { HandlerFunction } from "@/websocket/types";
 
-export const handleStreamMusic: HandlerFunction<
-  ExtractWSRequestFrom["STREAM_MUSIC"]
-> = async ({ ws, message, server }) => {
+export const handleStreamMusic: HandlerFunction<ExtractWSRequestFrom["STREAM_MUSIC"]> = async ({
+  ws,
+  message,
+  server,
+}) => {
   const roomId = ws.data.roomId;
 
   // Require room to exist before processing stream request
@@ -20,9 +22,7 @@ export const handleStreamMusic: HandlerFunction<
   // Check if this track is already being streamed
   const trackId = message.trackId.toString();
   if (room.hasActiveStreamJob(trackId)) {
-    console.log(
-      `Track ${trackId} is already being streamed for room ${roomId}, ignoring duplicate request`
-    );
+    console.log(`Track ${trackId} is already being streamed for room ${roomId}, ignoring duplicate request`);
     return;
   }
 
@@ -75,9 +75,7 @@ export const handleStreamMusic: HandlerFunction<
     const sources = room.addAudioSource({ url: r2Url });
 
     console.log(`Successfully uploaded track to R2: ${r2Url}`);
-    console.log(
-      `Broadcasting new audio sources to room ${roomId}: ${sources.length} total sources`
-    );
+    console.log(`Broadcasting new audio sources to room ${roomId}: ${sources.length} total sources`);
 
     // Broadcast to all room members that new audio is available
     sendBroadcast({

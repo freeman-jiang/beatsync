@@ -1,12 +1,13 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { listObjectsWithPrefix } from "../../lib/r2";
-import { sendBroadcast } from "../../utils/responses";
-import { requireCanMutate } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { listObjectsWithPrefix } from "@/lib/r2";
+import { sendBroadcast } from "@/utils/responses";
+import { requireCanMutate } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
-export const handleLoadDefaultTracks: HandlerFunction<
-  ExtractWSRequestFrom["LOAD_DEFAULT_TRACKS"]
-> = async ({ ws, server }) => {
+export const handleLoadDefaultTracks: HandlerFunction<ExtractWSRequestFrom["LOAD_DEFAULT_TRACKS"]> = async ({
+  ws,
+  server,
+}) => {
   const { room } = requireCanMutate(ws);
 
   // List default objects from R2 and map to public URLs
@@ -15,9 +16,7 @@ export const handleLoadDefaultTracks: HandlerFunction<
     return;
   }
 
-  const urls = objects
-    .filter((obj) => !!obj.Key)
-    .map((obj) => ({ url: `${process.env.S3_PUBLIC_URL}/${obj.Key}` }));
+  const urls = objects.filter((obj) => !!obj.Key).map((obj) => ({ url: `${process.env.S3_PUBLIC_URL}/${obj.Key}` }));
 
   // Existing room sources and simple URL set for dedupe
   const existingUrlSet = new Set(room.getAudioSources().map((s) => s.url));
@@ -26,9 +25,7 @@ export const handleLoadDefaultTracks: HandlerFunction<
   const toAdd = urls.filter((u) => !existingUrlSet.has(u.url));
 
   if (toAdd.length === 0) {
-    console.log(
-      `[${ws.data.roomId}] No new default tracks to add (all already present).`
-    );
+    console.log(`[${ws.data.roomId}] No new default tracks to add (all already present).`);
     return;
   }
 

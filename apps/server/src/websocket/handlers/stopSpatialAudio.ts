@@ -1,8 +1,8 @@
 import type { ExtractWSRequestFrom, WSBroadcastType } from "@beatsync/shared";
 import { epochNow } from "@beatsync/shared";
-import { sendBroadcast } from "../../utils/responses";
-import { requireCanMutate } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { sendBroadcast } from "@/utils/responses";
+import { requireCanMutate } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
 export const handleStopSpatialAudio: HandlerFunction<ExtractWSRequestFrom["STOP_SPATIAL_AUDIO"]> = ({ ws, server }) => {
   // Stop the spatial audio interval if it exists

@@ -1,4 +1,4 @@
-import type { ClientDataType} from "@beatsync/shared";
+import type { ClientDataType } from "@beatsync/shared";
 import { GRID } from "@beatsync/shared";
 
 /**

@@ -1,9 +1,9 @@
 import type { WSBroadcastType } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
-import { handleOpen } from "../routes/websocketHandlers";
-import { globalManager } from "../managers/GlobalManager";
-import type { BunServer, WSData } from "../utils/websocket";
+import { handleOpen } from "@/routes/websocketHandlers";
+import { globalManager } from "@/managers/GlobalManager";
+import type { BunServer, WSData } from "@/utils/websocket";
 
 // Track messages sent via sendBroadcast
 let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];

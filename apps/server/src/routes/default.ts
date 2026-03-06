@@ -1,6 +1,6 @@
 import type { GetDefaultAudioType } from "@beatsync/shared";
-import { listObjectsWithPrefix } from "../lib/r2";
-import { jsonResponse, errorResponse } from "../utils/responses";
+import { listObjectsWithPrefix } from "@/lib/r2";
+import { jsonResponse, errorResponse } from "@/utils/responses";
 
 export async function handleGetDefaultAudio(_req: Request) {
   try {

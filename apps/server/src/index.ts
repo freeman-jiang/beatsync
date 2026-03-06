@@ -1,14 +1,14 @@
-import { BackupManager } from "./managers/BackupManager";
-import { getActiveRooms } from "./routes/active";
-import { handleGetDefaultAudio } from "./routes/default";
-import { handleDiscover } from "./routes/discover";
-import { handleRoot } from "./routes/root";
-import { handleStats } from "./routes/stats";
-import { handleGetPresignedURL, handleUploadComplete } from "./routes/upload";
-import { handleWebSocketUpgrade } from "./routes/websocket";
-import { handleClose, handleMessage, handleOpen } from "./routes/websocketHandlers";
-import { corsHeaders, errorResponse } from "./utils/responses";
-import type { WSData } from "./utils/websocket";
+import { BackupManager } from "@/managers/BackupManager";
+import { getActiveRooms } from "@/routes/active";
+import { handleGetDefaultAudio } from "@/routes/default";
+import { handleDiscover } from "@/routes/discover";
+import { handleRoot } from "@/routes/root";
+import { handleStats } from "@/routes/stats";
+import { handleGetPresignedURL, handleUploadComplete } from "@/routes/upload";
+import { handleWebSocketUpgrade } from "@/routes/websocket";
+import { handleClose, handleMessage, handleOpen } from "@/routes/websocketHandlers";
+import { corsHeaders, errorResponse } from "@/utils/responses";
+import type { WSData } from "@/utils/websocket";
 
 // Bun.serve with WebSocket support
 const server = Bun.serve<WSData>({

@@ -1,25 +1,25 @@
 import { ClientActionEnum } from "@beatsync/shared";
-import { handleAudioSourceLoaded } from "./handlers/handleAudioSourceLoaded";
-import { handleDeleteAudioSources } from "./handlers/handleDeleteAudioSources";
-import { handleLoadDefaultTracks } from "./handlers/handleLoadDefaultTracks";
-import { handleSearchMusic } from "./handlers/handleSearchMusic";
-import { handleSendChatMessage } from "./handlers/handleSendChatMessage";
-import { handleSendIp } from "./handlers/handleSendIp";
-import { handleSetAdmin } from "./handlers/handleSetAdmin";
-import { handleSetPlaybackControls } from "./handlers/handleSetPlaybackControls";
-import { handleStreamMusic } from "./handlers/handleStreamMusic";
-import { handleMoveClient } from "./handlers/moveClient";
-import { handleNTPRequest } from "./handlers/ntpRequest";
-import { handlePause } from "./handlers/pause";
-import { handlePlay } from "./handlers/play";
-import { handleReorderClient } from "./handlers/reorderClient";
-import { handleSetGlobalVolume } from "./handlers/setGlobalVolume";
-import { handleSetListeningSource } from "./handlers/setListeningSource";
-import { handleStartSpatialAudio } from "./handlers/startSpatialAudio";
-import { handleStopSpatialAudio } from "./handlers/stopSpatialAudio";
-import { handleReorderAudioSources } from "./handlers/handleReorderAudioSources";
-import { handleSync } from "./handlers/sync";
-import type { WebsocketRegistry } from "./types";
+import { handleAudioSourceLoaded } from "@/websocket/handlers/handleAudioSourceLoaded";
+import { handleDeleteAudioSources } from "@/websocket/handlers/handleDeleteAudioSources";
+import { handleLoadDefaultTracks } from "@/websocket/handlers/handleLoadDefaultTracks";
+import { handleSearchMusic } from "@/websocket/handlers/handleSearchMusic";
+import { handleSendChatMessage } from "@/websocket/handlers/handleSendChatMessage";
+import { handleSendIp } from "@/websocket/handlers/handleSendIp";
+import { handleSetAdmin } from "@/websocket/handlers/handleSetAdmin";
+import { handleSetPlaybackControls } from "@/websocket/handlers/handleSetPlaybackControls";
+import { handleStreamMusic } from "@/websocket/handlers/handleStreamMusic";
+import { handleMoveClient } from "@/websocket/handlers/moveClient";
+import { handleNTPRequest } from "@/websocket/handlers/ntpRequest";
+import { handlePause } from "@/websocket/handlers/pause";
+import { handlePlay } from "@/websocket/handlers/play";
+import { handleReorderClient } from "@/websocket/handlers/reorderClient";
+import { handleSetGlobalVolume } from "@/websocket/handlers/setGlobalVolume";
+import { handleSetListeningSource } from "@/websocket/handlers/setListeningSource";
+import { handleStartSpatialAudio } from "@/websocket/handlers/startSpatialAudio";
+import { handleStopSpatialAudio } from "@/websocket/handlers/stopSpatialAudio";
+import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAudioSources";
+import { handleSync } from "@/websocket/handlers/sync";
+import type { WebsocketRegistry } from "@/websocket/types";
 
 export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.AUDIO_SOURCE_LOADED]: {

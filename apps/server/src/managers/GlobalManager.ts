@@ -1,5 +1,5 @@
 import type { DiscoverRoomsType } from "@beatsync/shared";
-import { RoomManager } from "./RoomManager";
+import { RoomManager } from "@/managers/RoomManager";
 
 /**
  * GlobalManager is a singleton that manages all active rooms.

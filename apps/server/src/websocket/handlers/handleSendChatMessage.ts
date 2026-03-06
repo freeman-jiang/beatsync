@@ -1,9 +1,9 @@
 import type { SendChatMessageSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
 import type { z } from "zod";
-import { sendBroadcast } from "../../utils/responses";
-import type { BunServer, WSData } from "../../utils/websocket";
-import { requireRoom } from "../middlewares";
+import { sendBroadcast } from "@/utils/responses";
+import type { BunServer, WSData } from "@/utils/websocket";
+import { requireRoom } from "@/websocket/middlewares";
 
 export function handleSendChatMessage({
   ws,

@@ -1,7 +1,7 @@
 import type { ChatMessageType } from "@beatsync/shared";
 import { describe, expect, it } from "bun:test";
-import { ChatManager } from "../managers/ChatManager";
-import { RoomManager } from "../managers/RoomManager";
+import { ChatManager } from "@/managers/ChatManager";
+import { RoomManager } from "@/managers/RoomManager";
 
 describe("Chat Persistence", () => {
   it("should backup and restore chat messages correctly", () => {

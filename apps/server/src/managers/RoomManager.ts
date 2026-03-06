@@ -16,13 +16,13 @@ import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
 import { z } from "zod";
-import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "../config";
-import { deleteObjectsWithPrefix } from "../lib/r2";
-import { calculateGainFromDistanceToSource } from "../spatial";
-import { sendBroadcast, sendUnicast } from "../utils/responses";
-import { positionClientsInCircle } from "../utils/spatial";
-import type { BunServer, WSData } from "../utils/websocket";
-import { ChatManager } from "./ChatManager";
+import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "@/config";
+import { deleteObjectsWithPrefix } from "@/lib/r2";
+import { calculateGainFromDistanceToSource } from "@/spatial";
+import { sendBroadcast, sendUnicast } from "@/utils/responses";
+import { positionClientsInCircle } from "@/utils/spatial";
+import type { BunServer, WSData } from "@/utils/websocket";
+import { ChatManager } from "@/managers/ChatManager";
 
 interface RoomData {
   audioSources: AudioSourceType[];

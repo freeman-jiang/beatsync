@@ -1,7 +1,7 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { sendBroadcast } from "../../utils/responses";
-import { requireRoom } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { sendBroadcast } from "@/utils/responses";
+import { requireRoom } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
 export const handleSendIp: HandlerFunction<ExtractWSRequestFrom["SEND_IP"]> = ({ ws, message, server }) => {
   const { room } = requireRoom(ws);

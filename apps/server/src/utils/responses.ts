@@ -1,6 +1,6 @@
 import type { WSBroadcastType, WSUnicastType } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
-import type { BunServer, WSData } from "./websocket";
+import type { BunServer, WSData } from "@/utils/websocket";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,12 +34,6 @@ export const sendBroadcast = ({
   server.publish(roomId, JSON.stringify(message));
 };
 
-export const sendUnicast = ({
-  ws,
-  message,
-}: {
-  ws: ServerWebSocket<WSData>;
-  message: WSUnicastType;
-}) => {
+export const sendUnicast = ({ ws, message }: { ws: ServerWebSocket<WSData>; message: WSUnicastType }) => {
   ws.send(JSON.stringify(message));
 };

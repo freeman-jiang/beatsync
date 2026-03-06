@@ -1,16 +1,12 @@
 import { PlaybackControlsPermissionsEnum } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
-import type { RoomManager } from "../managers";
-import { globalManager } from "../managers";
-import type { WSData } from "../utils/websocket";
+import type { RoomManager } from "@/managers";
+import { globalManager } from "@/managers";
+import type { WSData } from "@/utils/websocket";
 
-export const requireRoom = (
-  ws: ServerWebSocket<WSData>
-): { room: RoomManager } => {
+export const requireRoom = (ws: ServerWebSocket<WSData>): { room: RoomManager } => {
   if (!ws.data.roomId) {
-    throw new Error(
-      "WebSocket connection missing roomId - client not properly joined to a room"
-    );
+    throw new Error("WebSocket connection missing roomId - client not properly joined to a room");
   }
 
   const room = globalManager.getRoom(ws.data.roomId);
@@ -24,42 +20,27 @@ export const requireRoom = (
   return { room };
 };
 
-export const requireRoomAdmin = (
-  ws: ServerWebSocket<WSData>
-): { room: RoomManager } => {
+export const requireRoomAdmin = (ws: ServerWebSocket<WSData>): { room: RoomManager } => {
   const { room } = requireRoom(ws);
   const client = room.getClient(ws.data.clientId);
-  if (!client)
-    throw new Error(
-      `Client ${ws.data.clientId} does not exist in room ${ws.data.roomId}`
-    );
+  if (!client) throw new Error(`Client ${ws.data.clientId} does not exist in room ${ws.data.roomId}`);
 
   if (!client.isAdmin) {
-    throw new Error(
-      `Client ${ws.data.clientId} is not an admin in room ${ws.data.roomId}`
-    );
+    throw new Error(`Client ${ws.data.clientId} is not an admin in room ${ws.data.roomId}`);
   }
   return { room };
 };
 
-export const requireCanMutate = (
-  ws: ServerWebSocket<WSData>
-): { room: RoomManager } => {
+export const requireCanMutate = (ws: ServerWebSocket<WSData>): { room: RoomManager } => {
   const { room } = requireRoom(ws);
   const client = room.getClient(ws.data.clientId);
-  if (!client)
-    throw new Error(
-      `Client ${ws.data.clientId} does not exist in room ${ws.data.roomId}`
-    );
+  if (!client) throw new Error(`Client ${ws.data.clientId} does not exist in room ${ws.data.roomId}`);
 
   const canMutate =
-    room.getPlaybackControlsPermissions() ===
-      PlaybackControlsPermissionsEnum.enum.EVERYONE || client.isAdmin;
+    room.getPlaybackControlsPermissions() === PlaybackControlsPermissionsEnum.enum.EVERYONE || client.isAdmin;
 
   if (!canMutate) {
-    throw new Error(
-      `Client ${ws.data.clientId} does not have permission to mutate in room ${ws.data.roomId}`
-    );
+    throw new Error(`Client ${ws.data.clientId} does not have permission to mutate in room ${ws.data.roomId}`);
   }
 
   return { room };

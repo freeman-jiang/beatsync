@@ -1,7 +1,7 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { sendBroadcast } from "../../utils/responses";
-import { requireRoomAdmin } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { sendBroadcast } from "@/utils/responses";
+import { requireRoomAdmin } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
 export const handleSetPlaybackControls: HandlerFunction<ExtractWSRequestFrom["SET_PLAYBACK_CONTROLS"]> = ({
   ws,

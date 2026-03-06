@@ -1,4 +1,4 @@
-import { listObjectsWithPrefix } from "./r2";
+import { listObjectsWithPrefix } from "@/lib/r2";
 
 const main = async () => {
   const objects = await listObjectsWithPrefix("");

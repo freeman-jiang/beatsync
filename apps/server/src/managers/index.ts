@@ -1,4 +1,4 @@
-export { GlobalManager, globalManager } from "./GlobalManager";
-export { RoomManager } from "./RoomManager";
-export { BackupManager } from "./BackupManager";
-export { ChatManager } from "./ChatManager";
+export { GlobalManager, globalManager } from "@/managers/GlobalManager";
+export { RoomManager } from "@/managers/RoomManager";
+export { BackupManager } from "@/managers/BackupManager";
+export { ChatManager } from "@/managers/ChatManager";

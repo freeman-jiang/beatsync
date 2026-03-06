@@ -1,4 +1,4 @@
-import type { ChatMessageType, ClientDataType} from "@beatsync/shared";
+import type { ChatMessageType, ClientDataType } from "@beatsync/shared";
 import { epochNow } from "@beatsync/shared";
 
 /**
@@ -18,13 +18,7 @@ export class ChatManager {
   /**
    * Add a chat message to the room
    */
-  addMessage({
-    client,
-    text,
-  }: {
-    client: ClientDataType;
-    text: string;
-  }): ChatMessageType {
+  addMessage({ client, text }: { client: ClientDataType; text: string }): ChatMessageType {
     // Minimal validation - React handles XSS protection on the client
     if (!text) {
       throw new Error("Chat message cannot be empty");

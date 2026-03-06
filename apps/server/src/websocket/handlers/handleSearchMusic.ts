@@ -1,16 +1,11 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { MUSIC_PROVIDER_MANAGER } from "../../managers/MusicProviderManager";
-import { sendUnicast } from "../../utils/responses";
-import type { HandlerFunction } from "../types";
+import { MUSIC_PROVIDER_MANAGER } from "@/managers/MusicProviderManager";
+import { sendUnicast } from "@/utils/responses";
+import type { HandlerFunction } from "@/websocket/types";
 
-export const handleSearchMusic: HandlerFunction<
-  ExtractWSRequestFrom["SEARCH_MUSIC"]
-> = async ({ ws, message }) => {
+export const handleSearchMusic: HandlerFunction<ExtractWSRequestFrom["SEARCH_MUSIC"]> = async ({ ws, message }) => {
   try {
-    const data = await MUSIC_PROVIDER_MANAGER.search(
-      message.query,
-      message.offset ?? 0
-    );
+    const data = await MUSIC_PROVIDER_MANAGER.search(message.query, message.offset ?? 0);
 
     sendUnicast({
       ws,

@@ -1,7 +1,7 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { sendBroadcast } from "../../utils/responses";
-import { requireCanMutate } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { sendBroadcast } from "@/utils/responses";
+import { requireCanMutate } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
 export const handleReorderAudioSources: HandlerFunction<ExtractWSRequestFrom["REORDER_AUDIO_SOURCES"]> = ({
   ws,

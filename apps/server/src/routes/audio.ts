@@ -1,7 +1,7 @@
 import { GetAudioSchema } from "@beatsync/shared";
-import { errorResponse } from "../utils/responses";
-import type { BunServer } from "../utils/websocket";
-import { getPublicAudioUrl } from "../lib/r2";
+import { errorResponse } from "@/utils/responses";
+import type { BunServer } from "@/utils/websocket";
+import { getPublicAudioUrl } from "@/lib/r2";
 
 export const handleGetAudio = async (req: Request, _server: BunServer) => {
   try {

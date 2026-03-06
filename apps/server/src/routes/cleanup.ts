@@ -1,7 +1,7 @@
-import type { OrphanCleanupResult } from "../lib/r2";
-import { cleanupOrphanedRooms } from "../lib/r2";
-import { globalManager } from "../managers";
-import { errorResponse, jsonResponse } from "../utils/responses";
+import type { OrphanCleanupResult } from "@/lib/r2";
+import { cleanupOrphanedRooms } from "@/lib/r2";
+import { globalManager } from "@/managers";
+import { errorResponse, jsonResponse } from "@/utils/responses";
 
 interface CleanupResult extends OrphanCleanupResult {
   mode: "dry-run" | "live";
@@ -28,11 +28,10 @@ export async function handleCleanup(req: Request) {
 
     const result: CleanupResult = {
       mode: isLive ? "live" : "dry-run",
-      ...cleanupResult
+      ...cleanupResult,
     };
 
     return jsonResponse(result);
-
   } catch (error) {
     console.error("\n❌ Cleanup failed:", error);
     return errorResponse(`Cleanup failed: ${error instanceof Error ? error.message : String(error)}`, 500);

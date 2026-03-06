@@ -113,9 +113,7 @@ export function extractKeyFromUrl(url: string): string | null {
  * @param audioUrl The public URL of the audio file
  * @returns true if the file exists, false otherwise
  */
-export async function validateAudioFileExists(
-  audioUrl: string
-): Promise<boolean> {
+export async function validateAudioFileExists(audioUrl: string): Promise<boolean> {
   try {
     // Extract the key from the public URL
     const key = extractKeyFromUrl(audioUrl);
@@ -198,10 +196,7 @@ export function validateR2Config(): { isValid: boolean; errors: string[] } {
  * @param options Configuration options
  * @param options.includeFolders Whether to include folder objects (0-byte objects ending with '/') - default false
  */
-export async function listObjectsWithPrefix(
-  prefix: string,
-  options: { includeFolders?: boolean } = {}
-) {
+export async function listObjectsWithPrefix(prefix: string, options: { includeFolders?: boolean } = {}) {
   try {
     const listCommand = new ListObjectsV2Command({
       Bucket: S3_CONFIG.BUCKET_NAME,
@@ -215,9 +210,7 @@ export async function listObjectsWithPrefix(
       return listResponse.Contents?.filter((obj) => obj.Key);
     } else {
       // Filter out folder objects (GCS creates these, R2 doesn't)
-      return listResponse.Contents?.filter(
-        (obj) => obj.Key && !obj.Key.endsWith("/") && obj.Size && obj.Size > 0
-      );
+      return listResponse.Contents?.filter((obj) => obj.Key && !obj.Key.endsWith("/") && obj.Size && obj.Size > 0);
     }
   } catch (error) {
     console.error(`Failed to list objects with prefix "${prefix}":`, error);
@@ -228,9 +221,7 @@ export async function listObjectsWithPrefix(
 /**
  * Delete objects using batch delete API (faster for R2, not supported by GCS)
  */
-async function deleteBatchObjects(
-  objects: { Key: string }[]
-): Promise<{ deletedCount: number; errors: string[] }> {
+async function deleteBatchObjects(objects: { Key: string }[]): Promise<{ deletedCount: number; errors: string[] }> {
   let deletedCount = 0;
   const errors: string[] = [];
 
@@ -250,8 +241,7 @@ async function deleteBatchObjects(
     const deleteResponse = await r2Client.send(deleteCommand);
 
     // Count successful deletions
-    const batchDeletedCount =
-      batch.length - (deleteResponse.Errors?.length ?? 0);
+    const batchDeletedCount = batch.length - (deleteResponse.Errors?.length ?? 0);
     deletedCount += batchDeletedCount;
 
     // Collect errors instead of throwing immediately
@@ -290,9 +280,7 @@ async function deleteIndividualObjects(
  * Delete all objects with a given prefix
  * Tries batch delete first, falls back to individual deletes for GCS compatibility
  */
-export async function deleteObjectsWithPrefix(
-  prefix = ""
-): Promise<{ deletedCount: number }> {
+export async function deleteObjectsWithPrefix(prefix = ""): Promise<{ deletedCount: number }> {
   try {
     const objects = await listObjectsWithPrefix(prefix, {
       includeFolders: true,
@@ -332,20 +320,13 @@ export async function deleteObjectsWithPrefix(
       // Check if this is a GCS "NotImplemented" error
       if (
         (error instanceof Error && error.message.includes("NotImplemented")) ||
-        (error &&
-          typeof error === "object" &&
-          "Code" in error &&
-          error.Code === "NotImplemented")
+        (error && typeof error === "object" && "Code" in error && error.Code === "NotImplemented")
       ) {
-        console.log(
-          `Batch delete not supported, falling back to individual deletes...`
-        );
+        console.log(`Batch delete not supported, falling back to individual deletes...`);
         const individualResult = await deleteIndividualObjects(objectsToDelete);
 
         if (individualResult.errors.length > 0) {
-          console.warn(
-            `Individual delete had ${individualResult.errors.length} errors:`
-          );
+          console.warn(`Individual delete had ${individualResult.errors.length} errors:`);
           individualResult.errors.forEach((error) => console.warn(error));
         }
 
@@ -365,11 +346,7 @@ export async function deleteObjectsWithPrefix(
 /**
  * Upload a file to R2
  */
-export async function uploadFile(
-  filePath: string,
-  roomId: string,
-  fileName: string
-): Promise<string> {
+export async function uploadFile(filePath: string, roomId: string, fileName: string): Promise<string> {
   const key = createKey(roomId, fileName);
 
   // Read file with Bun - it automatically detects content type
@@ -465,9 +442,7 @@ export async function downloadJSON<T = unknown>(key: string): Promise<T | null> 
  * Day 31 > 01
  * Time 235959 > 000000
  */
-export async function getLatestFileWithPrefix(
-  prefix: string
-): Promise<string | null> {
+export async function getLatestFileWithPrefix(prefix: string): Promise<string | null> {
   const objects = await listObjectsWithPrefix(prefix);
 
   if (!objects || objects.length === 0) {
@@ -475,9 +450,7 @@ export async function getLatestFileWithPrefix(
   }
 
   // Sort by key name (descending) to get the latest
-  const sorted = objects
-    .filter((obj) => obj.Key)
-    .sort((a, b) => (b.Key ?? "").localeCompare(a.Key ?? ""));
+  const sorted = objects.filter((obj) => obj.Key).sort((a, b) => (b.Key ?? "").localeCompare(a.Key ?? ""));
 
   return sorted[0]?.Key ?? null;
 }
@@ -497,10 +470,7 @@ export async function deleteObject(key: string): Promise<void> {
 /**
  * Get all files with a prefix, sorted by key name (newest first)
  */
-export async function getSortedFilesWithPrefix(
-  prefix: string,
-  extension?: string
-): Promise<string[]> {
+export async function getSortedFilesWithPrefix(prefix: string, extension?: string): Promise<string[]> {
   const objects = await listObjectsWithPrefix(prefix);
 
   if (!objects || objects.length === 0) {
@@ -549,9 +519,7 @@ export async function cleanupOrphanedRooms(
     // Validate R2 configuration
     const r2Config = validateR2Config();
     if (!r2Config.isValid) {
-      throw new Error(
-        `R2 configuration is invalid: ${r2Config.errors.join(", ")}`
-      );
+      throw new Error(`R2 configuration is invalid: ${r2Config.errors.join(", ")}`);
     }
 
     const roomObjects = await listObjectsWithPrefix("room-");
@@ -580,9 +548,7 @@ export async function cleanupOrphanedRooms(
     });
 
     console.log(`  📁 Found ${roomsInR2.size} unique rooms in R2`);
-    console.log(
-      `  🏃 Found ${activeRoomIds.size} active rooms in server memory`
-    );
+    console.log(`  🏃 Found ${activeRoomIds.size} active rooms in server memory`);
 
     // Identify orphaned rooms
     const orphanedRooms: string[] = [];
@@ -603,9 +569,7 @@ export async function cleanupOrphanedRooms(
       return result;
     }
 
-    console.log(
-      `  🗑️  Found ${orphanedRooms.length} orphaned rooms to clean up`
-    );
+    console.log(`  🗑️  Found ${orphanedRooms.length} orphaned rooms to clean up`);
 
     // Calculate total files to be deleted
     orphanedRooms.forEach((roomId) => {
@@ -623,9 +587,7 @@ export async function cleanupOrphanedRooms(
       for (const roomId of orphanedRooms) {
         try {
           const deleteResult = await deleteObjectsWithPrefix(`room-${roomId}`);
-          console.log(
-            `    ✅ Deleted room-${roomId}: ${deleteResult.deletedCount} files`
-          );
+          console.log(`    ✅ Deleted room-${roomId}: ${deleteResult.deletedCount} files`);
           totalDeleted += deleteResult.deletedCount;
         } catch (error) {
           const errorMsg = `Failed to delete room-${roomId}: ${error instanceof Error ? error.message : String(error)}`;

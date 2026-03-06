@@ -1,8 +1,8 @@
 import type { ServerWebSocket } from "bun";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { BackupManager } from "../managers/BackupManager";
-import { globalManager } from "../managers/GlobalManager";
-import type { WSData } from "../utils/websocket";
+import { BackupManager } from "@/managers/BackupManager";
+import { globalManager } from "@/managers/GlobalManager";
+import type { WSData } from "@/utils/websocket";
 
 // Mock the R2 operations
 void mock.module("../lib/r2", () => ({

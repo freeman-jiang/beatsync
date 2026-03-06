@@ -1,5 +1,5 @@
-import { getPublicAudioUrl, listObjectsWithPrefix } from "../lib/r2";
-import { globalManager } from "../managers";
+import { getPublicAudioUrl, listObjectsWithPrefix } from "@/lib/r2";
+import { globalManager } from "@/managers";
 
 // Helper function to format bytes to human readable
 export function formatBytes(bytes: number): string {
@@ -43,10 +43,7 @@ export async function getBlobStats(): Promise<BlobStats> {
     const allObjects = await listObjectsWithPrefix("");
 
     // Group objects by room and calculate sizes
-    const roomsInStorage = new Map<
-      string,
-      { files: { Key?: string; Size?: number }[]; totalSize: number }
-    >();
+    const roomsInStorage = new Map<string, { files: { Key?: string; Size?: number }[]; totalSize: number }>();
     let totalStorageSize = 0;
 
     if (allObjects) {

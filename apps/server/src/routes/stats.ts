@@ -1,7 +1,7 @@
 import * as os from "os";
-import { globalManager } from "../managers";
-import { formatBytes, getBlobStats } from "../utils/blobStats";
-import { corsHeaders } from "../utils/responses";
+import { globalManager } from "@/managers";
+import { formatBytes, getBlobStats } from "@/utils/blobStats";
+import { corsHeaders } from "@/utils/responses";
 
 export async function handleStats(): Promise<Response> {
   const totalMemory = os.totalmem();
@@ -19,9 +19,7 @@ export async function handleStats(): Promise<Response> {
         heapTotal: `${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`,
         heapUsed: `${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`,
         external: `${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`,
-        arrayBuffers: `${(memoryUsage.arrayBuffers / 1024 / 1024).toFixed(
-          2
-        )} MB`,
+        arrayBuffers: `${(memoryUsage.arrayBuffers / 1024 / 1024).toFixed(2)} MB`,
       },
     },
   };
@@ -62,30 +60,16 @@ export async function handleStats(): Promise<Response> {
   });
 
   // Calculate totals for active rooms
-  const activeRoomsTotalSize = activeRooms.reduce(
-    (sum, room) => sum + room.totalSizeBytes,
-    0
-  );
-  const activeRoomsTotalFiles = activeRooms.reduce(
-    (sum, room) => sum + room.fileCount,
-    0
-  );
+  const activeRoomsTotalSize = activeRooms.reduce((sum, room) => sum + room.totalSizeBytes, 0);
+  const activeRoomsTotalFiles = activeRooms.reduce((sum, room) => sum + room.fileCount, 0);
 
   // Calculate totals for orphaned rooms
-  const orphanedRoomsArray = Object.entries(blobStats.orphanedRooms).map(
-    ([roomId, data]) => ({
-      roomId,
-      ...data,
-    })
-  );
-  const orphanedRoomsTotalSize = orphanedRoomsArray.reduce(
-    (sum, room) => sum + room.totalSizeBytes,
-    0
-  );
-  const orphanedRoomsTotalFiles = orphanedRoomsArray.reduce(
-    (sum, room) => sum + room.fileCount,
-    0
-  );
+  const orphanedRoomsArray = Object.entries(blobStats.orphanedRooms).map(([roomId, data]) => ({
+    roomId,
+    ...data,
+  }));
+  const orphanedRoomsTotalSize = orphanedRoomsArray.reduce((sum, room) => sum + room.totalSizeBytes, 0);
+  const orphanedRoomsTotalFiles = orphanedRoomsArray.reduce((sum, room) => sum + room.fileCount, 0);
 
   // --- Combine stats ---
   const combinedStats = {

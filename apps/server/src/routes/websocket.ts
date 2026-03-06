@@ -1,5 +1,5 @@
-import { errorResponse } from "../utils/responses";
-import type { BunServer, WSData } from "../utils/websocket";
+import { errorResponse } from "@/utils/responses";
+import type { BunServer, WSData } from "@/utils/websocket";
 
 export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
   const url = new URL(req.url);
@@ -15,11 +15,7 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
     if (!username) missingParams.push("username");
     if (!clientId) missingParams.push("clientId");
 
-    console.log(
-      `WebSocket connection attempt missing parameters: ${missingParams.join(
-        ", "
-      )}`
-    );
+    console.log(`WebSocket connection attempt missing parameters: ${missingParams.join(", ")}`);
 
     return errorResponse("roomId, username and clientId are required");
   }

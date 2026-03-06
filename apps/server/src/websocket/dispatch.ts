@@ -1,7 +1,7 @@
 import type { WSRequestType } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
-import type { BunServer, WSData } from "../utils/websocket";
-import { WS_REGISTRY } from "./registry";
+import type { BunServer, WSData } from "@/utils/websocket";
+import { WS_REGISTRY } from "@/websocket/registry";
 
 /**
  * Type-safe message dispatcher
@@ -45,9 +45,6 @@ export async function dispatchMessage({
       server,
     });
   } catch (error) {
-    console.error(
-      `[${ws.data.roomId}] Websocket handler ${handler.description} threw error:"`,
-      error
-    );
+    console.error(`[${ws.data.roomId}] Websocket handler ${handler.description} threw error:"`, error);
   }
 }

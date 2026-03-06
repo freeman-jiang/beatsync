@@ -7,10 +7,10 @@ import {
   getSortedFilesWithPrefix,
   uploadJSON,
   validateAudioFileExists,
-} from "../lib/r2";
-import { globalManager } from "./GlobalManager";
-import type { RoomBackupType, ServerBackupType } from "./RoomManager";
-import { ServerBackupSchema } from "./RoomManager";
+} from "@/lib/r2";
+import { globalManager } from "@/managers/GlobalManager";
+import type { RoomBackupType, ServerBackupType } from "@/managers/RoomManager";
+import { ServerBackupSchema } from "@/managers/RoomManager";
 
 interface RoomRestoreResult {
   room: {

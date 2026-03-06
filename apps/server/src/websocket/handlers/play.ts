@@ -1,6 +1,6 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { requireCanMutate } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { requireCanMutate } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
 export const handlePlay: HandlerFunction<ExtractWSRequestFrom["PLAY"]> = ({ ws, message, server }) => {
   const { room } = requireCanMutate(ws);

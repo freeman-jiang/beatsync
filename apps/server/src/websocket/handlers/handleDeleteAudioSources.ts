@@ -1,12 +1,14 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { deleteObject, extractKeyFromUrl } from "../../lib/r2";
-import { sendBroadcast } from "../../utils/responses";
-import { requireCanMutate } from "../middlewares";
-import type { HandlerFunction } from "../types";
+import { deleteObject, extractKeyFromUrl } from "@/lib/r2";
+import { sendBroadcast } from "@/utils/responses";
+import { requireCanMutate } from "@/websocket/middlewares";
+import type { HandlerFunction } from "@/websocket/types";
 
-export const handleDeleteAudioSources: HandlerFunction<
-  ExtractWSRequestFrom["DELETE_AUDIO_SOURCES"]
-> = async ({ ws, message, server }) => {
+export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DELETE_AUDIO_SOURCES"]> = async ({
+  ws,
+  message,
+  server,
+}) => {
   const { room } = requireCanMutate(ws);
 
   // Get current URLs to validate the request
@@ -56,9 +58,7 @@ export const handleDeleteAudioSources: HandlerFunction<
   const urlsToRemove = Array.from(successfullyDeletedUrls);
 
   if (urlsToRemove.length === 0) {
-    console.log(
-      "No URLs were successfully deleted from R2, keeping all in queue"
-    );
+    console.log("No URLs were successfully deleted from R2, keeping all in queue");
     return;
   }
 

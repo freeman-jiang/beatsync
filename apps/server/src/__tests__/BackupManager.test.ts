@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { globalManager } from "../managers/GlobalManager";
-import type { RoomManager } from "../managers/RoomManager";
+import { globalManager } from "@/managers/GlobalManager";
+import type { RoomManager } from "@/managers/RoomManager";
 
 // Mock the r2 module before importing BackupManager
 void mock.module("../lib/r2", () => ({

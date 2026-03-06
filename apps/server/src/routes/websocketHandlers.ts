@@ -1,10 +1,10 @@
 import type { WSBroadcastType } from "@beatsync/shared";
 import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
-import { globalManager } from "../managers";
-import { sendBroadcast, sendUnicast } from "../utils/responses";
-import type { BunServer, WSData } from "../utils/websocket";
-import { dispatchMessage } from "../websocket/dispatch";
+import { globalManager } from "@/managers";
+import { sendBroadcast, sendUnicast } from "@/utils/responses";
+import type { BunServer, WSData } from "@/utils/websocket";
+import { dispatchMessage } from "@/websocket/dispatch";
 
 const createClientUpdate = (roomId: string) => {
   const room = globalManager.getRoom(roomId);
