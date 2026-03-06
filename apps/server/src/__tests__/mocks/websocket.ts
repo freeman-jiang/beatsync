@@ -18,6 +18,9 @@ export function createMockWs(data: { clientId: string; username?: string; roomId
     close: mock(() => {
       /* noop */
     }),
+    unsubscribe: mock(() => {
+      /* noop */
+    }),
   } as unknown as ServerWebSocket<WSData>;
 }
 
