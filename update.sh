@@ -21,11 +21,7 @@ bun run --filter server build
 ok "Server built"
 
 warn "Restarting PM2"
-if pm2 describe beatsync-server > /dev/null 2>&1; then
-  pm2 restart beatsync-server
-else
-  pm2 start pm2.config.js
-fi
+pm2 restart beatsync-server 2>/dev/null || pm2 start pm2.config.js
 ok "PM2 restarted"
 
 sleep 2
