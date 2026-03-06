@@ -103,10 +103,6 @@ describe("Chat Persistence", () => {
 
   it("should enforce message limit during restore", () => {
     const roomId = "overflow-room";
-    // Create the room (needed for side effects) but unused directly
-    new RoomManager(roomId);
-
-    // Create a ChatManager to test the limit directly
     const chatManager = new ChatManager({ roomId });
 
     // Create more than MAX_CHAT_MESSAGES (300) messages

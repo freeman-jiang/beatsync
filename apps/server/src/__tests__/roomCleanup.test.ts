@@ -4,7 +4,7 @@ import { globalManager } from "@/managers/GlobalManager";
 import type { WSData } from "@/utils/websocket";
 
 // Mock the deleteObjectsWithPrefix to avoid R2 calls
-void mock.module("../lib/r2", () => ({
+void mock.module("@/lib/r2", () => ({
   deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
   uploadJSON: mock(() => {
     // noop

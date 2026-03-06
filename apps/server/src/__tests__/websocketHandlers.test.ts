@@ -9,7 +9,7 @@ import type { BunServer, WSData } from "@/utils/websocket";
 let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];
 
 // Mock the sendBroadcast and sendUnicast functions
-void mock.module("../utils/responses", () => ({
+void mock.module("@/utils/responses", () => ({
   sendBroadcast: mock(
     ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
       broadcastMessages.push({ server, roomId, message });

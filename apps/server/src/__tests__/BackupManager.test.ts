@@ -3,7 +3,7 @@ import { globalManager } from "@/managers/GlobalManager";
 import type { RoomManager } from "@/managers/RoomManager";
 
 // Mock the r2 module before importing BackupManager
-void mock.module("../lib/r2", () => ({
+void mock.module("@/lib/r2", () => ({
   uploadJSON: mock(() => {
     // noop
   }),

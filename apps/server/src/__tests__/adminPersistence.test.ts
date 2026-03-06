@@ -5,7 +5,7 @@ import type { RoomManager } from "@/managers/RoomManager";
 import type { WSData } from "@/utils/websocket";
 
 // Mock the R2 module to avoid external calls
-void mock.module("../lib/r2", () => ({
+void mock.module("@/lib/r2", () => ({
   deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
   uploadJSON: mock(() => {
     // noop
