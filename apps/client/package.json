@@ -11,7 +11,8 @@
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src/",
-    "format:check": "prettier --check src/"
+    "format:check": "prettier --check src/",
+    "test": "bun test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
