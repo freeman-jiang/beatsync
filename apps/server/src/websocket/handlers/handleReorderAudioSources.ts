@@ -3,9 +3,11 @@ import { sendBroadcast } from "../../utils/responses";
 import { requireCanMutate } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handleReorderAudioSources: HandlerFunction<
-  ExtractWSRequestFrom["REORDER_AUDIO_SOURCES"]
-> = async ({ ws, message, server }) => {
+export const handleReorderAudioSources: HandlerFunction<ExtractWSRequestFrom["REORDER_AUDIO_SOURCES"]> = ({
+  ws,
+  message,
+  server,
+}) => {
   const { room } = requireCanMutate(ws);
 
   const error = room.reorderAudioSource(message.reorderedAudioSources);
@@ -22,4 +24,4 @@ export const handleReorderAudioSources: HandlerFunction<
       event: { type: "SET_AUDIO_SOURCES", sources: room.getAudioSources() },
     },
   });
-}
+};

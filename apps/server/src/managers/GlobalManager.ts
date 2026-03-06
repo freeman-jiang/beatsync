@@ -37,7 +37,7 @@ export class GlobalManager {
   /**
    * Delete a room from the map
    */
-  async deleteRoom(roomId: string): Promise<void> {
+  deleteRoom(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (room) {
       this.rooms.delete(roomId);
@@ -92,7 +92,7 @@ export class GlobalManager {
    * Get the total number of active users across all rooms, using a cache.
    * Recalculates the count only if the cache is dirty.
    */
-  async getActiveUserCount(): Promise<number> {
+  getActiveUserCount(): number {
     // If the cache is fresh, return it immediately
     if (!this.isDirty) {
       return this.activeUserCount;
@@ -111,10 +111,7 @@ export class GlobalManager {
 
     try {
       // Calculate fresh count by summing clients from all rooms
-      const newCount = Array.from(this.rooms.values()).reduce(
-        (acc, room) => acc + room.getNumClients(),
-        0
-      );
+      const newCount = Array.from(this.rooms.values()).reduce((acc, room) => acc + room.getNumClients(), 0);
 
       this.activeUserCount = newCount;
       this.isDirty = false;
@@ -142,9 +139,7 @@ export class GlobalManager {
 
         // Validate that the playing track actually exists in the room's audio sources
         const audioSources = room.getAudioSources();
-        const hasPlayingTrack = audioSources.some(
-          (source) => source.url === playbackState.audioSource
-        );
+        const hasPlayingTrack = audioSources.some((source) => source.url === playbackState.audioSource);
 
         return hasPlayingTrack;
       })
@@ -172,11 +167,9 @@ export class GlobalManager {
         const currentRoom = this.getRoom(roomId);
         if (currentRoom && !currentRoom.hasActiveConnections()) {
           await currentRoom.cleanup();
-          await this.deleteRoom(roomId);
+          this.deleteRoom(roomId);
         } else {
-          console.log(
-            `Room ${roomId} has active connections now, skipping cleanup.`
-          );
+          console.log(`Room ${roomId} has active connections now, skipping cleanup.`);
         }
       }, CLEANUP_DELAY_MS);
     }

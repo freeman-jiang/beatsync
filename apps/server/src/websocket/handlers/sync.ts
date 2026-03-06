@@ -2,9 +2,7 @@ import type { ExtractWSRequestFrom } from "@beatsync/shared";
 import { requireRoom } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handleSync: HandlerFunction<
-  ExtractWSRequestFrom["SYNC"]
-> = async ({ ws }) => {
+export const handleSync: HandlerFunction<ExtractWSRequestFrom["SYNC"]> = ({ ws }) => {
   // Handle sync request from new client
   const { room } = requireRoom(ws);
   room.syncClient(ws);

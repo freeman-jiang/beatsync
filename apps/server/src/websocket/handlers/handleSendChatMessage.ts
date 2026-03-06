@@ -5,7 +5,7 @@ import { sendBroadcast } from "../../utils/responses";
 import type { BunServer, WSData } from "../../utils/websocket";
 import { requireRoom } from "../middlewares";
 
-export async function handleSendChatMessage({
+export function handleSendChatMessage({
   ws,
   message,
   server,
@@ -40,9 +40,6 @@ export async function handleSendChatMessage({
       },
     });
   } catch (error) {
-    console.error(
-      `Failed to send chat message in room ${ws.data.roomId}:`,
-      error
-    );
+    console.error(`Failed to send chat message in room ${ws.data.roomId}:`, error);
   }
 }

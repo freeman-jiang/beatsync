@@ -9,25 +9,29 @@ import type { BunServer, WSData } from "../utils/websocket";
 let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];
 
 // Mock the sendBroadcast and sendUnicast functions
-mock.module("../utils/responses", () => ({
-  sendBroadcast: mock(({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
-    broadcastMessages.push({ server, roomId, message });
+void mock.module("../utils/responses", () => ({
+  sendBroadcast: mock(
+    ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
+      broadcastMessages.push({ server, roomId, message });
+    }
+  ),
+  sendUnicast: mock(() => {
+    /* noop */
   }),
-  sendUnicast: mock(() => {}),
   corsHeaders: {},
   jsonResponse: mock(() => new Response()),
   errorResponse: mock(() => new Response()),
 }));
 
 describe("WebSocket Handlers (Simplified Tests)", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     // Clear broadcast messages
     broadcastMessages = [];
-    
+
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
-      await globalManager.deleteRoom(roomId);
+      globalManager.deleteRoom(roomId);
     }
   });
 
@@ -46,12 +50,18 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           clientId: "client-123",
           roomId: roomId,
         },
-        subscribe: mock(() => {}),
-        send: mock(() => {}),
+        subscribe: mock(() => {
+          /* noop */
+        }),
+        send: mock(() => {
+          /* noop */
+        }),
       };
 
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock(() => {
+          /* noop */
+        }),
       } as unknown as BunServer;
 
       // Simulate client connection
@@ -59,10 +69,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       // Verify SET_AUDIO_SOURCES was broadcast
       const audioSourcesMessage = broadcastMessages.find((msg) => {
-        return (
-          msg.message.type === "ROOM_EVENT" &&
-          msg.message.event?.type === "SET_AUDIO_SOURCES"
-        );
+        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
       });
 
       expect(audioSourcesMessage).toBeTruthy();
@@ -90,12 +97,18 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           clientId: "client-456",
           roomId: roomId,
         },
-        subscribe: mock(() => {}),
-        send: mock(() => {}),
+        subscribe: mock(() => {
+          /* noop */
+        }),
+        send: mock(() => {
+          /* noop */
+        }),
       };
 
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock(() => {
+          /* noop */
+        }),
       } as unknown as BunServer;
 
       // Clear broadcast messages before this test
@@ -106,10 +119,7 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       // Verify no SET_AUDIO_SOURCES was broadcast
       const audioSourcesMessage = broadcastMessages.find((msg) => {
-        return (
-          msg.message.type === "ROOM_EVENT" &&
-          msg.message.event?.type === "SET_AUDIO_SOURCES"
-        );
+        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
       });
 
       expect(audioSourcesMessage).toBeUndefined();
@@ -128,8 +138,12 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           clientId: "client-001",
           roomId: roomId,
         },
-        subscribe: mock(() => {}),
-        send: mock(() => {}),
+        subscribe: mock(() => {
+          /* noop */
+        }),
+        send: mock(() => {
+          /* noop */
+        }),
       };
 
       // Second client joins
@@ -139,12 +153,18 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           clientId: "client-002",
           roomId: roomId,
         },
-        subscribe: mock(() => {}),
-        send: mock(() => {}),
+        subscribe: mock(() => {
+          /* noop */
+        }),
+        send: mock(() => {
+          /* noop */
+        }),
       };
 
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock(() => {
+          /* noop */
+        }),
       } as unknown as BunServer;
 
       // Clear broadcast messages
@@ -156,24 +176,19 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
 
       // Count how many SET_AUDIO_SOURCES broadcasts were sent
       const audioSourcesMessages = broadcastMessages.filter((msg) => {
-        return (
-          msg.message.type === "ROOM_EVENT" &&
-          msg.message.event?.type === "SET_AUDIO_SOURCES"
-        );
+        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
       });
 
       // Should have broadcast audio sources twice (once for each client joining)
       expect(audioSourcesMessages).toHaveLength(2);
-      
+
       // Verify the content of audio sources
       for (const entry of audioSourcesMessages) {
         const m = entry.message;
         if (m.type !== "ROOM_EVENT" || m.event.type !== "SET_AUDIO_SOURCES")
           throw new Error("Expected SET_AUDIO_SOURCES");
         expect(m.event.sources).toHaveLength(1);
-        expect(m.event.sources[0].url).toBe(
-          "https://example.com/shared.mp3"
-        );
+        expect(m.event.sources[0].url).toBe("https://example.com/shared.mp3");
       }
     });
   });
@@ -187,12 +202,18 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
           clientId: "client-789",
           roomId: roomId,
         },
-        subscribe: mock(() => {}),
-        send: mock(() => {}),
+        subscribe: mock(() => {
+          /* noop */
+        }),
+        send: mock(() => {
+          /* noop */
+        }),
       };
 
       const mockServer = {
-        publish: mock(() => {}),
+        publish: mock(() => {
+          /* noop */
+        }),
       } as unknown as BunServer;
 
       // Verify room doesn't exist yet

@@ -3,9 +3,11 @@ import { sendBroadcast } from "../../utils/responses";
 import { requireCanMutate } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handleReorderClient: HandlerFunction<
-  ExtractWSRequestFrom["REORDER_CLIENT"]
-> = async ({ ws, message, server }) => {
+export const handleReorderClient: HandlerFunction<ExtractWSRequestFrom["REORDER_CLIENT"]> = ({
+  ws,
+  message,
+  server,
+}) => {
   // Handle client reordering
   const { room } = requireCanMutate(ws);
 

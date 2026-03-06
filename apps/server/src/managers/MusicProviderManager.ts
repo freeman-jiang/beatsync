@@ -21,10 +21,7 @@ export class MusicProviderManager {
     return this.providerUrl;
   }
 
-  async search(
-    query: string,
-    offset = 0
-  ): Promise<z.infer<typeof RawSearchResponseSchema>> {
+  async search(query: string, offset = 0): Promise<z.infer<typeof RawSearchResponseSchema>> {
     try {
       const { q, offset: validOffset } = SearchParamsSchema.parse({
         q: query,
@@ -41,15 +38,11 @@ export class MusicProviderManager {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
       return RawSearchResponseSchema.parse(data);
     } catch (error) {
-      throw new Error(
-        `Search failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      throw new Error(`Search failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 
@@ -66,15 +59,11 @@ export class MusicProviderManager {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
       return StreamResponseSchema.parse(data);
     } catch (error) {
-      throw new Error(
-        `Download failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      throw new Error(`Download failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 }

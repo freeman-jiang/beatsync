@@ -5,15 +5,19 @@ import type { RoomManager } from "../managers/RoomManager";
 import type { WSData } from "../utils/websocket";
 
 // Mock the R2 module to avoid external calls
-mock.module("../lib/r2", () => ({
-  deleteObjectsWithPrefix: mock(async () => ({ deletedCount: 0 })),
-  uploadJSON: mock(async () => {}),
-  downloadJSON: mock(async () => null),
-  getLatestFileWithPrefix: mock(async () => null),
-  getSortedFilesWithPrefix: mock(async () => []),
-  deleteObject: mock(async () => {}),
-  validateAudioFileExists: mock(async () => true),
-  cleanupOrphanedRooms: mock(async () => ({
+void mock.module("../lib/r2", () => ({
+  deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
+  uploadJSON: mock(() => {
+    // noop
+  }),
+  downloadJSON: mock(() => null),
+  getLatestFileWithPrefix: mock(() => null),
+  getSortedFilesWithPrefix: mock(() => []),
+  deleteObject: mock(() => {
+    // noop
+  }),
+  validateAudioFileExists: mock(() => true),
+  cleanupOrphanedRooms: mock(() => ({
     orphanedRooms: [],
     totalRooms: 0,
     totalFiles: 0,
@@ -21,20 +25,22 @@ mock.module("../lib/r2", () => ({
 }));
 
 // Helper function to create a mock WebSocket
-function createMockWs(
-  clientId: string,
-  username: string,
-  roomId: string
-): ServerWebSocket<WSData> {
+function createMockWs(clientId: string, username: string, roomId: string): ServerWebSocket<WSData> {
   return {
     data: {
       clientId,
       username,
       roomId,
     },
-    subscribe: mock(() => {}),
-    send: mock(() => {}),
-    close: mock(() => {}),
+    subscribe: mock(() => {
+      /* noop */
+    }),
+    send: mock(() => {
+      /* noop */
+    }),
+    close: mock(() => {
+      /* noop */
+    }),
   } as unknown as ServerWebSocket<WSData>;
 }
 
@@ -42,11 +48,11 @@ describe("Admin Persistence", () => {
   let room: RoomManager;
   const roomId = "test-room";
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
     for (const id of roomIds) {
-      await globalManager.deleteRoom(id);
+      globalManager.deleteRoom(id);
     }
     // Create a fresh room for each test
     room = globalManager.getOrCreateRoom(roomId);
@@ -100,9 +106,7 @@ describe("Admin Persistence", () => {
     // Verify initial state
     let clients = room.getClients();
     expect(clients.find((c) => c.clientId === "client-1")?.isAdmin).toBe(true);
-    expect(clients.find((c) => c.clientId === "client-1")?.username).toBe(
-      "admin-user"
-    );
+    expect(clients.find((c) => c.clientId === "client-1")?.username).toBe("admin-user");
 
     // Admin disconnects
     room.removeClient("client-1");
@@ -120,9 +124,7 @@ describe("Admin Persistence", () => {
     clients = room.getClients();
     expect(clients.length).toBe(2);
     expect(clients.find((c) => c.clientId === "client-1")?.isAdmin).toBe(true);
-    expect(clients.find((c) => c.clientId === "client-1")?.username).toBe(
-      "admin-user"
-    );
+    expect(clients.find((c) => c.clientId === "client-1")?.username).toBe("admin-user");
     // Client-2 should still be admin too (both can be admin)
     expect(clients.find((c) => c.clientId === "client-2")?.isAdmin).toBe(true);
   });

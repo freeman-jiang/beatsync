@@ -9,12 +9,8 @@ import {
   validateAudioFileExists,
 } from "../lib/r2";
 import { globalManager } from "./GlobalManager";
-import type {
-  RoomBackupType,
-  ServerBackupType} from "./RoomManager";
-import {
-  ServerBackupSchema
-} from "./RoomManager";
+import type { RoomBackupType, ServerBackupType } from "./RoomManager";
+import { ServerBackupSchema } from "./RoomManager";
 
 interface RoomRestoreResult {
   room: {
@@ -34,23 +30,16 @@ export class BackupManager {
   /**
    * Restore a single room from backup data
    */
-  private static async restoreRoom(
-    roomId: string,
-    roomData: RoomBackupType
-  ): Promise<RoomRestoreResult> {
+  private static async restoreRoom(roomId: string, roomData: RoomBackupType): Promise<RoomRestoreResult> {
     try {
       const room = globalManager.getOrCreateRoom(roomId);
 
       // Concurrently validate all audio sources in R2 (no limit on concurrency)
-      const validationPromises = roomData.audioSources.map((source) =>
-        validateAudioFileExists(source.url)
-      );
+      const validationPromises = roomData.audioSources.map((source) => validateAudioFileExists(source.url));
       const validationResults = await Promise.all(validationPromises);
 
       // Filter out audio sources that are not valid
-      const validAudioSources = roomData.audioSources.filter(
-        (_, index) => validationResults[index]
-      );
+      const validAudioSources = roomData.audioSources.filter((_, index) => validationResults[index]);
 
       // Restore audio sources
       room.setAudioSources(validAudioSources);
@@ -67,9 +56,7 @@ export class BackupManager {
         room.restorePlaybackState(roomData.playbackState);
       } else {
         // Playing track no longer exists - reset to paused state
-        console.log(
-          `Room ${roomId}: Playing track no longer exists, resetting playback to paused`
-        );
+        console.log(`Room ${roomId}: Playing track no longer exists, resetting playback to paused`);
 
         // Don't restore any playback state
       }
@@ -77,9 +64,7 @@ export class BackupManager {
       // Restore chat history if it exists (for backward compatibility with old backups)
       if (roomData.chat) {
         room.restoreChatHistory(roomData.chat);
-        console.log(
-          `Room ${roomId}: Restored ${roomData.chat.messages.length} chat messages`
-        );
+        console.log(`Room ${roomId}: Restored ${roomData.chat.messages.length} chat messages`);
       }
 
       // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
@@ -145,11 +130,7 @@ export class BackupManager {
       // Upload to R2 using the utility function
       await uploadJSON(filename, backupData);
 
-      console.log(
-        `✅ State backup completed: ${filename} (${
-          rooms ? Object.keys(rooms).length : 0
-        } rooms)`
-      );
+      console.log(`✅ State backup completed: ${filename} (${rooms ? Object.keys(rooms).length : 0} rooms)`);
 
       // Clean up old backups after successful backup
       await this.cleanupOldBackups();
@@ -191,9 +172,7 @@ export class BackupManager {
       const parseResult = ServerBackupSchema.safeParse(rawBackupData);
 
       if (!parseResult.success) {
-        throw new Error(
-          `Invalid backup data format: ${parseResult.error.message}`
-        );
+        throw new Error(`Invalid backup data format: ${parseResult.error.message}`);
       }
 
       const backupData = parseResult.data;
@@ -203,14 +182,10 @@ export class BackupManager {
       const limit = pLimit(concurrency);
 
       const roomEntries = Object.entries(backupData.data.rooms);
-      console.log(
-        `🔄 Restoring ${roomEntries.length} rooms with concurrency limit of ${concurrency}...`
-      );
+      console.log(`🔄 Restoring ${roomEntries.length} rooms with concurrency limit of ${concurrency}...`);
 
       // Process rooms in parallel with concurrency control using p-limit
-      const restorePromises = roomEntries.map(([roomId, roomData]) =>
-        limit(() => this.restoreRoom(roomId, roomData))
-      );
+      const restorePromises = roomEntries.map(([roomId, roomData]) => limit(() => this.restoreRoom(roomId, roomData)));
 
       const results = await Promise.allSettled(restorePromises);
 
@@ -220,7 +195,12 @@ export class BackupManager {
 
       results.forEach((result) => {
         if (result.status !== "fulfilled") {
-          failed.push(result.reason);
+          const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+          failed.push({
+            room: { id: "unknown", numClients: 0, numAudioSources: 0, globalVolume: 0 },
+            success: false,
+            error: reason,
+          });
           return;
         }
 
@@ -231,13 +211,9 @@ export class BackupManager {
         }
       });
 
-      const ageMinutes = Math.floor(
-        (Date.now() - backupData.timestamp) / 60000
-      );
+      const ageMinutes = Math.floor((Date.now() - backupData.timestamp) / 60000);
 
-      console.log(
-        `✅ State restoration completed from ${ageMinutes} minutes ago:`
-      );
+      console.log(`✅ State restoration completed from ${ageMinutes} minutes ago:`);
       console.log(`   - Successfully restored ${successful.length} rooms`);
       if (successful.length > 0) {
         successful.forEach((result) => {
@@ -270,10 +246,7 @@ export class BackupManager {
   static async cleanupOldBackups(keepCount = 5): Promise<void> {
     try {
       // Get all backup files sorted by name (newest first)
-      const backupFiles = await getSortedFilesWithPrefix(
-        this.BACKUP_PREFIX,
-        ".json"
-      );
+      const backupFiles = await getSortedFilesWithPrefix(this.BACKUP_PREFIX, ".json");
 
       if (backupFiles.length <= keepCount) {
         return; // Nothing to clean up
@@ -292,9 +265,7 @@ export class BackupManager {
         }
       }
 
-      console.log(
-        `✅ Cleanup completed. Kept ${keepCount} most recent backups.`
-      );
+      console.log(`✅ Cleanup completed. Kept ${keepCount} most recent backups.`);
     } catch (error) {
       // Don't throw - cleanup failures shouldn't break the backup process
       console.error("⚠️ Backup cleanup failed (non-critical):", error);

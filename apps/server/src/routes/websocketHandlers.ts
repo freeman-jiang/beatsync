@@ -1,10 +1,5 @@
-import type {
-  WSBroadcastType} from "@beatsync/shared";
-import {
-  ClientActionEnum,
-  epochNow,
-  WSRequestSchema,
-} from "@beatsync/shared";
+import type { WSBroadcastType } from "@beatsync/shared";
+import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
 import { globalManager } from "../managers";
 import { sendBroadcast, sendUnicast } from "../utils/responses";
@@ -24,9 +19,7 @@ const createClientUpdate = (roomId: string) => {
 };
 
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
-  console.log(
-    `WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`
-  );
+  console.log(`WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`);
   // Client already knows its ID from PostHog, no need to send SET_CLIENT_ID
 
   const { roomId } = ws.data;
@@ -38,9 +31,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   // Send audio sources to the newly joined client if any exist
   const { audioSources } = room.getState();
   if (audioSources.length > 0) {
-    console.log(
-      `Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`
-    );
+    console.log(`Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`);
 
     // Send audio sources via broadcast (which will include the newly joined client)
     // This ensures all clients stay in sync
@@ -108,24 +99,16 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   sendBroadcast({ server, roomId, message });
 };
 
-export const handleMessage = async (
-  ws: ServerWebSocket<WSData>,
-  message: string | Buffer,
-  server: BunServer
-) => {
+export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string | Buffer, server: BunServer) => {
   const t1 = epochNow(); // Always calculate this immediately
   const { roomId, username } = ws.data;
 
   try {
-    const parsedData = JSON.parse(message.toString());
+    const parsedData: unknown = JSON.parse(message.toString());
     const parsedMessage = WSRequestSchema.parse(parsedData);
 
     if (parsedMessage.type !== ClientActionEnum.enum.NTP_REQUEST) {
-      console.log(
-        `[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(
-          parsedMessage
-        )}`
-      );
+      console.log(`[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(parsedMessage)}`);
     }
 
     if (parsedMessage.type === ClientActionEnum.enum.NTP_REQUEST) {
@@ -137,20 +120,13 @@ export const handleMessage = async (
     await dispatchMessage({ ws, message: parsedMessage, server });
   } catch (error) {
     console.error("Invalid message format:", error);
-    ws.send(
-      JSON.stringify({ type: "ERROR", message: "Invalid message format" })
-    );
+    ws.send(JSON.stringify({ type: "ERROR", message: "Invalid message format" }));
   }
 };
 
-export const handleClose = async (
-  ws: ServerWebSocket<WSData>,
-  server: BunServer
-) => {
+export const handleClose = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   try {
-    console.log(
-      `WebSocket connection closed for user ${ws.data.username} in room ${ws.data.roomId}`
-    );
+    console.log(`WebSocket connection closed for user ${ws.data.username} in room ${ws.data.roomId}`);
 
     const { roomId, clientId } = ws.data;
     const room = globalManager.getRoom(roomId);
@@ -169,9 +145,6 @@ export const handleClose = async (
     ws.unsubscribe(roomId);
     server.publish(roomId, JSON.stringify(message));
   } catch (error) {
-    console.error(
-      `Error handling WebSocket close for ${ws.data?.username}:`,
-      error
-    );
+    console.error(`Error handling WebSocket close for ${ws.data?.username}:`, error);
   }
 };

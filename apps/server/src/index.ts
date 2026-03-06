@@ -6,11 +6,7 @@ import { handleRoot } from "./routes/root";
 import { handleStats } from "./routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "./routes/upload";
 import { handleWebSocketUpgrade } from "./routes/websocket";
-import {
-  handleClose,
-  handleMessage,
-  handleOpen,
-} from "./routes/websocketHandlers";
+import { handleClose, handleMessage, handleOpen } from "./routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "./utils/responses";
 import type { WSData } from "./utils/websocket";
 
@@ -66,7 +62,7 @@ const server = Bun.serve<WSData>({
     },
 
     message(ws, message) {
-      handleMessage(ws, message, server);
+      void handleMessage(ws, message, server);
     },
 
     close(ws) {
@@ -95,12 +91,12 @@ setInterval(() => {
 const shutdown = async () => {
   console.log("\n⚠️ Shutting down...");
 
-  server.stop(); // Stop accepting new connections
+  void server.stop(); // Stop accepting new connections
   await BackupManager.backupState(); // Save state
 
   process.exit(0);
 };
 
 // Handle shutdown signals
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void shutdown());

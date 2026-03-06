@@ -8,4 +8,4 @@ const main = async () => {
   // console.log(await deleteObjectsWithPrefix(""));
 };
 
-main();
+void main();

@@ -5,20 +5,30 @@ import { globalManager } from "../managers/GlobalManager";
 import type { WSData } from "../utils/websocket";
 
 // Mock the R2 operations
-mock.module("../lib/r2", () => ({
-  deleteObjectsWithPrefix: mock(async () => ({ deletedCount: 0 })),
-  uploadJSON: mock(async () => {}),
-  downloadJSON: mock(async (_key: string) => {
+void mock.module("../lib/r2", () => ({
+  deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
+  uploadJSON: mock(() => {
+    // noop
+  }),
+  downloadJSON: mock((_key: string) => {
     // Return test backup data
     return {
       timestamp: Date.now() - 60000, // 1 minute ago
       data: {
         rooms: {
           "test-room-1": {
-            clientDatas: [{ clientId: "ghost-1", username: "user1", isAdmin: false, joinedAt: Date.now(), rtt: 0, position: { x: 0, y: 0 }, lastNtpResponse: Date.now() }],
-            audioSources: [
-              { url: "test.mp3" },
+            clientDatas: [
+              {
+                clientId: "ghost-1",
+                username: "user1",
+                isAdmin: false,
+                joinedAt: Date.now(),
+                rtt: 0,
+                position: { x: 0, y: 0 },
+                lastNtpResponse: Date.now(),
+              },
             ],
+            audioSources: [{ url: "test.mp3" }],
             globalVolume: 1,
             playbackState: {
               type: "paused",
@@ -42,11 +52,13 @@ mock.module("../lib/r2", () => ({
       },
     };
   }),
-  getLatestFileWithPrefix: mock(async () => "state-backup/backup-test.json"),
-  getSortedFilesWithPrefix: mock(async () => []),
-  deleteObject: mock(async () => {}),
-  validateAudioFileExists: mock(async () => true), // Mock to always return true for tests
-  cleanupOrphanedRooms: mock(async () => ({
+  getLatestFileWithPrefix: mock(() => "state-backup/backup-test.json"),
+  getSortedFilesWithPrefix: mock(() => []),
+  deleteObject: mock(() => {
+    // noop
+  }),
+  validateAudioFileExists: mock(() => true), // Mock to always return true for tests
+  cleanupOrphanedRooms: mock(() => ({
     orphanedRooms: [],
     totalRooms: 0,
     totalFiles: 0,
@@ -54,20 +66,17 @@ mock.module("../lib/r2", () => ({
 }));
 
 describe("Restore Cleanup", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
-      await globalManager.deleteRoom(roomId);
+      globalManager.deleteRoom(roomId);
     }
   });
 
   it("should schedule cleanup for restored rooms with no active connections", async () => {
     // Spy on room cleanup scheduling
-    globalManager.getOrCreateRoom("test").scheduleCleanup = function (
-      _callback,
-      _delay
-    ) {
+    globalManager.getOrCreateRoom("test").scheduleCleanup = function (_callback, _delay) {
       // Don't actually schedule the timer in tests
     };
 
@@ -112,9 +121,7 @@ describe("Restore Cleanup", () => {
     let cleanupCalled = false;
 
     // Schedule cleanup manually to test cancellation
-    room.scheduleCleanup(async () => {
-      cleanupCalled = true;
-    }, 100); // Short delay for testing
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100); // Short delay for testing
 
     // Simulate a real client connecting
     const mockWs = {
@@ -124,8 +131,12 @@ describe("Restore Cleanup", () => {
         roomId: "test-room-1",
       },
       readyState: 1, // OPEN
-      subscribe: mock(() => {}),
-      send: mock(() => {}),
+      subscribe: mock(() => {
+        /* noop */
+      }),
+      send: mock(() => {
+        /* noop */
+      }),
     };
 
     room.addClient(mockWs as unknown as ServerWebSocket<WSData>);
@@ -151,7 +162,7 @@ describe("Restore Cleanup", () => {
     room.scheduleCleanup(async () => {
       cleanupCalled = true;
       await room.cleanup();
-      await globalManager.deleteRoom("test-room-1");
+      globalManager.deleteRoom("test-room-1");
     }, 100);
 
     // Wait for cleanup to execute
@@ -164,7 +175,7 @@ describe("Restore Cleanup", () => {
     expect(globalManager.hasRoom("test-room-1")).toBe(false);
   });
 
-  it("should handle ghost clients correctly", async () => {
+  it("should handle ghost clients correctly", () => {
     // Create a room with a ghost client (no WebSocket)
     const room = globalManager.getOrCreateRoom("ghost-room");
 

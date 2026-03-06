@@ -1,10 +1,5 @@
-import type {
-  UploadCompleteResponseType,
-  UploadUrlResponseType} from "@beatsync/shared";
-import {
-  GetUploadUrlSchema,
-  UploadCompleteSchema
-} from "@beatsync/shared";
+import type { UploadCompleteResponseType, UploadUrlResponseType } from "@beatsync/shared";
+import { GetUploadUrlSchema, UploadCompleteSchema } from "@beatsync/shared";
 import type { BunServer } from "../utils/websocket";
 import {
   createKey,
@@ -30,14 +25,11 @@ export const handleGetPresignedURL = async (req: Request) => {
       return errorResponse("R2 configuration not complete", 500);
     }
 
-    const body = await req.json();
+    const body: unknown = await req.json();
     const parseResult = GetUploadUrlSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return errorResponse(
-        `Invalid request data: ${parseResult.error.message}`,
-        400
-      );
+      return errorResponse(`Invalid request data: ${parseResult.error.message}`, 400);
     }
 
     const { roomId, fileName, contentType } = parseResult.data;
@@ -45,10 +37,7 @@ export const handleGetPresignedURL = async (req: Request) => {
     // Check if room exists
     const room = globalManager.getRoom(roomId);
     if (!room) {
-      return errorResponse(
-        "Room not found. Please join the room before uploading files.",
-        404
-      );
+      return errorResponse("Room not found. Please join the room before uploading files.", 404);
     }
 
     // Generate unique filename
@@ -56,11 +45,7 @@ export const handleGetPresignedURL = async (req: Request) => {
     const r2Key = createKey(roomId, uniqueFileName);
 
     // Generate presigned URL for upload
-    const uploadUrl = await generatePresignedUploadUrl(
-      roomId,
-      uniqueFileName,
-      contentType
-    );
+    const uploadUrl = await generatePresignedUploadUrl(roomId, uniqueFileName, contentType);
     const publicUrl = getPublicAudioUrl(roomId, uniqueFileName);
 
     console.log(`Generated presigned URL for upload - R2 key: (${r2Key})`);
@@ -84,14 +69,11 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
       return errorResponse("Method not allowed", 405);
     }
 
-    const body = await req.json();
+    const body: unknown = await req.json();
     const parseResult = UploadCompleteSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return errorResponse(
-        `Invalid request data: ${parseResult.error.message}`,
-        400
-      );
+      return errorResponse(`Invalid request data: ${parseResult.error.message}`, 400);
     }
 
     const { roomId, publicUrl } = parseResult.data;
@@ -99,17 +81,12 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
     // Check if room exists
     const room = globalManager.getRoom(roomId);
     if (!room) {
-      return errorResponse(
-        "Room not found. The room may have been closed during upload.",
-        404
-      );
+      return errorResponse("Room not found. The room may have been closed during upload.", 404);
     }
 
     const sources = room.addAudioSource({ url: publicUrl });
 
-    console.log(
-      `✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${JSON.stringify(sources)}`
-    );
+    console.log(`✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${JSON.stringify(sources)}`);
 
     // Broadcast to room that new audio is available
     sendBroadcast({

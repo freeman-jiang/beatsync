@@ -9,13 +9,9 @@ import type {
   PlaybackControlsPermissionsType,
   PositionType,
   RoomType,
-  WSBroadcastType} from "@beatsync/shared";
-import {
-  ChatMessageSchema,
-  ClientDataSchema,
-  epochNow,
-  NTP_CONSTANTS
+  WSBroadcastType,
 } from "@beatsync/shared";
+import { ChatMessageSchema, ClientDataSchema, epochNow, NTP_CONSTANTS } from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
@@ -38,10 +34,7 @@ interface RoomData {
   globalVolume: number; // Master volume multiplier (0-1)
 }
 
-export const ClientCacheBackupSchema = z.record(
-  z.string(),
-  z.object({ isAdmin: z.boolean() })
-);
+export const ClientCacheBackupSchema = z.record(z.string(), z.object({ isAdmin: z.boolean() }));
 
 const RoomPlaybackStateSchema = z.object({
   type: z.enum(["playing", "paused"]),
@@ -108,8 +101,7 @@ export class RoomManager {
   private heartbeatCheckInterval?: NodeJS.Timeout;
   private onClientCountChange?: () => void;
   private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
-  private playbackControlsPermissions: PlaybackControlsPermissionsType =
-    "ADMIN_ONLY";
+  private playbackControlsPermissions: PlaybackControlsPermissionsType = "ADMIN_ONLY";
   private globalVolume = 1.0; // Default 100% volume
   // Map of trackId to job status
   private activeStreamJobs = new Map<string, { status: string }>();
@@ -146,31 +138,21 @@ export class RoomManager {
   /**
    * Initiate audio source loading for all clients before playback
    */
-  initiateAudioSourceLoad(
-    playAction: PlayActionType,
-    initiatorClientId: string,
-    server: BunServer
-  ): void {
+  initiateAudioSourceLoad(playAction: PlayActionType, initiatorClientId: string, server: BunServer): void {
     // Clear any existing loading state
     this.clearAudioLoadingState();
 
     // Find the audio source to load
-    const audioSource = this.audioSources.find(
-      (source) => source.url === playAction.audioSource
-    );
+    const audioSource = this.audioSources.find((source) => source.url === playAction.audioSource);
 
     if (!audioSource) {
-      console.warn(
-        `Cannot load non-existent audio source: ${playAction.audioSource}`
-      );
+      console.warn(`Cannot load non-existent audio source: ${playAction.audioSource}`);
       return;
     }
 
     // Set up timeout to execute play even if some clients don't respond
     const timeout = setTimeout(() => {
-      console.log(
-        `Audio loading timeout reached after ${RoomManager.AUDIO_LOAD_TIMEOUT_MS}ms. Proceeding with play.`
-      );
+      console.log(`Audio loading timeout reached after ${RoomManager.AUDIO_LOAD_TIMEOUT_MS}ms. Proceeding with play.`);
       this.executeScheduledPlay(server);
     }, RoomManager.AUDIO_LOAD_TIMEOUT_MS);
 
@@ -196,9 +178,7 @@ export class RoomManager {
       },
     });
 
-    console.log(
-      `Initiated audio loading for ${audioSource.url} in room ${this.roomId}`
-    );
+    console.log(`Initiated audio loading for ${audioSource.url} in room ${this.roomId}`);
   }
 
   allClientsLoadedPendingSource(): boolean {
@@ -232,15 +212,11 @@ export class RoomManager {
 
     const loadedCount = this.pendingPlay.clientsLoaded.size;
     const totalCount = this.getClients().length;
-    console.log(
-      `Room ${this.roomId}: ${loadedCount}/${totalCount} clients loaded audio`
-    );
+    console.log(`Room ${this.roomId}: ${loadedCount}/${totalCount} clients loaded audio`);
 
     // Check if all active clients have loaded
     if (this.allClientsLoadedPendingSource()) {
-      console.log(
-        `Room ${this.roomId}: All clients loaded. Starting playback.`
-      );
+      console.log(`Room ${this.roomId}: All clients loaded. Starting playback.`);
       this.executeScheduledPlay(server);
     }
   }
@@ -263,10 +239,7 @@ export class RoomManager {
     const serverTimeToExecute = this.getScheduledExecutionTime();
 
     // Update playback state
-    const success = this.updatePlaybackSchedulePlay(
-      playAction,
-      serverTimeToExecute
-    );
+    const success = this.updatePlaybackSchedulePlay(playAction, serverTimeToExecute);
 
     if (success) {
       // Send the scheduled play action
@@ -280,13 +253,9 @@ export class RoomManager {
         },
       });
 
-      console.log(
-        `Executed scheduled play for ${playAction.audioSource} in room ${this.roomId}`
-      );
+      console.log(`Executed scheduled play for ${playAction.audioSource} in room ${this.roomId}`);
     } else {
-      console.warn(
-        `Failed to execute play - track may have been removed: ${playAction.audioSource}`
-      );
+      console.warn(`Failed to execute play - track may have been removed: ${playAction.audioSource}`);
     }
   }
 
@@ -390,9 +359,7 @@ export class RoomManager {
 
       // Recheck if all remaining clients have loaded
       if (this.allClientsLoadedPendingSource()) {
-        console.log(
-          `Client left during loading. All remaining clients loaded. Starting playback.`
-        );
+        console.log(`Client left during loading. All remaining clients loaded. Starting playback.`);
         // Use the stored server reference
         this.executeScheduledPlay(this.pendingPlay.server);
       }
@@ -402,22 +369,14 @@ export class RoomManager {
     this.onClientCountChange?.();
   }
 
-  setAdmin({
-    targetClientId,
-    isAdmin,
-  }: {
-    targetClientId: string;
-    isAdmin: boolean;
-  }): void {
+  setAdmin({ targetClientId, isAdmin }: { targetClientId: string; isAdmin: boolean }): void {
     const client = this.clientData.get(targetClientId);
     if (!client) return;
     client.isAdmin = isAdmin;
     this.clientData.set(targetClientId, client);
   }
 
-  setPlaybackControls(
-    permissions: z.infer<typeof PlaybackControlsPermissionsEnum>
-  ): void {
+  setPlaybackControls(permissions: z.infer<typeof PlaybackControlsPermissionsEnum>): void {
     this.playbackControlsPermissions = permissions;
   }
 
@@ -444,29 +403,21 @@ export class RoomManager {
     const urlSet = new Set(urls);
 
     // Check if current playback url is being removed
-    const removingCurrent =
-      this.playbackState.type === "playing" &&
-      urlSet.has(this.playbackState.audioSource);
+    const removingCurrent = this.playbackState.type === "playing" && urlSet.has(this.playbackState.audioSource);
 
-    const removedUrl = removingCurrent
-      ? this.playbackState.audioSource
-      : undefined;
+    const removedUrl = removingCurrent ? this.playbackState.audioSource : undefined;
 
     this.audioSources = this.audioSources.filter((s) => !urlSet.has(s.url));
 
     // Reset playback state if we removed the currently playing track
     if (removingCurrent) {
-      console.log(
-        `Room ${this.roomId}: Currently playing track was removed. Resetting playback state.`
-      );
+      console.log(`Room ${this.roomId}: Currently playing track was removed. Resetting playback state.`);
       this.playbackState = INITIAL_PLAYBACK_STATE;
     }
 
     const after = this.audioSources.length;
     if (before !== after) {
-      console.log(
-        `Removed ${before - after} sources from room ${this.roomId}: `
-      );
+      console.log(`Removed ${before - after} sources from room ${this.roomId}: `);
     }
     return {
       updated: this.audioSources,
@@ -480,9 +431,7 @@ export class RoomManager {
    */
   getClients(): ClientDataType[] {
     // Only return clients that have an active WebSocket connection
-    return Array.from(this.clientData.values()).filter((client) =>
-      this.wsConnections.has(client.clientId)
-    );
+    return Array.from(this.clientData.values()).filter((client) => this.wsConnections.has(client.clientId));
   }
 
   /**
@@ -558,13 +507,7 @@ export class RoomManager {
   /**
    * Add a chat message to the room
    */
-  addChatMessage({
-    clientId,
-    text,
-  }: {
-    clientId: string;
-    text: string;
-  }): ChatMessageType {
+  addChatMessage({ clientId, text }: { clientId: string; text: string }): ChatMessageType {
     const client = this.clientData.get(clientId);
     if (!client) {
       throw new Error(`Client ${clientId} not found in room ${this.roomId}`);
@@ -608,14 +551,10 @@ export class RoomManager {
    * Get the scheduled execution time based on dynamic RTT
    * @returns Server timestamp when the action should be executed
    */
-  getScheduledExecutionTime(
-    opts: { extraOffsetMs: number } = { extraOffsetMs: 0 }
-  ): number {
+  getScheduledExecutionTime(opts: { extraOffsetMs: number } = { extraOffsetMs: 0 }): number {
     const maxRTT = this.getMaxClientRTT();
     const scheduleDelayMs = calculateScheduleTimeMs(maxRTT);
-    console.log(
-      `Scheduling with dynamic delay: ${scheduleDelayMs}ms (max RTT: ${maxRTT}ms)`
-    );
+    console.log(`Scheduling with dynamic delay: ${scheduleDelayMs}ms (max RTT: ${maxRTT}ms)`);
     return epochNow() + scheduleDelayMs + opts.extraOffsetMs;
   }
 
@@ -644,9 +583,7 @@ export class RoomManager {
    */
   reorderClients(clientId: string, server: BunServer): ClientDataType[] {
     const clients = this.getClients();
-    const clientIndex = clients.findIndex(
-      (client) => client.clientId === clientId
-    );
+    const clientIndex = clients.findIndex((client) => client.clientId === clientId);
 
     if (clientIndex === -1) return clients; // Client not found
 
@@ -724,9 +661,7 @@ export class RoomManager {
 
     const updateSpatialAudio = () => {
       const clients = this.getClients();
-      console.log(
-        `ROOM ${this.roomId} LOOP ${loopCount}: Connected clients: ${clients.length}`
-      );
+      console.log(`ROOM ${this.roomId} LOOP ${loopCount}: Connected clients: ${clients.length}`);
       if (clients.length === 0) return;
 
       // Calculate new position for listening source in a circle
@@ -788,22 +723,15 @@ export class RoomManager {
     }
   }
 
-  updatePlaybackSchedulePause(
-    pauseSchema: PauseActionType,
-    serverTimeToExecute: number
-  ): boolean {
+  updatePlaybackSchedulePause(pauseSchema: PauseActionType, serverTimeToExecute: number): boolean {
     // Validate that the audio source exists in the room (if provided)
     // Pause can reference a track that might have been deleted, which is ok
     // But we should validate if the track is specified
     if (pauseSchema.audioSource) {
-      const trackExists = this.audioSources.some(
-        (source) => source.url === pauseSchema.audioSource
-      );
+      const trackExists = this.audioSources.some((source) => source.url === pauseSchema.audioSource);
 
       if (!trackExists) {
-        console.warn(
-          `Room ${this.roomId}: Attempted to pause non-existent track: ${pauseSchema.audioSource}`
-        );
+        console.warn(`Room ${this.roomId}: Attempted to pause non-existent track: ${pauseSchema.audioSource}`);
         // For pause, we'll still update but with empty audioSource
         this.playbackState = {
           type: "paused",
@@ -824,19 +752,12 @@ export class RoomManager {
     return true;
   }
 
-  updatePlaybackSchedulePlay(
-    playSchema: PlayActionType,
-    serverTimeToExecute: number
-  ): boolean {
+  updatePlaybackSchedulePlay(playSchema: PlayActionType, serverTimeToExecute: number): boolean {
     // Validate that the audio source exists in the room
-    const trackExists = this.audioSources.some(
-      (source) => source.url === playSchema.audioSource
-    );
+    const trackExists = this.audioSources.some((source) => source.url === playSchema.audioSource);
 
     if (!trackExists) {
-      console.warn(
-        `Room ${this.roomId}: Attempted to play non-existent track: ${playSchema.audioSource}`
-      );
+      console.warn(`Room ${this.roomId}: Attempted to play non-existent track: ${playSchema.audioSource}`);
       return false;
     }
 
@@ -859,10 +780,8 @@ export class RoomManager {
       return; // Nothing to do - client will play on next scheduled action
     }
 
-    const serverTimeWhenPlaybackStarted =
-      this.playbackState.serverTimeToExecute;
-    const trackPositionSecondsWhenPlaybackStarted =
-      this.playbackState.trackPositionSeconds;
+    const serverTimeWhenPlaybackStarted = this.playbackState.serverTimeToExecute;
+    const trackPositionSecondsWhenPlaybackStarted = this.playbackState.trackPositionSeconds;
     const now = epochNow();
 
     // Use dynamic scheduling based on max client RTT
@@ -875,16 +794,12 @@ export class RoomManager {
 
     // Calculate how much time will have elapsed by the time the client responds
     // to the sync response
-    const timeElapsedAtExecution =
-      serverTimeToExecute - serverTimeWhenPlaybackStarted;
+    const timeElapsedAtExecution = serverTimeToExecute - serverTimeWhenPlaybackStarted;
 
     // Convert to seconds and add to the starting position
-    const resumeTrackTimeSeconds =
-      trackPositionSecondsWhenPlaybackStarted + timeElapsedAtExecution / 1000;
+    const resumeTrackTimeSeconds = trackPositionSecondsWhenPlaybackStarted + timeElapsedAtExecution / 1000;
     console.log(
-      `Syncing late client: track started at ${trackPositionSecondsWhenPlaybackStarted.toFixed(
-        2
-      )}s, ` +
+      `Syncing late client: track started at ${trackPositionSecondsWhenPlaybackStarted.toFixed(2)}s, ` +
         `${(timeElapsedSincePlaybackStarted / 1000).toFixed(2)}s elapsed, ` +
         `will be at ${resumeTrackTimeSeconds.toFixed(2)}s when client starts`
     );
@@ -946,7 +861,7 @@ export class RoomManager {
     this.cancelCleanup();
 
     // Schedule new cleanup after specified delay
-    this.cleanupTimer = setTimeout(callback, delayMs);
+    this.cleanupTimer = setTimeout(() => void callback(), delayMs);
     console.log(`⏱️ Scheduled cleanup for room ${this.roomId} in ${delayMs}ms`);
   }
 
@@ -973,9 +888,7 @@ export class RoomManager {
 
     try {
       const result = await deleteObjectsWithPrefix(`room-${this.roomId}`);
-      console.log(
-        `✅ Room ${this.roomId} objects deleted: ${result.deletedCount}`
-      );
+      console.log(`✅ Room ${this.roomId} objects deleted: ${result.deletedCount}`);
     } catch (error) {
       console.error(`❌ Room ${this.roomId} cleanup failed:`, error);
     }
@@ -1059,17 +972,13 @@ export class RoomManager {
       staleClients.forEach((clientId) => {
         const client = this.clientData.get(clientId);
         if (client) {
-          console.log(
-            `🔌 Disconnecting stale client ${clientId} from room ${this.roomId}`
-          );
+          console.log(`🔌 Disconnecting stale client ${clientId} from room ${this.roomId}`);
           // Close the WebSocket connection
           // The onClose handler will call removeClient() when the connection actually closes
           try {
             const ws = this.wsConnections.get(clientId);
             if (!ws) {
-              console.error(
-                `❌ No WebSocket connection found for client ${clientId} in room ${this.roomId}`
-              );
+              console.error(`❌ No WebSocket connection found for client ${clientId} in room ${this.roomId}`);
               // If there's no WebSocket, we should clean up the orphaned client data
               // Note: we don't have server reference here, so loading state won't be checked
               this.removeClient(clientId);
@@ -1079,10 +988,7 @@ export class RoomManager {
             // which will properly remove the client from the room
             ws.close(1000, "Connection timeout - no heartbeat response");
           } catch (error) {
-            console.error(
-              `Error closing WebSocket for client ${clientId}:`,
-              error
-            );
+            console.error(`Error closing WebSocket for client ${clientId}:`, error);
             // If closing failed, still try to clean up
             // Note: we don't have server reference here, so loading state won't be checked
             this.removeClient(clientId);
@@ -1126,17 +1032,14 @@ export class RoomManager {
   /**
    * Restore chat history from backup
    */
-  restoreChatHistory(chat: {
-    messages: ChatMessageType[];
-    nextMessageId: number;
-  }): void {
+  restoreChatHistory(chat: { messages: ChatMessageType[]; nextMessageId: number }): void {
     if (chat.messages.length > 0) {
       this.chatManager.restoreMessages(chat.messages, chat.nextMessageId);
     }
   }
 
   reorderAudioSource(newOrder: AudioSourceType[]): void | Error {
-    if( newOrder.length !== this.audioSources.length) {
+    if (newOrder.length !== this.audioSources.length) {
       console.warn(`Attempted to reorder audio sources with mismatched length in room ${this.roomId}`);
       return new Error(`Mismatched audio sources length`);
     }

@@ -3,14 +3,18 @@ import { globalManager } from "../managers/GlobalManager";
 import type { RoomManager } from "../managers/RoomManager";
 
 // Mock the r2 module before importing BackupManager
-mock.module("../lib/r2", () => ({
-  uploadJSON: mock(async () => {}),
-  downloadJSON: mock(async () => null),
-  getLatestFileWithPrefix: mock(async () => null),
-  getSortedFilesWithPrefix: mock(async () => []),
-  deleteObject: mock(async () => {}),
-  validateAudioFileExists: mock(async () => true), // Mock to always return true for tests
-  cleanupOrphanedRooms: mock(async () => ({
+void mock.module("../lib/r2", () => ({
+  uploadJSON: mock(() => {
+    // noop
+  }),
+  downloadJSON: mock(() => null),
+  getLatestFileWithPrefix: mock(() => null),
+  getSortedFilesWithPrefix: mock(() => []),
+  deleteObject: mock(() => {
+    // noop
+  }),
+  validateAudioFileExists: mock(() => true), // Mock to always return true for tests
+  cleanupOrphanedRooms: mock(() => ({
     orphanedRooms: [],
     totalRooms: 0,
     totalFiles: 0,
@@ -18,16 +22,16 @@ mock.module("../lib/r2", () => ({
 }));
 
 describe("BackupManager (Simplified Tests)", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
-      await globalManager.deleteRoom(roomId);
+      globalManager.deleteRoom(roomId);
     }
   });
 
   describe("Core Functionality", () => {
-    it("should use RoomManager.getBackupState method", async () => {
+    it("should use RoomManager.getBackupState method", () => {
       // Create rooms and add data
       const room1 = globalManager.getOrCreateRoom("test-1");
       const room2 = globalManager.getOrCreateRoom("test-2");
@@ -43,10 +47,7 @@ describe("BackupManager (Simplified Tests)", () => {
       // Verify the structure matches what BackupManager expects
       expect(room1Backup).toMatchObject({
         clientDatas: [],
-        audioSources: [
-          { url: "https://example.com/audio1.mp3" },
-          { url: "https://example.com/audio2.mp3" },
-        ],
+        audioSources: [{ url: "https://example.com/audio1.mp3" }, { url: "https://example.com/audio2.mp3" }],
         globalVolume: 1,
       });
 
@@ -57,7 +58,7 @@ describe("BackupManager (Simplified Tests)", () => {
       });
     });
 
-    it("should restore rooms and audio sources correctly", async () => {
+    it("should restore rooms and audio sources correctly", () => {
       // Create initial state
       const room = globalManager.getOrCreateRoom("restore-test");
       room.addAudioSource({ url: "https://example.com/restore1.mp3" });
@@ -67,7 +68,7 @@ describe("BackupManager (Simplified Tests)", () => {
       const backupState = room.createBackup();
 
       // Clear the room
-      await globalManager.deleteRoom("restore-test");
+      globalManager.deleteRoom("restore-test");
       expect(globalManager.hasRoom("restore-test")).toBe(false);
 
       // Manually restore (simulating what BackupManager.restoreState does)
@@ -79,15 +80,11 @@ describe("BackupManager (Simplified Tests)", () => {
       // Verify restoration
       const restoredState = restoredRoom.getState();
       expect(restoredState.audioSources).toHaveLength(2);
-      expect(restoredState.audioSources[0].url).toBe(
-        "https://example.com/restore1.mp3"
-      );
-      expect(restoredState.audioSources[1].url).toBe(
-        "https://example.com/restore2.mp3"
-      );
+      expect(restoredState.audioSources[0].url).toBe("https://example.com/restore1.mp3");
+      expect(restoredState.audioSources[1].url).toBe("https://example.com/restore2.mp3");
     });
 
-    it("should handle empty rooms correctly", async () => {
+    it("should handle empty rooms correctly", () => {
       const emptyRoom = globalManager.getOrCreateRoom("empty-room");
       const backupState = emptyRoom.createBackup();
 
@@ -100,7 +97,7 @@ describe("BackupManager (Simplified Tests)", () => {
   });
 
   describe("Zod Schema Validation", () => {
-    it("should validate backup data structure", async () => {
+    it("should validate backup data structure", () => {
       // Create a room with data
       const room = globalManager.getOrCreateRoom("validation-test");
       room.addAudioSource({ url: "https://example.com/test.mp3" });
@@ -124,7 +121,7 @@ describe("BackupManager (Simplified Tests)", () => {
   });
 
   describe("RoomManager Integration", () => {
-    it("should collect backup state from all rooms", async () => {
+    it("should collect backup state from all rooms", () => {
       // Create multiple rooms
       const rooms = {
         "room-a": globalManager.getOrCreateRoom("room-a"),

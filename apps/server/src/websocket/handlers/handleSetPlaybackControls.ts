@@ -3,9 +3,11 @@ import { sendBroadcast } from "../../utils/responses";
 import { requireRoomAdmin } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handleSetPlaybackControls: HandlerFunction<
-  ExtractWSRequestFrom["SET_PLAYBACK_CONTROLS"]
-> = async ({ ws, message, server }) => {
+export const handleSetPlaybackControls: HandlerFunction<ExtractWSRequestFrom["SET_PLAYBACK_CONTROLS"]> = ({
+  ws,
+  message,
+  server,
+}) => {
   const { room } = requireRoomAdmin(ws);
   room.setPlaybackControls(message.permissions);
 

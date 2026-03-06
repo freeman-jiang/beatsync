@@ -3,9 +3,7 @@ import { sendBroadcast } from "../../utils/responses";
 import { requireRoom } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handleSendIp: HandlerFunction<
-  ExtractWSRequestFrom["SEND_IP"]
-> = async ({ ws, message, server }) => {
+export const handleSendIp: HandlerFunction<ExtractWSRequestFrom["SEND_IP"]> = ({ ws, message, server }) => {
   const { room } = requireRoom(ws);
 
   room.processIP({ ws, message });

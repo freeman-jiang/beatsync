@@ -4,9 +4,7 @@ import { sendUnicast } from "../../utils/responses";
 import { requireRoom } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handleNTPRequest: HandlerFunction<
-  ExtractWSRequestFrom["NTP_REQUEST"]
-> = async ({ ws, message }) => {
+export const handleNTPRequest: HandlerFunction<ExtractWSRequestFrom["NTP_REQUEST"]> = ({ ws, message }) => {
   if (!message.t1) {
     console.error("NTP request received without t1 timestamp");
     return;

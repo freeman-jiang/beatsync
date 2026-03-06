@@ -4,15 +4,19 @@ import { globalManager } from "../managers/GlobalManager";
 import type { WSData } from "../utils/websocket";
 
 // Mock the deleteObjectsWithPrefix to avoid R2 calls
-mock.module("../lib/r2", () => ({
-  deleteObjectsWithPrefix: mock(async () => ({ deletedCount: 0 })),
-  uploadJSON: mock(async () => {}),
-  downloadJSON: mock(async () => null),
-  getLatestFileWithPrefix: mock(async () => null),
-  getSortedFilesWithPrefix: mock(async () => []),
-  deleteObject: mock(async () => {}),
-  validateAudioFileExists: mock(async () => true), // Mock to always return true for tests
-  cleanupOrphanedRooms: mock(async () => ({
+void mock.module("../lib/r2", () => ({
+  deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
+  uploadJSON: mock(() => {
+    // noop
+  }),
+  downloadJSON: mock(() => null),
+  getLatestFileWithPrefix: mock(() => null),
+  getSortedFilesWithPrefix: mock(() => []),
+  deleteObject: mock(() => {
+    // noop
+  }),
+  validateAudioFileExists: mock(() => true), // Mock to always return true for tests
+  cleanupOrphanedRooms: mock(() => ({
     orphanedRooms: [],
     totalRooms: 0,
     totalFiles: 0,
@@ -20,11 +24,11 @@ mock.module("../lib/r2", () => ({
 }));
 
 describe("Room Cleanup Timer", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     // Clear all rooms before each test
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
-      await globalManager.deleteRoom(roomId);
+      globalManager.deleteRoom(roomId);
     }
   });
 
@@ -32,9 +36,7 @@ describe("Room Cleanup Timer", () => {
     const room = globalManager.getOrCreateRoom("cleanup-test");
     let cleanupCalled = false;
 
-    room.scheduleCleanup(async () => {
-      cleanupCalled = true;
-    }, 60000);
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 60000);
 
     // Cleanup should not be called immediately
     expect(cleanupCalled).toBe(false);
@@ -44,9 +46,7 @@ describe("Room Cleanup Timer", () => {
     const room = globalManager.getOrCreateRoom("cancel-test");
     let cleanupCalled = false;
 
-    room.scheduleCleanup(async () => {
-      cleanupCalled = true;
-    }, 60000);
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 60000);
 
     // Mock adding a client (which should cancel cleanup)
     const mockWs = {
@@ -55,8 +55,12 @@ describe("Room Cleanup Timer", () => {
         clientId: "client-123",
         roomId: "cancel-test",
       },
-      subscribe: mock(() => {}),
-      send: mock(() => {}),
+      subscribe: mock(() => {
+        /* noop */
+      }),
+      send: mock(() => {
+        /* noop */
+      }),
     };
 
     room.addClient(mockWs as unknown as ServerWebSocket<WSData>);
@@ -70,14 +74,10 @@ describe("Room Cleanup Timer", () => {
     let firstCleanupCalled = false;
     let secondCleanupCalled = false;
 
-    room.scheduleCleanup(async () => {
-      firstCleanupCalled = true;
-    }, 60000);
+    room.scheduleCleanup(() => Promise.resolve(void (firstCleanupCalled = true)), 60000);
 
     // Schedule another cleanup (should cancel the first)
-    room.scheduleCleanup(async () => {
-      secondCleanupCalled = true;
-    }, 60000);
+    room.scheduleCleanup(() => Promise.resolve(void (secondCleanupCalled = true)), 60000);
 
     // First cleanup should never be called
     expect(firstCleanupCalled).toBe(false);
@@ -88,9 +88,7 @@ describe("Room Cleanup Timer", () => {
     const room = globalManager.getOrCreateRoom("cleanup-cancel-test");
     let cleanupCalled = false;
 
-    room.scheduleCleanup(async () => {
-      cleanupCalled = true;
-    }, 60000);
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 60000);
 
     // Manually clean up the room
     await room.cleanup();
@@ -111,8 +109,12 @@ describe("Room Cleanup Timer", () => {
         clientId: "client-1",
         roomId: roomId,
       },
-      subscribe: mock(() => {}),
-      send: mock(() => {}),
+      subscribe: mock(() => {
+        /* noop */
+      }),
+      send: mock(() => {
+        /* noop */
+      }),
     };
     room.addClient(mockWs1 as unknown as ServerWebSocket<WSData>);
 
@@ -123,7 +125,7 @@ describe("Room Cleanup Timer", () => {
     room.scheduleCleanup(async () => {
       cleanupCalled = true;
       await room.cleanup();
-      await globalManager.deleteRoom(roomId);
+      globalManager.deleteRoom(roomId);
     }, 3000); // Using 3 seconds like in websocketHandlers
 
     // Verify cleanup is scheduled but not called yet
@@ -136,8 +138,12 @@ describe("Room Cleanup Timer", () => {
         clientId: "client-2",
         roomId: roomId,
       },
-      subscribe: mock(() => {}),
-      send: mock(() => {}),
+      subscribe: mock(() => {
+        /* noop */
+      }),
+      send: mock(() => {
+        /* noop */
+      }),
     };
     room.addClient(mockWs2 as unknown as ServerWebSocket<WSData>);
 
@@ -157,9 +163,7 @@ describe("Room Cleanup Timer", () => {
     let cleanupCalled = false;
 
     // Schedule cleanup with a very short delay
-    room.scheduleCleanup(async () => {
-      cleanupCalled = true;
-    }, 100); // 100ms delay
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100); // 100ms delay
 
     // Cleanup should not be called immediately
     expect(cleanupCalled).toBe(false);

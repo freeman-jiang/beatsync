@@ -3,25 +3,18 @@ import { sendBroadcast } from "../../utils/responses";
 import { requireCanMutate } from "../middlewares";
 import type { HandlerFunction } from "../types";
 
-export const handlePause: HandlerFunction<
-  ExtractWSRequestFrom["PAUSE"]
-> = async ({ ws, message, server }) => {
+export const handlePause: HandlerFunction<ExtractWSRequestFrom["PAUSE"]> = ({ ws, message, server }) => {
   const { room } = requireCanMutate(ws);
 
   // Use dynamic scheduling based on max client RTT
   const serverTimeToExecute = room.getScheduledExecutionTime();
 
   // Update playback state
-  const success = room.updatePlaybackSchedulePause(
-    message,
-    serverTimeToExecute
-  );
+  const success = room.updatePlaybackSchedulePause(message, serverTimeToExecute);
 
   if (!success) {
     // Track doesn't exist, don't broadcast the pause command
-    console.warn(
-      `Pause command rejected - track not in queue: ${message.audioSource}`
-    );
+    console.warn(`Pause command rejected - track not in queue: ${message.audioSource}`);
     return;
   }
 

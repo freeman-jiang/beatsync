@@ -17,22 +17,19 @@ export const handleGetAudio = async (req: Request, _server: BunServer) => {
     }
 
     // Parse and validate the request body
-    const rawBody = await req.json();
+    const rawBody: unknown = await req.json();
     const parseResult = GetAudioSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
-      return errorResponse(
-        `Invalid request data: ${parseResult.error.message}`,
-        400
-      );
+      return errorResponse(`Invalid request data: ${parseResult.error.message}`, 400);
     }
 
     const { id } = parseResult.data;
 
     // Parse room ID and filename from the file ID
     // ID format: "room-{roomId}/{fileName}"
-    const parts = id.split('/');
-    if (parts.length !== 2 || !parts[0].startsWith('room-')) {
+    const parts = id.split("/");
+    if (parts.length !== 2 || !parts[0].startsWith("room-")) {
       return errorResponse("Invalid file ID format", 400);
     }
 
@@ -41,12 +38,12 @@ export const handleGetAudio = async (req: Request, _server: BunServer) => {
 
     // Generate R2 public URL and redirect
     const publicUrl = getPublicAudioUrl(roomId, fileName);
-    
+
     // Return a redirect to the R2 public URL
     return new Response(null, {
       status: 302,
       headers: {
-        "Location": publicUrl,
+        Location: publicUrl,
         "Access-Control-Allow-Origin": "*",
       },
     });
