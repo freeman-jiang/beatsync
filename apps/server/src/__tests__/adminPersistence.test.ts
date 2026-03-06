@@ -69,14 +69,14 @@ describe("Admin Persistence", () => {
     expect(clients[0].clientId).toBe("client-1");
   });
 
-  it("should promote the oldest person when the only admin leaves", () => {
+  it("should promote a random client when the only admin leaves", () => {
     const ws1 = createMockWs("client-1", "admin-user", roomId);
     const ws2 = createMockWs("client-2", "user2", roomId);
     const ws3 = createMockWs("client-3", "user3", roomId);
 
     // Add clients in order
     room.addClient(ws1); // Admin
-    room.addClient(ws2); // Will be oldest when admin leaves
+    room.addClient(ws2);
     room.addClient(ws3);
 
     // Verify initial state
@@ -88,11 +88,12 @@ describe("Admin Persistence", () => {
     // Admin leaves
     room.removeClient("client-1");
 
-    // Check that client-2 (oldest remaining) becomes admin
+    // Check that exactly one remaining client was promoted (random selection)
     clients = room.getClients();
     expect(clients.length).toBe(2);
-    expect(clients.find((c) => c.clientId === "client-2")?.isAdmin).toBe(true);
-    expect(clients.find((c) => c.clientId === "client-3")?.isAdmin).toBe(false);
+    const admins = clients.filter((c) => c.isAdmin);
+    expect(admins.length).toBe(1);
+    expect(["client-2", "client-3"]).toContain(admins[0].clientId);
   });
 
   it("should preserve admin status and username when client rejoins with same ID", () => {
