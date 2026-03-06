@@ -9,6 +9,14 @@ import { SOCIAL_LINKS } from "@/constants";
 import { fetchActiveRooms } from "@/lib/api";
 import { generateName } from "@/lib/randomNames";
 import { validateFullRoomId, validatePartialRoomId } from "@/lib/room";
+import {
+  saveCustomName,
+  loadCustomName,
+  clearCustomName,
+  hasRecentCustomName,
+  validateCustomName,
+  getBestAvailableName
+} from "@/lib/customName";
 import { useRoomStore } from "@/store/room";
 import { useQuery } from "@tanstack/react-query";
 import { PlusCircle } from "lucide-react";
@@ -28,6 +36,9 @@ interface JoinFormData {
 export const Join = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [customNameInput, setCustomNameInput] = useState("");
+  const [nameValidationError, setNameValidationError] = useState<string | null>(null);
   const setUsername = useRoomStore((state) => state.setUsername);
   const username = useRoomStore((state) => state.username);
 
@@ -43,9 +54,15 @@ export const Join = () => {
   });
 
   useEffect(() => {
-    // Set a random username when component mounts
-    const generatedName = generateName();
-    setUsername(generatedName);
+    // Set the best available username when component mounts (custom name if available, otherwise random)
+    const bestName = getBestAvailableName();
+    setUsername(bestName);
+
+    // Initialize custom name input if we have a custom name
+    const customName = loadCustomName();
+    if (customName) {
+      setCustomNameInput(customName);
+    }
   }, [setValue, setUsername]);
 
   const { data: numActiveUsers } = useQuery({
@@ -84,6 +101,50 @@ export const Join = () => {
   const handleRegenerateName = () => {
     const newName = generateName();
     setUsername(newName);
+    setIsEditingName(false);
+    setCustomNameInput("");
+    setNameValidationError(null);
+    clearCustomName();
+  };
+
+  const handleStartEditName = () => {
+    setIsEditingName(true);
+    setNameValidationError(null);
+  };
+
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    setCustomNameInput(loadCustomName() || "");
+    setNameValidationError(null);
+  };
+
+  const handleSaveCustomName = () => {
+    const trimmedName = customNameInput.trim();
+
+    // Validate the name
+    const validation = validateCustomName(trimmedName);
+    if (!validation.isValid) {
+      setNameValidationError(validation.error || "Invalid name");
+      return;
+    }
+
+    // Save the custom name
+    const success = saveCustomName(trimmedName);
+    if (success) {
+      setUsername(trimmedName);
+      setIsEditingName(false);
+      setNameValidationError(null);
+    } else {
+      setNameValidationError("Failed to save name. Please try again.");
+    }
+  };
+
+  const handleCustomNameInputChange = (value: string) => {
+    setCustomNameInput(value);
+    // Clear validation error when user starts typing
+    if (nameValidationError) {
+      setNameValidationError(null);
+    }
   };
 
   return (
@@ -178,7 +239,7 @@ export const Join = () => {
                         <InputOTPSlot
                           key={index}
                           index={index}
-                          className="w-9 h-10 text-base bg-neutral-800/80 border-neutral-700 transition-all duration-200 
+                          className="w-9 h-10 text-base bg-neutral-800/80 border-neutral-700 transition-all duration-200
                           focus-within:border-primary/70 focus-within:bg-neutral-800 focus-within:ring-1 focus-within:ring-primary/30"
                         />
                       ))}
@@ -198,46 +259,109 @@ export const Join = () => {
             )}
 
             <motion.div
-              className="flex items-center justify-center mt-5"
+              className="flex flex-col items-center mt-5 space-y-3"
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.25 }}
             >
-              <div className="text-sm text-neutral-400">
-                You&apos;ll join as{" "}
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={username}
-                    className="text-primary font-medium inline-block"
-                    initial={{
-                      opacity: 0,
-                      filter: "blur(8px)",
+              {isEditingName ? (
+                <div className="w-full max-w-xs space-y-2">
+                  <input
+                    type="text"
+                    value={customNameInput}
+                    onChange={(e) => handleCustomNameInputChange(e.target.value)}
+                    placeholder="Enter your custom name"
+                    className="w-full px-3 py-2 text-sm bg-neutral-800/80 border border-neutral-700 rounded-md text-white placeholder-neutral-500 focus:border-primary/70 focus:bg-neutral-800 focus:ring-1 focus:ring-primary/30 focus:outline-none"
+                    maxLength={50}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveCustomName();
+                      } else if (e.key === 'Escape') {
+                        handleCancelEditName();
+                      }
                     }}
-                    animate={{
-                      opacity: 1,
-                      filter: "blur(0px)",
-                    }}
-                    exit={{
-                      opacity: 0,
-                      filter: "blur(8px)",
-                    }}
-                    transition={{
-                      duration: 0.2,
-                    }}
-                  >
-                    {username}
-                  </motion.span>
-                </AnimatePresence>
-              </div>
-              <Button
-                type="button"
-                onClick={handleRegenerateName}
-                variant="ghost"
-                className="text-xs text-neutral-500 hover:text-neutral-300 ml-2 h-6 px-2"
-                disabled={isJoining || isCreating}
-              >
-                Regenerate
-              </Button>
+                  />
+                  {nameValidationError && (
+                    <p className="text-xs text-red-500 text-center">
+                      {nameValidationError}
+                    </p>
+                  )}
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      type="button"
+                      onClick={handleSaveCustomName}
+                      variant="default"
+                      size="sm"
+                      className="text-xs px-3 py-1 h-7"
+                      disabled={!customNameInput.trim()}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleCancelEditName}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs px-3 py-1 h-7 border-neutral-700"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                    <div className="text-sm text-neutral-400">
+                      You&apos;ll join as{" "}
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={username}
+                          className="text-primary font-medium inline-block"
+                          initial={{
+                            opacity: 0,
+                            filter: "blur(8px)",
+                          }}
+                          animate={{
+                            opacity: 1,
+                            filter: "blur(0px)",
+                          }}
+                          exit={{
+                            opacity: 0,
+                            filter: "blur(8px)",
+                          }}
+                          transition={{
+                            duration: 0.2,
+                          }}
+                        >
+                          {username}
+                        </motion.span>
+                      </AnimatePresence>
+                      {hasRecentCustomName() && (
+                        <span className="text-xs text-green-500 ml-1">(Custom)</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleStartEditName}
+                        variant="ghost"
+                        className="text-xs text-neutral-500 hover:text-neutral-300 h-6 px-2"
+                        disabled={isJoining || isCreating}
+                      >
+                        {hasRecentCustomName() ? 'Edit Name' : 'Set Custom Name'}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleRegenerateName}
+                        variant="ghost"
+                        className="text-xs text-neutral-500 hover:text-neutral-300 h-6 px-2"
+                        disabled={isJoining || isCreating}
+                      >
+                        Regenerate
+                      </Button>
+                  </div>
+                </>
+              )}
             </motion.div>
 
             <div className="flex flex-col gap-3 mt-5">

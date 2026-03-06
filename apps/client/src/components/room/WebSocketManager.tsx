@@ -8,6 +8,8 @@ import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { NTPMeasurement } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
+import { NameConflictResolver } from "../NameConflictResolver";
+import { useState } from "react";
 import {
   ClientActionEnum,
   epochNow,
@@ -50,6 +52,17 @@ export const WebSocketManager = ({
 }: WebSocketManagerProps) => {
   // Get PostHog client ID
   const { clientId } = useClientId();
+
+  // Name conflict resolution state
+  const [nameConflict, setNameConflict] = useState<{
+    isOpen: boolean;
+    currentName: string;
+    conflictingNames: string[];
+  }>({
+    isOpen: false,
+    currentName: "",
+    conflictingNames: [],
+  });
 
   // Room state
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
@@ -190,6 +203,23 @@ export const WebSocketManager = ({
 
         if (event.type === "CLIENT_CHANGE") {
           setConnectedClients(event.clients);
+
+          // Check for name conflicts
+          const currentUser = event.clients.find(client => client.clientId === clientId);
+          if (currentUser) {
+            const otherClients = event.clients.filter(client => client.clientId !== clientId);
+            const conflictingNames = otherClients
+              .filter(client => client.username.toLowerCase() === currentUser.username.toLowerCase())
+              .map(client => client.username);
+
+            if (conflictingNames.length > 0) {
+              setNameConflict({
+                isOpen: true,
+                currentName: currentUser.username,
+                conflictingNames,
+              });
+            }
+          }
         } else if (event.type === "SET_AUDIO_SOURCES") {
           handleSetAudioSources(event);
         } else if (event.type === "SET_PLAYBACK_CONTROLS") {
@@ -297,5 +327,30 @@ export const WebSocketManager = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingRoom, roomId, username, clientId]);
 
-  return null; // This is a non-visual component
+  const handleNameConflictResolve = (newName: string) => {
+    // Update the username in the room store
+    useRoomStore.getState().setUsername(newName);
+
+    // Close the conflict resolver
+    setNameConflict({ isOpen: false, currentName: "", conflictingNames: [] });
+
+    // TODO: Send the new name to the server if needed
+    // This would require a new WebSocket message type for name updates
+  };
+
+  const handleNameConflictClose = () => {
+    setNameConflict({ isOpen: false, currentName: "", conflictingNames: [] });
+  };
+
+  return (
+    <>
+      <NameConflictResolver
+        isOpen={nameConflict.isOpen}
+        currentName={nameConflict.currentName}
+        conflictingNames={nameConflict.conflictingNames}
+        onResolve={handleNameConflictResolve}
+        onClose={handleNameConflictClose}
+      />
+    </>
+  );
 };
