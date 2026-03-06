@@ -3,14 +3,9 @@ import { LocationSchema } from "@beatsync/shared";
 import { z } from "zod";
 import { getCountryName } from "./country/codeToName";
 
-type RequiredResponse = Pick<
-  z.infer<typeof LocationSchema>,
-  "city" | "country" | "region" | "countryCode"
->;
+type RequiredResponse = Pick<z.infer<typeof LocationSchema>, "city" | "country" | "region" | "countryCode">;
 
-export const getUserLocation = async (): Promise<
-  z.infer<typeof LocationSchema>
-> => {
+export const getUserLocation = async (): Promise<z.infer<typeof LocationSchema>> => {
   const locationServices = [
     getUserLocationIPAPICo,
     getUserLocationIPWhoIs,
@@ -21,11 +16,7 @@ export const getUserLocation = async (): Promise<
   for (const [index, service] of locationServices.entries()) {
     try {
       const response = await service();
-      console.log(
-        `Response ${index + 1} from ${
-          service.name
-        }: succeeded. Hello person from ${response.country}!`
-      );
+      console.log(`Response ${index + 1} from ${service.name}: succeeded. Hello person from ${response.country}!`);
       return {
         ...response,
         country: getCountryName(response.countryCode) || response.country,
@@ -46,9 +37,7 @@ const getFlagEmojiFromCountryCode = (countryCode: string) => {
 
 const getFlagSvgURLFromCountryCode = (countryCode: string) => {
   if (countryCode.length !== 2) {
-    throw new Error(
-      `Country code must be exactly 2 characters, got: ${countryCode}`
-    );
+    throw new Error(`Country code must be exactly 2 characters, got: ${countryCode}`);
   }
 
   // From `https://kapowaz.github.io/square-flags/flags/${countryCode.toLowerCase()}.svg`;
@@ -96,9 +85,7 @@ const getUserLocationIPWhoIs = async (): Promise<RequiredResponse> => {
   const rawResponse = await fetch("https://ipwho.is/");
 
   if (!rawResponse.ok) {
-    throw new Error(
-      `Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`
-    );
+    throw new Error(`Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`);
   }
 
   const data = await rawResponse.json();
@@ -126,15 +113,11 @@ const IPAPICoResponseSchema = z.object({
   country_name: z.string(),
   region: z.string(),
 });
-const getUserLocationIPAPICo = async (): Promise<
-  z.infer<typeof LocationSchema>
-> => {
+const getUserLocationIPAPICo = async (): Promise<z.infer<typeof LocationSchema>> => {
   const rawResponse = await fetch("https://ipapi.co/json/");
 
   if (!rawResponse.ok) {
-    throw new Error(
-      `Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`
-    );
+    throw new Error(`Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`);
   }
 
   const response = IPAPICoResponseSchema.parse(await rawResponse.json());
@@ -161,9 +144,7 @@ const getUserLocationFreeIPAPI = async (): Promise<RequiredResponse> => {
   const rawResponse = await fetch("https://free.freeipapi.com/api/json");
 
   if (!rawResponse.ok) {
-    throw new Error(
-      `Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`
-    );
+    throw new Error(`Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`);
   }
 
   const response = FreeIPAPIResponseSchema.parse(await rawResponse.json());
@@ -187,9 +168,7 @@ const getUserLocationIPInfo = async (): Promise<RequiredResponse> => {
   const rawResponse = await fetch("https://ipinfo.io/json");
 
   if (!rawResponse.ok) {
-    throw new Error(
-      `Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`
-    );
+    throw new Error(`Failed to fetch geolocation: ${rawResponse.status} ${rawResponse.statusText}`);
   }
 
   const response = IPInfoResponseSchema.parse(await rawResponse.json());

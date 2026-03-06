@@ -1,9 +1,5 @@
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Copy, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -101,16 +97,9 @@ const LocalIPFinder = () => {
       {status === "success" && (
         <div className="mb-4">
           <div className="bg-green-100 p-3 rounded">
-            <h3 className="font-semibold text-green-800">
-              Detected IP Address:
-            </h3>
-            <div
-              className="flex items-center gap-2 cursor-pointer group"
-              onClick={() => copyToClipboard(localIP)}
-            >
-              <p className="text-green-700 text-lg group-hover:underline">
-                {localIP}
-              </p>
+            <h3 className="font-semibold text-green-800">Detected IP Address:</h3>
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => copyToClipboard(localIP)}>
+              <p className="text-green-700 text-lg group-hover:underline">{localIP}</p>
               <span className="text-green-600 text-xs flex items-center">
                 {copied ? (
                   <>
@@ -124,8 +113,7 @@ const LocalIPFinder = () => {
               </span>
             </div>
             <p className="text-sm text-green-600 mt-2">
-              Use this IP address as the master device for audio
-              synchronization.
+              Use this IP address as the master device for audio synchronization.
             </p>
           </div>
         </div>
@@ -135,13 +123,8 @@ const LocalIPFinder = () => {
         <div className="mb-4">
           <div className="bg-blue-100 p-3 rounded">
             <h3 className="font-semibold text-blue-800">Manual IP Address:</h3>
-            <div
-              className="flex items-center gap-2 cursor-pointer group"
-              onClick={() => copyToClipboard(localIP)}
-            >
-              <p className="text-blue-700 text-lg group-hover:underline">
-                {localIP}
-              </p>
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => copyToClipboard(localIP)}>
+              <p className="text-blue-700 text-lg group-hover:underline">{localIP}</p>
               <span className="text-blue-600 text-xs flex items-center">
                 {copied ? (
                   <>
@@ -154,9 +137,7 @@ const LocalIPFinder = () => {
                 )}
               </span>
             </div>
-            <p className="text-sm text-blue-600 mt-2">
-              Using manually entered IP address for synchronization.
-            </p>
+            <p className="text-sm text-blue-600 mt-2">Using manually entered IP address for synchronization.</p>
           </div>
         </div>
       )}
@@ -187,9 +168,7 @@ const LocalIPFinder = () => {
             </PopoverTrigger>
             <PopoverContent className="w-80">
               <div className="text-sm text-gray-600">
-                <p className="font-semibold">
-                  How to find your IP manually on macOS:
-                </p>
+                <p className="font-semibold">How to find your IP manually on macOS:</p>
                 <ol className="list-decimal pl-5 mt-1 space-y-1">
                   <li>Open System Preferences</li>
                   <li>Click on Network</li>

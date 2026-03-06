@@ -20,9 +20,7 @@ export function InlineSearch() {
   const [isFocused, setIsFocused] = React.useState(false);
   const [showCheckmark, setShowCheckmark] = React.useState(false);
   const isMobile = useIsMobile();
-  const blurTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const blurTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const canMutate = useCanMutate();
   const socket = useGlobalStore((state) => state.socket);
   const setIsSearching = useGlobalStore((state) => state.setIsSearching);
@@ -32,10 +30,9 @@ export function InlineSearch() {
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
   const activeStreamJobs = useGlobalStore((state) => state.activeStreamJobs);
-  const { register, handleSubmit, setFocus, watch, reset } =
-    useForm<SearchForm>({
-      defaultValues: { query: "" },
-    });
+  const { register, handleSubmit, setFocus, watch, reset } = useForm<SearchForm>({
+    defaultValues: { query: "" },
+  });
 
   // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's watch() API is incompatible with React Compiler memoization by design
   const watchedQuery = watch("query");
@@ -216,9 +213,7 @@ export function InlineSearch() {
                       />
                     </svg>
                   </div>
-                  <span className="text-xs font-mono text-green-400 font-medium">
-                    {activeStreamJobs}
-                  </span>
+                  <span className="text-xs font-mono text-green-400 font-medium">{activeStreamJobs}</span>
                 </motion.div>
               ) : showCheckmark ? (
                 <motion.div
@@ -243,9 +238,7 @@ export function InlineSearch() {
                   <SearchIcon
                     className={cn(
                       "w-full h-full transition-colors duration-200",
-                      canMutate
-                        ? "text-neutral-400 group-focus-within:text-white/80"
-                        : "text-neutral-600"
+                      canMutate ? "text-neutral-400 group-focus-within:text-white/80" : "text-neutral-600"
                     )}
                   />
                 </motion.div>
@@ -255,11 +248,7 @@ export function InlineSearch() {
           <input
             {...register("query")}
             type="text"
-            placeholder={
-              canMutate
-                ? "What do you want to play?"
-                : "Search requires admin permissions"
-            }
+            placeholder={canMutate ? "What do you want to play?" : "Search requires admin permissions"}
             onFocus={handleFocus}
             onBlur={() => setIsFocused(false)}
             disabled={!canMutate}
@@ -296,9 +285,7 @@ export function InlineSearch() {
                   <kbd
                     className={cn(
                       "inline-flex h-6 items-center gap-0.5 rounded border border-neutral-600/50 bg-neutral-700/50 px-2 font-mono text-xs font-medium transition-colors duration-200",
-                      canMutate
-                        ? "text-neutral-400"
-                        : "text-neutral-600 opacity-50"
+                      canMutate ? "text-neutral-400" : "text-neutral-600 opacity-50"
                     )}
                   >
                     <span className="text-xs">⌘</span>K
@@ -347,18 +334,11 @@ export function InlineSearch() {
               )}
             >
               {isSearching || searchResults ? (
-                <SearchResults
-                  className="p-2"
-                  onTrackSelect={handleTrackSelection}
-                />
+                <SearchResults className="p-2" onTrackSelect={handleTrackSelection} />
               ) : (
                 <div className="p-8 text-center">
-                  <h3 className="text-lg font-medium text-white mb-2">
-                    Start typing to search
-                  </h3>
-                  <p className="text-neutral-400 text-sm">
-                    Find songs, artists, and albums
-                  </p>
+                  <h3 className="text-lg font-medium text-white mb-2">Start typing to search</h3>
+                  <p className="text-neutral-400 text-sm">Find songs, artists, and albums</p>
                 </div>
               )}
             </div>

@@ -10,12 +10,7 @@ import { SpatialGainMeter } from "../dashboard/SpatialGainMeter";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Define prop types for components
 interface ClientAvatarProps {
@@ -26,117 +21,89 @@ interface ClientAvatarProps {
 }
 
 // Separate Client Avatar component for better performance
-const ClientAvatar = memo<ClientAvatarProps>(
-  ({ client, isCurrentUser, animationSyncKey, isGridEnabled }) => {
-    return (
-      <Tooltip key={client.clientId}>
-        <TooltipTrigger asChild>
-          <motion.div
-            className={cn(
-              "absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300",
-              "z-10"
+const ClientAvatar = memo<ClientAvatarProps>(({ client, isCurrentUser, animationSyncKey, isGridEnabled }) => {
+  return (
+    <Tooltip key={client.clientId}>
+      <TooltipTrigger asChild>
+        <motion.div
+          className={cn("absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300", "z-10")}
+          style={{
+            opacity: isGridEnabled ? 1 : 0.5,
+          }}
+          initial={{
+            opacity: 0.8,
+            left: `${client.position.x}%`,
+            top: `${client.position.y}%`,
+          }}
+          animate={{
+            opacity: isGridEnabled ? 1 : 0.5,
+            scale: 1,
+            left: `${client.position.x}%`,
+            top: `${client.position.y}%`,
+          }}
+          transition={{
+            duration: 0.1,
+            ease: "easeInOut",
+          }}
+        >
+          <div className={cn("relative")}>
+            <Avatar className={cn("size-10 border-2", "border-border")}>
+              <AvatarImage />
+              <AvatarFallback className={isCurrentUser ? "bg-primary-600" : "bg-neutral-600"}>
+                {client.username.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            {/* Add ping effect to all clients but only when the grid is enabled */}
+            {isGridEnabled && (
+              <span
+                key={`ping-${animationSyncKey}`}
+                className={cn(
+                  "absolute inset-0 rounded-full opacity-75 animate-ping",
+                  isCurrentUser ? "bg-primary-400/40" : "bg-neutral-600"
+                )}
+              ></span>
             )}
-            style={{
-              opacity: isGridEnabled ? 1 : 0.5,
-            }}
-            initial={{
-              opacity: 0.8,
-              left: `${client.position.x}%`,
-              top: `${client.position.y}%`,
-            }}
-            animate={{
-              opacity: isGridEnabled ? 1 : 0.5,
-              scale: 1,
-              left: `${client.position.x}%`,
-              top: `${client.position.y}%`,
-            }}
-            transition={{
-              duration: 0.1,
-              ease: "easeInOut",
-            }}
-          >
-            <div className={cn("relative")}>
-              <Avatar className={cn("size-10 border-2", "border-border")}>
-                <AvatarImage />
-                <AvatarFallback
-                  className={
-                    isCurrentUser ? "bg-primary-600" : "bg-neutral-600"
-                  }
-                >
-                  {client.username.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              {/* Add ping effect to all clients but only when the grid is enabled */}
-              {isGridEnabled && (
-                <span
-                  key={`ping-${animationSyncKey}`}
-                  className={cn(
-                    "absolute inset-0 rounded-full opacity-75 animate-ping",
-                    isCurrentUser ? "bg-primary-400/40" : "bg-neutral-600"
-                  )}
-                ></span>
-              )}
-              {/* Admin crown indicator */}
-              {client.isAdmin && (
-                <div className="absolute -top-0 -right-0 bg-yellow-500 rounded-full p-0.5">
-                  <Crown
-                    className="h-2.5 w-2.5 text-yellow-900"
-                    fill="currentColor"
-                  />
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <div className="text-xs font-medium">{client.username}</div>
-          <div className="text-xs text-muted-foreground">
-            {isCurrentUser ? "You" : "Connected"}
-            {client.isAdmin && " • Admin"}
+            {/* Admin crown indicator */}
+            {client.isAdmin && (
+              <div className="absolute -top-0 -right-0 bg-yellow-500 rounded-full p-0.5">
+                <Crown className="h-2.5 w-2.5 text-yellow-900" fill="currentColor" />
+              </div>
+            )}
           </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-);
+        </motion.div>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <div className="text-xs font-medium">{client.username}</div>
+        <div className="text-xs text-muted-foreground">
+          {isCurrentUser ? "You" : "Connected"}
+          {client.isAdmin && " • Admin"}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+});
 
 ClientAvatar.displayName = "ClientAvatar";
 
 export const UserGrid = () => {
   const { clientId } = useClientId();
   const canMutate = useCanMutate();
-  const listeningSource = useGlobalStore(
-    (state) => state.listeningSourcePosition
-  );
-  const setListeningSourcePosition = useGlobalStore(
-    (state) => state.setListeningSourcePosition
-  );
+  const listeningSource = useGlobalStore((state) => state.listeningSourcePosition);
+  const setListeningSourcePosition = useGlobalStore((state) => state.setListeningSourcePosition);
   const gridRef = useRef<HTMLDivElement>(null);
-  const updateListeningSourceSocket = useGlobalStore(
-    (state) => state.updateListeningSource
-  );
-  const stopSpatialAudio = useGlobalStore(
-    (state) => state.sendStopSpatialAudio
-  );
+  const updateListeningSourceSocket = useGlobalStore((state) => state.updateListeningSource);
+  const stopSpatialAudio = useGlobalStore((state) => state.sendStopSpatialAudio);
   // New state for grid enabled/disabled toggle
-  const isSpatialAudioEnabled = useGlobalStore(
-    (state) => state.isSpatialAudioEnabled
-  );
-  const setIsSpatialAudioEnabled = useGlobalStore(
-    (state) => state.setIsSpatialAudioEnabled
-  );
+  const isSpatialAudioEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
+  const setIsSpatialAudioEnabled = useGlobalStore((state) => state.setIsSpatialAudioEnabled);
   const reorderClient = useGlobalStore((state) => state.reorderClient);
 
   // Use clients from global store
   const clients = useGlobalStore((state) => state.connectedClients);
 
   // State to track dragging status
-  const isDraggingListeningSource = useGlobalStore(
-    (state) => state.isDraggingListeningSource
-  );
-  const setIsDraggingListeningSource = useGlobalStore(
-    (state) => state.setIsDraggingListeningSource
-  );
+  const isDraggingListeningSource = useGlobalStore((state) => state.isDraggingListeningSource);
+  const setIsDraggingListeningSource = useGlobalStore((state) => state.setIsDraggingListeningSource);
 
   // Add animation sync timestamp
   const [animationSyncKey, setAnimationSyncKey] = useState(() => Date.now());
@@ -214,12 +181,7 @@ export const UserGrid = () => {
 
   const handleSourceMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (
-        !isDraggingListeningSource ||
-        !gridRef.current ||
-        !isSpatialAudioEnabled
-      )
-        return;
+      if (!isDraggingListeningSource || !gridRef.current || !isSpatialAudioEnabled) return;
 
       // Cancel any existing animation frame to prevent queuing
       if (animationFrameRef.current) {
@@ -270,12 +232,8 @@ export const UserGrid = () => {
         const gridHeight = rect.height;
 
         // Calculate position as percentage of grid size
-        const x = Math.round(
-          ((touch.clientX - rect.left) / gridWidth) * GRID.SIZE
-        );
-        const y = Math.round(
-          ((touch.clientY - rect.top) / gridHeight) * GRID.SIZE
-        );
+        const x = Math.round(((touch.clientX - rect.left) / gridWidth) * GRID.SIZE);
+        const y = Math.round(((touch.clientY - rect.top) / gridHeight) * GRID.SIZE);
 
         // Call the existing position update function
         onMouseMoveSource(x, y);
@@ -363,9 +321,7 @@ export const UserGrid = () => {
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {clients.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground">
-            No other users connected
-          </div>
+          <div className="text-center py-4 text-muted-foreground">No other users connected</div>
         ) : (
           <>
             {/* 2D Grid Layout */}
@@ -392,10 +348,7 @@ export const UserGrid = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <motion.div
-                      className={cn(
-                        "absolute z-40",
-                        canMutate ? "cursor-move" : ""
-                      )}
+                      className={cn("absolute z-40", canMutate ? "cursor-move" : "")}
                       style={{
                         left: `${listeningSource.x}%`,
                         top: `${listeningSource.y}%`,
@@ -435,9 +388,7 @@ export const UserGrid = () => {
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     <div className="text-xs font-medium">Listening Source</div>
-                    <div className="text-xs text-muted-foreground">
-                      Drag to reposition
-                    </div>
+                    <div className="text-xs text-muted-foreground">Drag to reposition</div>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

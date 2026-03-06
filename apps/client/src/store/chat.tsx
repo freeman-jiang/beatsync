@@ -6,11 +6,7 @@ interface ChatState {
   newestId: number;
 
   // Actions
-  setMessages: (
-    messages: ChatMessageType[],
-    isFullSync: boolean,
-    newestId: number
-  ) => void;
+  setMessages: (messages: ChatMessageType[], isFullSync: boolean, newestId: number) => void;
   addMessage: (message: ChatMessageType) => void;
   reset: () => void;
 }

@@ -3,19 +3,14 @@
 import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
-import {
-  ClientActionEnum,
-  PlaybackControlsPermissionsEnum,
-} from "@beatsync/shared";
+import { ClientActionEnum, PlaybackControlsPermissionsEnum } from "@beatsync/shared";
 import { Crown, Play, Users } from "lucide-react";
 import { motion } from "motion/react";
 
 export const PlaybackPermissions = () => {
   const currentUser = useGlobalStore((state) => state.currentUser);
   const socket = useGlobalStore((state) => state.socket);
-  const playbackControlsPermissions = useGlobalStore(
-    (state) => state.playbackControlsPermissions
-  );
+  const playbackControlsPermissions = useGlobalStore((state) => state.playbackControlsPermissions);
 
   // Only show if socket is connected
   if (!socket) {
@@ -24,9 +19,7 @@ export const PlaybackPermissions = () => {
 
   const isAdmin = currentUser?.isAdmin || false;
 
-  const isAdminOnly =
-    playbackControlsPermissions ===
-    PlaybackControlsPermissionsEnum.enum.ADMIN_ONLY;
+  const isAdminOnly = playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.ADMIN_ONLY;
 
   const handleToggle = () => {
     const newPermission = isAdminOnly

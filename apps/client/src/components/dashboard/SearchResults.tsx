@@ -16,25 +16,18 @@ interface SearchResultsProps {
   onTrackSelect?: () => void;
 }
 
-export function SearchResults({
-  className,
-  onTrackSelect,
-}: SearchResultsProps) {
+export function SearchResults({ className, onTrackSelect }: SearchResultsProps) {
   const isMobile = useIsMobile();
   const searchResults = useGlobalStore((state) => state.searchResults);
   const isSearching = useGlobalStore((state) => state.isSearching);
 
   // Track which tracks are currently being streamed to prevent duplicates
   const streamingTracksRef = useRef<Set<number>>(new Set());
-  const isLoadingMoreResults = useGlobalStore(
-    (state) => state.isLoadingMoreResults
-  );
+  const isLoadingMoreResults = useGlobalStore((state) => state.isLoadingMoreResults);
   const hasMoreResults = useGlobalStore((state) => state.hasMoreResults);
   const searchQuery = useGlobalStore((state) => state.searchQuery);
   const socket = useGlobalStore((state) => state.socket);
-  const loadMoreSearchResults = useGlobalStore(
-    (state) => state.loadMoreSearchResults
-  );
+  const loadMoreSearchResults = useGlobalStore((state) => state.loadMoreSearchResults);
 
   // Helper function to format track name as "Artist 1, Artist 2 - Title (Version)"
   const formatTrackName = (track: TrackType) => {
@@ -54,8 +47,7 @@ export function SearchResults({
       });
     }
 
-    const artistStr =
-      artists.length > 0 ? artists.join(", ") : "Unknown Artist";
+    const artistStr = artists.length > 0 ? artists.join(", ") : "Unknown Artist";
 
     // Trim whitespace from title and include version if present
     const title = (track.title || "Unknown Title").trim();
@@ -74,9 +66,7 @@ export function SearchResults({
 
     // Check if this track is already being streamed
     if (streamingTracksRef.current.has(track.id)) {
-      console.log(
-        `Track ${track.id} is already being streamed, skipping duplicate request`
-      );
+      console.log(`Track ${track.id} is already being streamed, skipping duplicate request`);
       return; // Silently ignore duplicate requests
     }
 
@@ -216,11 +206,7 @@ export function SearchResults({
     );
   }
 
-  if (
-    !searchResults ||
-    (searchResults.type === "success" &&
-      !searchResults.response.data.tracks.items.length)
-  ) {
+  if (!searchResults || (searchResults.type === "success" && !searchResults.response.data.tracks.items.length)) {
     if (searchQuery) {
       return (
         <motion.div
@@ -310,17 +296,10 @@ export function SearchResults({
     );
   }
 
-  const tracks =
-    searchResults.type === "success"
-      ? searchResults.response.data.tracks.items
-      : [];
+  const tracks = searchResults.type === "success" ? searchResults.response.data.tracks.items : [];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={cn(isMobile && "max-h-[40vh]", className)}
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={cn(isMobile && "max-h-[40vh]", className)}>
       <AnimatePresence>
         <div className="space-y-1">
           {tracks.map((track, index) => (
@@ -366,15 +345,9 @@ export function SearchResults({
               <div className="flex-1 min-w-0">
                 <h4 className="font-normal text-white truncate text-sm">
                   {track.title}
-                  {track.version && (
-                    <span className="text-neutral-500 ml-1">
-                      ({track.version})
-                    </span>
-                  )}
+                  {track.version && <span className="text-neutral-500 ml-1">({track.version})</span>}
                 </h4>
-                <p className="text-xs text-neutral-400 truncate">
-                  {track.performer.name}
-                </p>
+                <p className="text-xs text-neutral-400 truncate">{track.performer.name}</p>
               </div>
 
               {/* Duration */}
@@ -397,12 +370,7 @@ export function SearchResults({
 
       {/* Load More (if there are more results) */}
       {hasMoreResults && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="my-2 px-3"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="my-2 px-3">
           <Button
             variant="ghost"
             onMouseDown={(e) => {

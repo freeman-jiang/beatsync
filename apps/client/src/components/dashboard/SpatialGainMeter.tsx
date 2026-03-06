@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 export const SpatialGainMeter = () => {
   const isEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
-  const getCurrentSpatialGainValue = useGlobalStore(
-    (state) => state.getCurrentSpatialGainValue
-  );
+  const getCurrentSpatialGainValue = useGlobalStore((state) => state.getCurrentSpatialGainValue);
 
   const [gainValue, setGainValue] = useState(1);
   const targetGainRef = useRef(1);
@@ -62,9 +60,7 @@ export const SpatialGainMeter = () => {
 
   return (
     <div className="flex items-center w-full">
-      <div className="text-xs font-mono text-neutral-400 pr-2.5">
-        {gainPercentage}%
-      </div>
+      <div className="text-xs font-mono text-neutral-400 pr-2.5">{gainPercentage}%</div>
 
       {/* Visual gain meter */}
       <div className="relative h-3 w-full bg-neutral-800/60 rounded-full overflow-hidden flex items-center px-0.5">

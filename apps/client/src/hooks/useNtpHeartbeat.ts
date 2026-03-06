@@ -6,9 +6,7 @@ interface UseNtpHeartbeatProps {
   onConnectionStale?: () => void;
 }
 
-export const useNtpHeartbeat = ({
-  onConnectionStale,
-}: UseNtpHeartbeatProps) => {
+export const useNtpHeartbeat = ({ onConnectionStale }: UseNtpHeartbeatProps) => {
   const ntpTimerRef = useRef<number | null>(null);
   const lastNtpRequestTime = useRef<number | null>(null);
   const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
@@ -33,11 +31,7 @@ export const useNtpHeartbeat = ({
 
     ntpTimerRef.current = window.setTimeout(() => {
       // Check if we have a pending request that timed out BEFORE resetting timer
-      if (
-        lastNtpRequestTime.current &&
-        Date.now() - lastNtpRequestTime.current >
-          NTP_CONSTANTS.RESPONSE_TIMEOUT_MS
-      ) {
+      if (lastNtpRequestTime.current && Date.now() - lastNtpRequestTime.current > NTP_CONSTANTS.RESPONSE_TIMEOUT_MS) {
         console.error("NTP request timed out - connection may be stale");
         // Notify parent component that connection is stale
         onConnectionStale?.();

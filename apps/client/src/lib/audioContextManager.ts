@@ -9,8 +9,7 @@ class AudioContextManager {
   private static instance: AudioContextManager | null = null;
   private audioContext: AudioContext | null = null;
   private masterGainNode: GainNode | null = null;
-  private stateChangeCallback: ((state: AudioContextState) => void) | null =
-    null;
+  private stateChangeCallback: ((state: AudioContextState) => void) | null = null;
 
   private constructor() {
     // Private constructor to enforce singleton pattern
@@ -62,10 +61,7 @@ class AudioContextManager {
         await this.audioContext.resume();
         console.log("[AudioContextManager] AudioContext resumed");
       } catch (error) {
-        console.error(
-          "[AudioContextManager] Failed to resume AudioContext:",
-          error
-        );
+        console.error("[AudioContextManager] Failed to resume AudioContext:", error);
         throw error;
       }
     }
@@ -108,9 +104,7 @@ class AudioContextManager {
 
       // Handle iOS suspension
       if (state === "suspended") {
-        console.warn(
-          "[AudioContextManager] AudioContext suspended - user interaction required to resume"
-        );
+        console.warn("[AudioContextManager] AudioContext suspended - user interaction required to resume");
       }
     };
   }
@@ -139,14 +133,8 @@ class AudioContextManager {
     if (rampTime && rampTime > 0) {
       const now = this.audioContext.currentTime;
       this.masterGainNode.gain.cancelScheduledValues(now);
-      this.masterGainNode.gain.setValueAtTime(
-        this.masterGainNode.gain.value,
-        now
-      );
-      this.masterGainNode.gain.linearRampToValueAtTime(
-        clampedValue,
-        now + rampTime
-      );
+      this.masterGainNode.gain.setValueAtTime(this.masterGainNode.gain.value, now);
+      this.masterGainNode.gain.linearRampToValueAtTime(clampedValue, now + rampTime);
     } else {
       this.masterGainNode.gain.value = clampedValue;
     }

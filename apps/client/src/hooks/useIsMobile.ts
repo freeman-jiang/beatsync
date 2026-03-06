@@ -8,9 +8,8 @@ export function useIsMobile(breakpoint = 768) {
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        ) || window.innerWidth < breakpoint
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+          window.innerWidth < breakpoint
       );
     };
 

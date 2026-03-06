@@ -1,29 +1,18 @@
 import { cn, formatTime } from "@/lib/utils";
 
 import { useCanMutate, useGlobalStore } from "@/store/global";
-import {
-  Pause,
-  Play,
-  Repeat,
-  Shuffle,
-  SkipBack,
-  SkipForward,
-} from "lucide-react";
+import { Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Slider } from "../ui/slider";
 
 export const Player = () => {
   const canMutate = useCanMutate();
   const isPlaying = useGlobalStore((state) => state.isPlaying);
-  const getCurrentTrackPosition = useGlobalStore(
-    (state) => state.getCurrentTrackPosition
-  );
+  const getCurrentTrackPosition = useGlobalStore((state) => state.getCurrentTrackPosition);
   const audioSources = useGlobalStore((state) => state.audioSources);
   const currentTime = useGlobalStore((state) => state.currentTime);
   const skipToNextTrack = useGlobalStore((state) => state.skipToNextTrack);
-  const skipToPreviousTrack = useGlobalStore(
-    (state) => state.skipToPreviousTrack
-  );
+  const skipToPreviousTrack = useGlobalStore((state) => state.skipToPreviousTrack);
   const isShuffled = useGlobalStore((state) => state.isShuffled);
   const toggleShuffle = useGlobalStore((state) => state.toggleShuffle);
   const trackDuration = useGlobalStore((state) => state.duration);
@@ -108,8 +97,7 @@ export const Player = () => {
     currentPositionRef.current = newPosition;
 
     // Read fresh state to avoid stale closures with React Compiler
-    const { isPlaying: currentlyPlaying, broadcastPlay: play } =
-      useGlobalStore.getState();
+    const { isPlaying: currentlyPlaying, broadcastPlay: play } = useGlobalStore.getState();
 
     // If currently playing, broadcast play at new position
     // If paused, just update position without playing
@@ -187,12 +175,7 @@ export const Player = () => {
             disabled={audioSources.length <= 1 || !canMutate}
           >
             <div className="relative">
-              <Shuffle
-                className={cn(
-                  "size-4 relative",
-                  isShuffled ? "text-primary-400" : "text-current"
-                )}
-              />
+              <Shuffle className={cn("size-4 relative", isShuffled ? "text-primary-400" : "text-current")} />
               {isShuffled && (
                 <div className="absolute w-1 h-1 bg-green-500 rounded-full bottom-0 top-4.5 left-1/2 transform -translate-x-1/2 translate-y-1/2"></div>
               )}
@@ -240,9 +223,7 @@ export const Player = () => {
           </button>
         </div>
         <div className="flex items-center gap-0">
-          <span className="text-xs text-muted-foreground min-w-11 select-none">
-            {formatTime(sliderPosition)}
-          </span>
+          <span className="text-xs text-muted-foreground min-w-11 select-none">{formatTime(sliderPosition)}</span>
           <Slider
             value={[sliderPosition]}
             min={0}

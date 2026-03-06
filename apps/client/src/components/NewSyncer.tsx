@@ -29,11 +29,7 @@ export const NewSyncer = ({ roomId }: NewSyncerProps) => {
   }, [setUsername, username, roomId, setRoomId]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
       {/* WebSocket connection manager (non-visual component) */}
       <WebSocketManager roomId={roomId} username={username} />
 

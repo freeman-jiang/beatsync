@@ -13,15 +13,10 @@ interface GlobalVolumeControlProps {
   isMobile?: boolean;
 }
 
-export const GlobalVolumeControl = ({
-  className,
-  isMobile = false,
-}: GlobalVolumeControlProps) => {
+export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolumeControlProps) => {
   const canMutate = useCanMutate();
   const globalVolume = useGlobalStore((state) => state.globalVolume);
-  const sendGlobalVolumeUpdate = useGlobalStore(
-    (state) => state.sendGlobalVolumeUpdate
-  );
+  const sendGlobalVolumeUpdate = useGlobalStore((state) => state.sendGlobalVolumeUpdate);
 
   // Local state for optimistic UI updates
   const [displayVolume, setDisplayVolume] = useState(globalVolume);
@@ -144,10 +139,7 @@ export const GlobalVolumeControl = ({
         <div className="px-4 pb-3">
           <div className="flex items-center gap-3 mt-2.5">
             <button
-              className={cn(
-                "text-neutral-400 transition-colors",
-                canMutate ? "hover:text-white" : "opacity-50"
-              )}
+              className={cn("text-neutral-400 transition-colors", canMutate ? "hover:text-white" : "opacity-50")}
               disabled={!canMutate}
             >
               {volumeIcon}
@@ -162,9 +154,7 @@ export const GlobalVolumeControl = ({
               disabled={!canMutate}
               className={cn("flex-1", !canMutate && "opacity-50")}
             />
-            <div className="text-xs text-neutral-400 min-w-[3rem] text-right">
-              {Math.round(displayVolume * 100)}%
-            </div>
+            <div className="text-xs text-neutral-400 min-w-[3rem] text-right">{Math.round(displayVolume * 100)}%</div>
           </div>
         </div>
       </div>
@@ -180,10 +170,7 @@ export const GlobalVolumeControl = ({
       transition={{ delay: 0.2 }}
     >
       <button
-        className={cn(
-          "text-neutral-400 transition-colors",
-          canMutate ? "hover:text-white" : "opacity-50"
-        )}
+        className={cn("text-neutral-400 transition-colors", canMutate ? "hover:text-white" : "opacity-50")}
         disabled={!canMutate}
         onClick={() => {
           if (!canMutate) return;

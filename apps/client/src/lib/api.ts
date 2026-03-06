@@ -54,10 +54,7 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
       publicUrl,
     };
 
-    await baseAxios.post<UploadCompleteResponseType>(
-      "/upload/complete",
-      uploadCompleteRequest
-    );
+    await baseAxios.post<UploadCompleteResponseType>("/upload/complete", uploadCompleteRequest);
 
     return {
       success: true,
@@ -65,9 +62,7 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      throw new Error(
-        error.response?.data?.message || "Failed to upload audio file"
-      );
+      throw new Error(error.response?.data?.message || "Failed to upload audio file");
     }
     throw error;
   }
@@ -106,17 +101,13 @@ export async function fetchDefaultAudioSources() {
 }
 
 export async function fetchActiveRooms() {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/active-rooms`
-  );
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/active-rooms`);
   const data: GetActiveRoomsType = await response.json();
   return data;
 }
 
 export async function fetchDiscoverRooms() {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/discover`
-  );
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/discover`);
   const data: DiscoverRoomsType = await response.json();
   return data;
 }

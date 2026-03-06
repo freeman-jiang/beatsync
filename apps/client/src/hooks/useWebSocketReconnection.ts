@@ -56,16 +56,11 @@ export const useWebSocketReconnection = ({
     }
 
     // Calculate backoff delay (exponential backoff with jitter)
-    const baseDelay = Math.min(
-      initialInterval * Math.pow(1.1, reconnectAttempts.current - 1),
-      maxInterval
-    );
+    const baseDelay = Math.min(initialInterval * Math.pow(1.1, reconnectAttempts.current - 1), maxInterval);
     const jitter = Math.random() * 0.15 * baseDelay; // 15% jitter
     const delay = baseDelay + jitter;
 
-    console.log(
-      `Scheduling reconnection attempt ${reconnectAttempts.current} in ${delay}ms`
-    );
+    console.log(`Scheduling reconnection attempt ${reconnectAttempts.current} in ${delay}ms`);
 
     // Schedule reconnection with delay
     reconnectTimeout.current = setTimeout(() => {

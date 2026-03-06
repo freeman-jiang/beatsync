@@ -1,10 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { SOCIAL_LINKS } from "@/constants";
 import { fetchActiveRooms } from "@/lib/api";
 import { generateName } from "@/lib/randomNames";
@@ -87,11 +83,7 @@ export const Join = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
       <AnnouncementBanner />
       <div className="w-full px-2.5 lg:px-1 max-w-[28rem] mx-auto mt-20 lg:mt-24">
         <motion.div
@@ -112,8 +104,7 @@ export const Join = () => {
                 <motion.div className="absolute size-2.5 bg-green-500/30 rounded-full animate-ping" />
               </motion.div>
               <span className="text-xs text-neutral-500 ml-0.5">
-                {numActiveUsers} {numActiveUsers === 1 ? "person" : "people"}{" "}
-                listening now
+                {numActiveUsers} {numActiveUsers === 1 ? "person" : "people"} listening now
               </span>
             </motion.div>
           ) : null}

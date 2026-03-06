@@ -33,21 +33,13 @@ export const TopBar = ({ roomId }: TopBarProps) => {
               <Crown className="h-3 w-3 text-green-500" fill="currentColor" />
             </div>
           )}
-          <Link
-            href="/"
-            className="font-medium hover:text-white transition-colors"
-          >
+          <Link href="/" className="font-medium hover:text-white transition-colors">
             Beatsync
           </Link>
 
           {/* NTP Measurements Indicator */}
           <div className="items-center hidden md:flex">
-            <motion.svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              className="mr-1"
-            >
+            <motion.svg width="14" height="14" viewBox="0 0 14 14" className="mr-1">
               <circle
                 cx="7"
                 cy="7"
@@ -65,16 +57,12 @@ export const TopBar = ({ roomId }: TopBarProps) => {
                 stroke="currentColor"
                 strokeWidth="1.5"
                 className="text-green-500"
-                strokeDasharray={`${
-                  (ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4
-                } 31.4`}
+                strokeDasharray={`${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`}
                 strokeLinecap="round"
                 transform="rotate(-90 7 7)"
                 initial={{ strokeDasharray: "0 31.4" }}
                 animate={{
-                  strokeDasharray: `${
-                    (ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4
-                  } 31.4`,
+                  strokeDasharray: `${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`,
                 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
               />
@@ -91,8 +79,7 @@ export const TopBar = ({ roomId }: TopBarProps) => {
             <Users size={12} className="mr-1" />
             <span className="flex items-center">
               <span className="mr-1.5">
-                {connectedClients.length}{" "}
-                {connectedClients.length === 1 ? "user" : "users"}
+                {connectedClients.length} {connectedClients.length === 1 ? "user" : "users"}
               </span>
             </span>
           </div>

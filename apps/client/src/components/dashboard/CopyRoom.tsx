@@ -78,9 +78,7 @@ export const RoomQRCode = () => {
           <div className="flex flex-col items-center space-y-6 pb-6">
             {/* Domain and Room Code Display */}
             <div className="w-full text-center space-y-2">
-              <div className="text-3xl font-semibold text-white">
-                beatsync.gg
-              </div>
+              <div className="text-3xl font-semibold text-white">beatsync.gg</div>
 
               <div className="text-3xl font-bold text-white bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-8 py-2 inline-block">
                 {roomId}
@@ -88,18 +86,12 @@ export const RoomQRCode = () => {
             </div>
 
             <div className="relative">
-              <div className="text-neutral-400 text-xs text-center mb-2">
-                OR SCAN
-              </div>
+              <div className="text-neutral-400 text-xs text-center mb-2">OR SCAN</div>
               <div className="w-full lg:px-8">
                 <div className="w-full h-full" style={{ height: "auto" }}>
                   {qrCodeDataUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- data URL from QR code generation, not a remote image
-                    <img
-                      src={qrCodeDataUrl}
-                      alt="Room QR Code"
-                      className="w-full h-full"
-                    />
+                    <img src={qrCodeDataUrl} alt="Room QR Code" className="w-full h-full" />
                   )}
                 </div>
               </div>
@@ -115,12 +107,8 @@ export const RoomQRCode = () => {
                   <Link size={16} />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="text-xs text-neutral-500 uppercase tracking-wide">
-                    Full URL
-                  </span>
-                  <span className="text-sm font-mono text-white truncate max-w-[50vw]">
-                    {roomUrl}
-                  </span>
+                  <span className="text-xs text-neutral-500 uppercase tracking-wide">Full URL</span>
+                  <span className="text-sm font-mono text-white truncate max-w-[50vw]">{roomUrl}</span>
                 </div>
               </div>
               <div className="relative w-4 h-4 flex items-center justify-center">

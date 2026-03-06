@@ -16,9 +16,7 @@ interface DashboardProps {
 export const Dashboard = ({ roomId }: DashboardProps) => {
   const isSynced = useGlobalStore((state) => state.isSynced);
   const isLoadingAudio = useGlobalStore((state) => state.isInitingSystem);
-  const hasUserStartedSystem = useGlobalStore(
-    (state) => state.hasUserStartedSystem
-  );
+  const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
 
   const isReady = isSynced && !isLoadingAudio;
 
@@ -57,10 +55,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
 
           {/* --- MOBILE LAYOUT (< lg) --- */}
           <div className="flex flex-1 flex-col lg:hidden min-h-0">
-            <Tabs
-              defaultValue="queue"
-              className="flex-1 flex flex-col overflow-hidden min-h-0"
-            >
+            <Tabs defaultValue="queue" className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Tab List at the top for mobile */}
               <TabsList className="shrink-0 grid w-full grid-cols-3 h-12 rounded-none p-0 bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950">
                 <TabsTrigger
@@ -85,11 +80,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
 
               {/* Tab Content Area - Scrolls independently */}
               <AnimatePresence mode="sync">
-                <TabsContent
-                  key="library"
-                  value="library"
-                  className="flex-1 overflow-y-auto mt-0 min-h-0"
-                >
+                <TabsContent key="library" value="library" className="flex-1 overflow-y-auto mt-0 min-h-0">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -100,11 +91,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                     <Left className="flex h-full w-full" />
                   </motion.div>
                 </TabsContent>
-                <TabsContent
-                  key="queue"
-                  value="queue"
-                  className="flex-1 overflow-y-auto mt-0 min-h-0"
-                >
+                <TabsContent key="queue" value="queue" className="flex-1 overflow-y-auto mt-0 min-h-0">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -115,11 +102,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
                     <Main />
                   </motion.div>
                 </TabsContent>
-                <TabsContent
-                  key="spatial"
-                  value="spatial"
-                  className="flex-1 overflow-y-auto mt-0 min-h-0"
-                >
+                <TabsContent key="spatial" value="spatial" className="flex-1 overflow-y-auto mt-0 min-h-0">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}

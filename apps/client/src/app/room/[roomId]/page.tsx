@@ -2,14 +2,10 @@ import { NewSyncer } from "@/components/NewSyncer";
 import { validateFullRoomId } from "@/lib/room";
 
 // Force dynamic rendering and disable caching
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ roomId: string }>;
-}) {
+export default async function Page({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params;
   if (!validateFullRoomId(roomId)) {
     return (
@@ -17,9 +13,7 @@ export default async function Page({
         <div>
           Invalid room ID: <span className="font-bold">{roomId}</span>.
         </div>
-        <div className="text-sm text-gray-500">
-          Please enter a valid 6-digit numeric code.
-        </div>
+        <div className="text-sm text-gray-500">Please enter a valid 6-digit numeric code.</div>
       </div>
     );
   }

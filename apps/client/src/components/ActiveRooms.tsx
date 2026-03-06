@@ -41,9 +41,7 @@ export const ActiveRooms = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
     >
-      <h3 className="text-xs font-medium text-neutral-500 mb-1.5 uppercase tracking-[0.1em]">
-        Playing Now
-      </h3>
+      <h3 className="text-xs font-medium text-neutral-500 mb-1.5 uppercase tracking-[0.1em]">Playing Now</h3>
       <div className="space-y-1">
         <AnimatePresence initial={true}>
           {discoverRooms.map((room, index) => (
@@ -101,11 +99,7 @@ export const ActiveRooms = () => {
                       >
                         {flagSvgURL ? (
                           // eslint-disable-next-line @next/next/no-img-element -- external SVG flag URLs not compatible with next/image optimization
-                          <img
-                            src={flagSvgURL}
-                            alt="Country flag"
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={flagSvgURL} alt="Country flag" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
                             <Users2 className="w-5 h-5 text-neutral-600" />
@@ -121,8 +115,7 @@ export const ActiveRooms = () => {
                   {/* Top row: Track title + track count */}
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-white truncate leading-tight">
-                      {extractFileNameFromUrl(room.playbackState.audioSource) ||
-                        "No track playing"}
+                      {extractFileNameFromUrl(room.playbackState.audioSource) || "No track playing"}
                     </p>
                     {room.audioSources.length > 1 && (
                       <span className="text-[11px] text-neutral-500 font-medium flex-shrink-0">
@@ -140,17 +133,13 @@ export const ActiveRooms = () => {
                         const city = oldestClient.location?.city;
                         const region = oldestClient.location?.region;
                         const country = oldestClient.location?.country;
-                        const locationParts = Array.from(
-                          new Set([city, region, country].filter(Boolean))
-                        );
+                        const locationParts = Array.from(new Set([city, region, country].filter(Boolean)));
 
                         if (locationParts.length > 0) {
                           return (
                             <>
                               <span className="mx-1.5 inline-block size-[3px] rounded-full bg-neutral-600 align-middle"></span>
-                              <span className="font-normal">
-                                {locationParts.join(", ")}
-                              </span>
+                              <span className="font-normal">{locationParts.join(", ")}</span>
                             </>
                           );
                         }
@@ -161,16 +150,11 @@ export const ActiveRooms = () => {
                     <div className="flex items-center gap-1 pl-2">
                       <div className="flex -space-x-2.5">
                         {room.clients.slice(0, 5).map((client) => (
-                          <Avatar
-                            key={client.clientId}
-                            className="size-[18px] ring-1 ring-black/60"
-                          >
+                          <Avatar key={client.clientId} className="size-[18px] ring-1 ring-black/60">
                             {client.location?.flagSvgURL ? (
                               <AvatarImage
                                 src={client.location.flagSvgURL}
-                                alt={`${
-                                  client.location.country || "Country"
-                                } flag`}
+                                alt={`${client.location.country || "Country"} flag`}
                               />
                             ) : (
                               <AvatarFallback className="bg-neutral-800">
@@ -181,9 +165,7 @@ export const ActiveRooms = () => {
                         ))}
                       </div>
                       {room.clients.length > 5 && (
-                        <span className="text-[10px] text-neutral-500 font-medium">
-                          +{room.clients.length - 5}
-                        </span>
+                        <span className="text-[10px] text-neutral-500 font-medium">+{room.clients.length - 5}</span>
                       )}
                     </div>
                   </div>

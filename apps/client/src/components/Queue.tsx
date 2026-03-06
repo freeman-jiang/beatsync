@@ -3,8 +3,16 @@ import { cn } from "@/lib/utils";
 import { useCanMutate, useGlobalStore } from "@/store/global";
 import { AnimatePresence, motion } from "motion/react";
 import LoadDefaultTracksButton from "./LoadDefaultTracksButton";
-import { closestCenter, DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors} from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy} from "@dnd-kit/sortable";
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { QueueSortableItem } from "./QueueSortableItem";
 
@@ -30,13 +38,13 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
     const { active, over } = event;
     if (!over) return;
     if (active.id !== over.id) {
-      const oldIndex = audioSources.findIndex(src => src.source.url === active.id);
-      const newIndex = audioSources.findIndex(src => src.source.url === over.id);
+      const oldIndex = audioSources.findIndex((src) => src.source.url === active.id);
+      const newIndex = audioSources.findIndex((src) => src.source.url === over.id);
       const newAudioSources = arrayMove(audioSources, oldIndex, newIndex);
 
       const modified = newAudioSources.map((it) => ({ url: it.source.url }));
       broadcastReorder(modified);
-    } 
+    }
   }
 
   return (
@@ -45,13 +53,24 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
       <div className="space-y-1">
         {audioSources.length > 0 ? (
           canMutate ? (
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}>
-              <SortableContext items={audioSources.map((src) => src.source.url)} strategy={verticalListSortingStrategy} >
+            <DndContext
+              sensors={sensors}
+              onDragEnd={handleDragEnd}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            >
+              <SortableContext items={audioSources.map((src) => src.source.url)} strategy={verticalListSortingStrategy}>
                 <AnimatePresence initial={true}>
                   {/* Ensure keys are stable and unique even if duplicates attempted */}
                   {audioSources.map((sourceState, index) => {
                     return (
-                      <QueueSortableItem key={sourceState.source.url} id={sourceState.source.url} sourceState={sourceState} index={index} canMutate={canMutate} />
+                      <QueueSortableItem
+                        key={sourceState.source.url}
+                        id={sourceState.source.url}
+                        sourceState={sourceState}
+                        index={index}
+                        canMutate={canMutate}
+                      />
                     );
                   })}
                 </AnimatePresence>
@@ -62,7 +81,13 @@ export const Queue = ({ className, ...rest }: React.ComponentProps<"div">) => {
               {/* Read-only view for non-admins */}
               {audioSources.map((sourceState, index) => {
                 return (
-                  <QueueSortableItem key={sourceState.source.url} id={sourceState.source.url} sourceState={sourceState} index={index} canMutate={canMutate} />
+                  <QueueSortableItem
+                    key={sourceState.source.url}
+                    id={sourceState.source.url}
+                    sourceState={sourceState}
+                    index={index}
+                    canMutate={canMutate}
+                  />
                 );
               })}
             </AnimatePresence>

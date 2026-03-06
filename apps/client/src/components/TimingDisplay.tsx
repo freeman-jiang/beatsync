@@ -8,12 +8,7 @@ interface TimingDisplayProps {
   clockOffset: number | null; // in milliseconds
 }
 
-export const TimingDisplay: React.FC<TimingDisplayProps> = ({
-  currentTime,
-  isPlaying,
-  totalNudge,
-  clockOffset,
-}) => {
+export const TimingDisplay: React.FC<TimingDisplayProps> = ({ currentTime, isPlaying, totalNudge, clockOffset }) => {
   // Calculate colors based on offset values
   const getOffsetColor = (offset: number) => {
     if (Math.abs(offset) < 1) return "bg-green-500"; // Very close - green
@@ -79,12 +74,7 @@ export const TimingDisplay: React.FC<TimingDisplayProps> = ({
 
         {/* Large color block for easy visual comparison between clients */}
         <div className="mt-2 flex justify-center">
-          <div
-            className={cn(
-              "w-24 h-24 rounded-lg border-4 border-gray-300",
-              getTimeCycleColor(currentTime)
-            )}
-          >
+          <div className={cn("w-24 h-24 rounded-lg border-4 border-gray-300", getTimeCycleColor(currentTime))}>
             <div className="w-full h-full flex items-center justify-center text-white font-bold text-2xl">
               {currentCycleSeconds % 2}
             </div>
@@ -96,11 +86,7 @@ export const TimingDisplay: React.FC<TimingDisplayProps> = ({
       <div className="mb-3">
         <div className="flex justify-between mb-1">
           <span>Playback Time:</span>
-          <span
-            className={
-              isPlaying ? "text-green-600 font-mono" : "text-gray-600 font-mono"
-            }
-          >
+          <span className={isPlaying ? "text-green-600 font-mono" : "text-gray-600 font-mono"}>
             {formatTimeMicro(currentTime)}
           </span>
         </div>
@@ -125,11 +111,7 @@ export const TimingDisplay: React.FC<TimingDisplayProps> = ({
           <div className="w-1/2 h-full bg-gray-300 rounded-l-full"></div>
           <div
             className={`h-4 w-1 ${
-              Math.abs(totalNudge) < 0.1
-                ? "bg-green-600"
-                : totalNudge > 0
-                ? "bg-red-500"
-                : "bg-blue-500"
+              Math.abs(totalNudge) < 0.1 ? "bg-green-600" : totalNudge > 0 ? "bg-red-500" : "bg-blue-500"
             }`}
             style={{ marginLeft: `${50 + totalNudge * 10}%` }} // Scale for visibility
           ></div>
@@ -142,9 +124,7 @@ export const TimingDisplay: React.FC<TimingDisplayProps> = ({
         <div className="flex justify-between mb-1">
           <span>Clock Offset:</span>
           <span className="font-mono">
-            {clockOffset !== null
-              ? `${clockOffset > 0 ? "+" : ""}${clockOffset.toFixed(3)} ms`
-              : "Unknown"}
+            {clockOffset !== null ? `${clockOffset > 0 ? "+" : ""}${clockOffset.toFixed(3)} ms` : "Unknown"}
           </span>
         </div>
         {clockOffset !== null && (
@@ -153,9 +133,7 @@ export const TimingDisplay: React.FC<TimingDisplayProps> = ({
             <div
               className={`h-4 w-1 ${getOffsetColor(clockOffset)}`}
               style={{
-                marginLeft: `${
-                  50 + Math.min(Math.max(clockOffset * 5, -49), 49)
-                }%`,
+                marginLeft: `${50 + Math.min(Math.max(clockOffset * 5, -49), 49)}%`,
               }} // Scale and clamp
             ></div>
             <div className="w-1/2 h-full bg-gray-300 rounded-r-full"></div>

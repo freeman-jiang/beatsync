@@ -1,11 +1,5 @@
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 
 interface NudgeControlsProps {
@@ -14,11 +8,7 @@ interface NudgeControlsProps {
   disabled: boolean;
 }
 
-export const NudgeControls: React.FC<NudgeControlsProps> = ({
-  totalNudge,
-  onNudge,
-  disabled,
-}) => {
+export const NudgeControls: React.FC<NudgeControlsProps> = ({ totalNudge, onNudge, disabled }) => {
   const { watch, setValue } = useForm({
     defaultValues: {
       nudgeAmount: 10,
@@ -34,13 +24,9 @@ export const NudgeControls: React.FC<NudgeControlsProps> = ({
     // If the value is not in our predefined list, find the closest available option
     if (!validValues.includes(newAmount)) {
       const closest = validValues.reduce((prev, curr) => {
-        return Math.abs(curr - newAmount) < Math.abs(prev - newAmount)
-          ? curr
-          : prev;
+        return Math.abs(curr - newAmount) < Math.abs(prev - newAmount) ? curr : prev;
       });
-      console.log(
-        `Nudge amount ${newAmount} not in valid options, using closest value: ${closest}`
-      );
+      console.log(`Nudge amount ${newAmount} not in valid options, using closest value: ${closest}`);
       setValue("nudgeAmount", closest);
     } else {
       setValue("nudgeAmount", newAmount);
@@ -55,20 +41,14 @@ export const NudgeControls: React.FC<NudgeControlsProps> = ({
         <span>Nudge Amount: {nudgeAmount} ms</span>
         <div className="flex gap-2">
           <Button
-            onClick={() =>
-              handleNudgeAmountChange(Math.max(1, Math.floor(nudgeAmount / 2)))
-            }
+            onClick={() => handleNudgeAmountChange(Math.max(1, Math.floor(nudgeAmount / 2)))}
             variant="outline"
             size="sm"
           >
             ÷2
           </Button>
           <Button
-            onClick={() =>
-              handleNudgeAmountChange(
-                Math.min(1000, Math.floor(nudgeAmount * 2))
-              )
-            }
+            onClick={() => handleNudgeAmountChange(Math.min(1000, Math.floor(nudgeAmount * 2)))}
             variant="outline"
             size="sm"
           >
@@ -97,20 +77,10 @@ export const NudgeControls: React.FC<NudgeControlsProps> = ({
         </div>
       </div>
       <div className="flex gap-2 justify-center">
-        <Button
-          onClick={() => onNudge(-nudgeAmount)}
-          variant="secondary"
-          size="default"
-          disabled={disabled}
-        >
+        <Button onClick={() => onNudge(-nudgeAmount)} variant="secondary" size="default" disabled={disabled}>
           ◀ Slow Down
         </Button>
-        <Button
-          onClick={() => onNudge(nudgeAmount)}
-          variant="secondary"
-          size="default"
-          disabled={disabled}
-        >
+        <Button onClick={() => onNudge(nudgeAmount)} variant="secondary" size="default" disabled={disabled}>
           Speed Up ▶
         </Button>
       </div>

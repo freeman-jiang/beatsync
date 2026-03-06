@@ -28,10 +28,7 @@ export function getClientId(): string {
       cachedClientId = newClientId;
     }
   } catch (error) {
-    console.error(
-      "Failed to access localStorage, generating non-persistent client ID:",
-      error
-    );
+    console.error("Failed to access localStorage, generating non-persistent client ID:", error);
     // Fallback: Generate a new client ID but don't persist it
     // This allows the app to function, but the ID won't persist across sessions/reloads
     cachedClientId = nanoid();

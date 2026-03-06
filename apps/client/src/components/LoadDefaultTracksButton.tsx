@@ -11,9 +11,7 @@ interface LoadDefaultTracksButtonProps {
   className?: string;
 }
 
-export const LoadDefaultTracksButton = ({
-  className,
-}: LoadDefaultTracksButtonProps) => {
+export const LoadDefaultTracksButton = ({ className }: LoadDefaultTracksButtonProps) => {
   const socket = useGlobalStore((s) => s.socket);
   const audioSources = useGlobalStore((s) => s.audioSources);
 
@@ -90,9 +88,7 @@ export const LoadDefaultTracksButton = ({
           </div>
         </div>
       )}
-      <span className={cn(isLoading ? "opacity-0" : "opacity-100")}>
-        Load default tracks
-      </span>
+      <span className={cn(isLoading ? "opacity-0" : "opacity-100")}>Load default tracks</span>
     </motion.button>
   );
 };

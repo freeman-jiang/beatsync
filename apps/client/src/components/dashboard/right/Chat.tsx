@@ -33,15 +33,10 @@ export const Chat = () => {
   const currentUser = useGlobalStore((state) => state.currentUser);
 
   // Calculate new messages since user started scrolling
-  const newMessageCount = isUserScrolling
-    ? currentMessages.length - messageCountSnapshot
-    : 0;
+  const newMessageCount = isUserScrolling ? currentMessages.length - messageCountSnapshot : 0;
 
   // State transition detection: Capture message count when scrolling starts
-  const handleScrollTransition = (
-    wasScrolling: boolean,
-    isScrolling: boolean
-  ) => {
+  const handleScrollTransition = (wasScrolling: boolean, isScrolling: boolean) => {
     if (!wasScrolling && isScrolling) {
       // User started scrolling - snapshot the current message count
       setMessageCountSnapshot(currentMessages.length);
@@ -56,21 +51,22 @@ export const Chat = () => {
     onTransition: handleScrollTransition,
   });
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    const scrollContainer = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]"
-    );
-    if (scrollContainer) {
-      scrollContainer.scrollTo({
-        top: scrollContainer.scrollHeight,
-        behavior,
-      });
-      // Reset scrolling state and update all refs consistently
-      setIsUserScrolling(false);
-      setMessageCountSnapshot(currentMessages.length);
-      prevMessageCountRef.current = currentMessages.length;
-    }
-  }, [currentMessages.length]);
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      const scrollContainer = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]");
+      if (scrollContainer) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior,
+        });
+        // Reset scrolling state and update all refs consistently
+        setIsUserScrolling(false);
+        setMessageCountSnapshot(currentMessages.length);
+        prevMessageCountRef.current = currentMessages.length;
+      }
+    },
+    [currentMessages.length]
+  );
 
   // Auto-scroll to bottom when new messages arrive (only if not manually scrolling)
   useEffect(() => {
@@ -96,19 +92,13 @@ export const Chat = () => {
 
   // Handle scroll events to detect user scrolling
   useEffect(() => {
-    const scrollContainer = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]"
-    );
+    const scrollContainer = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]");
 
     if (!scrollContainer) return;
 
     const handleScroll = () => {
       const isAtBottom =
-        Math.abs(
-          scrollContainer.scrollHeight -
-            scrollContainer.clientHeight -
-            scrollContainer.scrollTop
-        ) < 300; // Small threshold for float precision
+        Math.abs(scrollContainer.scrollHeight - scrollContainer.clientHeight - scrollContainer.scrollTop) < 300; // Small threshold for float precision
 
       setIsUserScrolling(!isAtBottom);
     };
@@ -121,8 +111,7 @@ export const Chat = () => {
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
-      inputRef.current.style.height =
-        Math.min(inputRef.current.scrollHeight, TEXTAREA_MAX_HEIGHT_PX) + "px";
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, TEXTAREA_MAX_HEIGHT_PX) + "px";
     }
     // Update input area height for dynamic padding
     if (inputAreaRef.current) {
@@ -155,24 +144,27 @@ export const Chat = () => {
   };
 
   // Group messages by time proximity (within 3 minutes) and sender
-  const groupedMessages = currentMessages.reduce((groups, msg, index) => {
-    if (index === 0) {
-      return [[msg]];
-    }
+  const groupedMessages = currentMessages.reduce(
+    (groups, msg, index) => {
+      if (index === 0) {
+        return [[msg]];
+      }
 
-    const lastGroup = groups[groups.length - 1];
-    const lastMsg = lastGroup[lastGroup.length - 1];
-    const timeDiff = msg.timestamp - lastMsg.timestamp;
-    const isWithinTimeWindow = timeDiff < MESSAGE_GROUP_TIME_WINDOW_MS; // 3 minutes
+      const lastGroup = groups[groups.length - 1];
+      const lastMsg = lastGroup[lastGroup.length - 1];
+      const timeDiff = msg.timestamp - lastMsg.timestamp;
+      const isWithinTimeWindow = timeDiff < MESSAGE_GROUP_TIME_WINDOW_MS; // 3 minutes
 
-    if (msg.clientId === lastMsg.clientId && isWithinTimeWindow) {
-      lastGroup.push(msg);
-    } else {
-      groups.push([msg]);
-    }
+      if (msg.clientId === lastMsg.clientId && isWithinTimeWindow) {
+        lastGroup.push(msg);
+      } else {
+        groups.push([msg]);
+      }
 
-    return groups;
-  }, [] as (typeof currentMessages)[]);
+      return groups;
+    },
+    [] as (typeof currentMessages)[]
+  );
 
   return (
     <div className="relative h-full overflow-hidden">
@@ -193,12 +185,8 @@ export const Chat = () => {
                 className="absolute inset-0 flex flex-col items-center justify-center px-4"
               >
                 <MessageCircle className="w-12 h-12 text-neutral-700 mb-3" />
-                <h3 className="text-neutral-400 text-sm font-medium mb-1">
-                  No messages yet
-                </h3>
-                <p className="text-neutral-600 text-xs">
-                  Start the conversation
-                </p>
+                <h3 className="text-neutral-400 text-sm font-medium mb-1">No messages yet</h3>
+                <p className="text-neutral-600 text-xs">Start the conversation</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -212,9 +200,7 @@ export const Chat = () => {
               const showTimestamp =
                 groupIndex === 0 ||
                 group[0].timestamp -
-                  groupedMessages[groupIndex - 1][
-                    groupedMessages[groupIndex - 1].length - 1
-                  ].timestamp >
+                  groupedMessages[groupIndex - 1][groupedMessages[groupIndex - 1].length - 1].timestamp >
                   TIMESTAMP_GAP_THRESHOLD_MS;
 
               return (
@@ -229,20 +215,12 @@ export const Chat = () => {
                   )}
 
                   {/* Message group */}
-                  <div
-                    className={cn(
-                      "flex flex-col",
-                      isOwnMessage ? "items-end" : "items-start"
-                    )}
-                  >
+                  <div className={cn("flex flex-col", isOwnMessage ? "items-end" : "items-start")}>
                     {/* Sender name (only for others' messages and first message in group) */}
                     {!isOwnMessage && (
                       <span className="text-[10px] text-neutral-500 ml-1 mb-0.5">
                         {(() => {
-                          const username = getUserName(
-                            group[0].clientId,
-                            group[0].username
-                          );
+                          const username = getUserName(group[0].clientId, group[0].username);
                           const countryCode = group[0].countryCode;
 
                           if (countryCode) {
@@ -259,12 +237,7 @@ export const Chat = () => {
                     )}
 
                     {/* Messages */}
-                    <div
-                      className={cn(
-                        "flex flex-col gap-[1px]",
-                        isOwnMessage ? "items-end" : "items-start"
-                      )}
-                    >
+                    <div className={cn("flex flex-col gap-[1px]", isOwnMessage ? "items-end" : "items-start")}>
                       <AnimatePresence mode="popLayout">
                         {group.map((msg, msgIndex) => {
                           const isFirst = msgIndex === 0;
@@ -276,33 +249,17 @@ export const Chat = () => {
                               key={msg.id}
                               className={cn(
                                 "px-3 py-1.5 text-sm break-words",
-                                isOwnMessage
-                                  ? "bg-green-700 text-white"
-                                  : "bg-neutral-800 text-neutral-200",
+                                isOwnMessage ? "bg-green-700 text-white" : "bg-neutral-800 text-neutral-200",
                                 // Corner rounding for message bubbles
                                 isSingle
                                   ? "rounded-2xl"
                                   : [
-                                      isFirst &&
-                                        isOwnMessage &&
-                                        "rounded-2xl rounded-br-md",
-                                      isFirst &&
-                                        !isOwnMessage &&
-                                        "rounded-2xl rounded-bl-md",
-                                      isLast &&
-                                        isOwnMessage &&
-                                        "rounded-2xl rounded-tr-md",
-                                      isLast &&
-                                        !isOwnMessage &&
-                                        "rounded-2xl rounded-tl-md",
-                                      !isFirst &&
-                                        !isLast &&
-                                        isOwnMessage &&
-                                        "rounded-l-2xl rounded-r-md",
-                                      !isFirst &&
-                                        !isLast &&
-                                        !isOwnMessage &&
-                                        "rounded-r-2xl rounded-l-md",
+                                      isFirst && isOwnMessage && "rounded-2xl rounded-br-md",
+                                      isFirst && !isOwnMessage && "rounded-2xl rounded-bl-md",
+                                      isLast && isOwnMessage && "rounded-2xl rounded-tr-md",
+                                      isLast && !isOwnMessage && "rounded-2xl rounded-tl-md",
+                                      !isFirst && !isLast && isOwnMessage && "rounded-l-2xl rounded-r-md",
+                                      !isFirst && !isLast && !isOwnMessage && "rounded-r-2xl rounded-l-md",
                                     ]
                               )}
                               initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -347,9 +304,7 @@ export const Chat = () => {
             style={{ bottom: `${inputAreaHeight + 16}px` }}
           >
             <ChevronDown className="w-3 h-3" />
-            {newMessageCount === 1
-              ? "1 new message"
-              : `${newMessageCount} new messages`}
+            {newMessageCount === 1 ? "1 new message" : `${newMessageCount} new messages`}
           </motion.button>
         )}
       </AnimatePresence>

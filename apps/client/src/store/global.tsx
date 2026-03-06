@@ -2,12 +2,7 @@
 import { audioContextManager } from "@/lib/audioContextManager";
 import { getClientId } from "@/lib/clientId";
 import { extractFileNameFromUrl } from "@/lib/utils";
-import {
-  _sendNTPRequest,
-  calculateOffsetEstimate,
-  calculateWaitTimeMilliseconds,
-  NTPMeasurement,
-} from "@/utils/ntp";
+import { _sendNTPRequest, calculateOffsetEstimate, calculateWaitTimeMilliseconds, NTPMeasurement } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
 import {
   AudioSourceSchema,
@@ -146,11 +141,7 @@ interface GlobalState extends GlobalStateValues {
   setAdminStatus: (clientId: string, isAdmin: boolean) => void;
   changeAudioSource: (url: string) => boolean;
   findAudioIndexByUrl: (url: string) => number | null;
-  schedulePlay: (data: {
-    trackTimeSeconds: number;
-    targetServerTime: number;
-    audioSource: string;
-  }) => void;
+  schedulePlay: (data: { trackTimeSeconds: number; targetServerTime: number; audioSource: string }) => void;
   schedulePause: (data: { targetServerTime: number }) => void;
   setSocket: (socket: WebSocket) => void;
   broadcastPlay: (trackTimeSeconds?: number) => void;
@@ -169,11 +160,7 @@ interface GlobalState extends GlobalStateValues {
   resetNTPConfig: () => void;
   addNTPMeasurement: (measurement: NTPMeasurement) => void;
   onConnectionReset: () => void;
-  playAudio: (data: {
-    offset: number;
-    when: number;
-    audioIndex?: number;
-  }) => void;
+  playAudio: (data: { offset: number; when: number; audioIndex?: number }) => void;
   processSpatialConfig: (config: SpatialConfigType) => void;
   pauseAudio: (data: { when: number }) => void;
   getCurrentTrackPosition: () => number;
@@ -187,20 +174,11 @@ interface GlobalState extends GlobalStateValues {
   processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => void;
   applyFinalGain: (rampTime?: number) => void;
   resetStore: () => void;
-  setReconnectionInfo: (info: {
-    isReconnecting: boolean;
-    currentAttempt: number;
-    maxAttempts: number;
-  }) => void;
-  setPlaybackControlsPermissions: (
-    permissions: PlaybackControlsPermissionsType
-  ) => void;
+  setReconnectionInfo: (info: { isReconnecting: boolean; currentAttempt: number; maxAttempts: number }) => void;
+  setPlaybackControlsPermissions: (permissions: PlaybackControlsPermissionsType) => void;
 
   // Search methods
-  setSearchResults: (
-    results: SearchResponseType | null,
-    append?: boolean
-  ) => void;
+  setSearchResults: (results: SearchResponseType | null, append?: boolean) => void;
   setIsSearching: (isSearching: boolean) => void;
   setIsLoadingMoreResults: (isLoading: boolean) => void;
   setSearchQuery: (query: string) => void;
@@ -298,10 +276,7 @@ const getSocket = (state: GlobalState) => {
 const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   const { offsetEstimate } = state;
 
-  const waitTimeMilliseconds = calculateWaitTimeMilliseconds(
-    targetServerTime,
-    offsetEstimate
-  );
+  const waitTimeMilliseconds = calculateWaitTimeMilliseconds(targetServerTime, offsetEstimate);
   return waitTimeMilliseconds / 1000;
 };
 
@@ -319,14 +294,10 @@ const initializationMutex = new Mutex();
 // Selector for canMutate
 export const useCanMutate = () => {
   const currentUser = useGlobalStore((state) => state.currentUser);
-  const playbackControlsPermissions = useGlobalStore(
-    (state) => state.playbackControlsPermissions
-  );
+  const playbackControlsPermissions = useGlobalStore((state) => state.playbackControlsPermissions);
 
   const isAdmin = currentUser?.isAdmin || false;
-  const isEveryoneMode =
-    playbackControlsPermissions ===
-    PlaybackControlsPermissionsEnum.enum.EVERYONE;
+  const isEveryoneMode = playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.EVERYONE;
   return isAdmin || isEveryoneMode;
 };
 
@@ -366,9 +337,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     set((currentState) => ({
       bufferAccessQueue: queue,
       audioSources: currentState.audioSources.map((as) =>
-        urlsToEvict.includes(as.source.url)
-          ? { ...as, status: "idle", buffer: undefined }
-          : as
+        urlsToEvict.includes(as.source.url) ? { ...as, status: "idle", buffer: undefined } : as
       ),
     }));
   };
@@ -406,9 +375,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Update the source with loaded buffer
       set((currentState) => ({
         audioSources: currentState.audioSources.map((as) =>
-          as.source.url === url
-            ? { ...as, status: "loaded", buffer: audioBuffer }
-            : as
+          as.source.url === url ? { ...as, status: "loaded", buffer: audioBuffer } : as
         ),
       }));
 
@@ -429,9 +396,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Update the source with error status
       set((currentState) => ({
         audioSources: currentState.audioSources.map((as) =>
-          as.source.url === url
-            ? { ...as, status: "error", error: String(error) }
-            : as
+          as.source.url === url ? { ...as, status: "error", error: String(error) } : as
         ),
       }));
     }
@@ -634,9 +599,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     findAudioIndexByUrl: (url: string) => {
       const state = get();
       // Look through the audioSources for a matching URL
-      const index = state.audioSources.findIndex(
-        (sourceState) => sourceState.source.url === url
-      );
+      const index = state.audioSources.findIndex((sourceState) => sourceState.source.url === url);
       return index >= 0 ? index : null; // Return null if not found
     },
 
@@ -657,9 +620,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Check if the scheduled time has already passed (with 50ms tolerance)
       if (waitTimeSeconds < 0.05) {
-        console.warn(
-          `Scheduled playback time has passed or is too close. Requesting resync...`
-        );
+        console.warn(`Scheduled playback time has passed or is too close. Requesting resync...`);
 
         // Don't play - request a fresh sync instead
         const { socket } = getSocket(state);
@@ -677,9 +638,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         return; // Exit without playing
       }
 
-      console.log(
-        `Playing track ${data.audioSource} at ${data.trackTimeSeconds} seconds in ${waitTimeSeconds}`
-      );
+      console.log(`Playing track ${data.audioSource} at ${data.trackTimeSeconds} seconds in ${waitTimeSeconds}`);
 
       // Update the selected audio ID
       if (data.audioSource !== state.selectedAudioUrl) {
@@ -697,9 +656,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           state.pauseAudio({ when: 0 });
         }
 
-        console.warn(
-          `Cannot play audio: Track not found in audioSources: ${data.audioSource}`
-        );
+        console.warn(`Cannot play audio: Track not found in audioSources: ${data.audioSource}`);
 
         // NO retry, NO toast - track is gone permanently
         return;
@@ -712,15 +669,10 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           state.pauseAudio({ when: 0 });
         }
 
-        console.warn(
-          `Cannot play audio: Track still loading: ${data.audioSource}`
-        );
+        console.warn(`Cannot play audio: Track still loading: ${data.audioSource}`);
 
         // Show toast for legitimate loading state
-        toast.warning(
-          `"${extractFileNameFromUrl(data.audioSource)}" not loaded yet...`,
-          { id: "schedulePlay" }
-        );
+        toast.warning(`"${extractFileNameFromUrl(data.audioSource)}" not loaded yet...`, { id: "schedulePlay" });
 
         // Retry sync after 1 second - track should load eventually
         const { socket } = getSocket(state);
@@ -800,9 +752,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Optimistically update local state immediately to prevent snap-back animation
       const newAudioSources: AudioSourceState[] = newOrder.map((source) => {
         // Preserve existing state (buffer, status) for each track
-        const existing = state.audioSources.find(
-          (as) => as.source.url === source.url
-        );
+        const existing = state.audioSources.find((as) => as.source.url === source.url);
         return existing || { source, status: "idle" };
       });
 
@@ -899,8 +849,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         }
 
         // Always recalculate offset with current measurements
-        const { averageOffset, averageRoundTrip } =
-          calculateOffsetEstimate(measurements);
+        const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(measurements);
 
         return {
           ntpMeasurements: measurements,
@@ -926,13 +875,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     getCurrentTrackPosition: () => {
       const state = get();
-      const {
-        audioPlayer,
-        isPlaying,
-        currentTime,
-        playbackStartTime,
-        playbackOffset,
-      } = state; // Destructure for easier access
+      const { audioPlayer, isPlaying, currentTime, playbackStartTime, playbackOffset } = state; // Destructure for easier access
 
       if (!isPlaying || !audioPlayer) {
         return currentTime; // Return the saved position when paused or not initialized
@@ -944,11 +887,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return Math.min(playbackOffset + elapsedSinceStart, state.duration);
     },
 
-    playAudio: async (data: {
-      offset: number;
-      when: number;
-      audioIndex?: number;
-    }) => {
+    playAudio: async (data: { offset: number; when: number; audioIndex?: number }) => {
       const state = get();
       const { sourceNode, audioContext, gainNode } = getAudioPlayer(state);
 
@@ -980,9 +919,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         return;
       }
       if (audioSourceState.status === "error") {
-        toast.error(
-          `Track failed to load: ${audioSourceState.error || "Unknown error"}`
-        );
+        toast.error(`Track failed to load: ${audioSourceState.error || "Unknown error"}`);
         return;
       }
       if (audioSourceState.status === "idle") {
@@ -992,18 +929,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       const audioBuffer = audioSourceState.buffer;
       if (!audioBuffer) {
-        console.error(
-          `No audio buffer for url: ${audioSourceState.source.url}`
-        );
+        console.error(`No audio buffer for url: ${audioSourceState.source.url}`);
         return;
       }
 
       // Validate offset is within track duration to prevent sync failures
       if (data.offset >= audioBuffer.duration) {
         console.error(
-          `Sync offset ${data.offset.toFixed(
-            2
-          )}s is beyond track duration ${audioBuffer.duration.toFixed(
+          `Sync offset ${data.offset.toFixed(2)}s is beyond track duration ${audioBuffer.duration.toFixed(
             2
           )}s. Aborting playback.`
         );
@@ -1018,8 +951,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Autoplay: Handle track ending naturally
       newSourceNode.onended = () => {
         const currentState = get();
-        const { audioPlayer: currentPlayer, isPlaying: currentlyIsPlaying } =
-          currentState; // Get fresh state
+        const { audioPlayer: currentPlayer, isPlaying: currentlyIsPlaying } = currentState; // Get fresh state
 
         // Only process if the player was 'isPlaying' right before this event fired
         // and the sourceNode that ended is the *current* sourceNode.
@@ -1029,16 +961,12 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           // Check if the buffer naturally reached its end
           // Calculate the expected end time in the AudioContext timeline
           const expectedEndTime =
-            currentState.playbackStartTime +
-            (currentState.duration - currentState.playbackOffset);
+            currentState.playbackStartTime + (currentState.duration - currentState.playbackOffset);
           // Use a tolerance for timing discrepancies (e.g., 0.5 seconds)
-          const endedNaturally =
-            Math.abs(audioContext.currentTime - expectedEndTime) < 0.5;
+          const endedNaturally = Math.abs(audioContext.currentTime - expectedEndTime) < 0.5;
 
           if (endedNaturally) {
-            console.log(
-              "Track ended naturally, skipping to next via autoplay."
-            );
+            console.log("Track ended naturally, skipping to next via autoplay.");
             // Set currentTime to duration, as playback fully completed
             // We don't set isPlaying false here, let skipToNextTrack handle state transition
             set({ currentTime: currentState.duration });
@@ -1052,21 +980,12 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
             // No action needed here for non-natural ends.
           }
         } else {
-          console.log(
-            "onended fired but player was already stopped/paused or source node changed."
-          );
+          console.log("onended fired but player was already stopped/paused or source node changed.");
         }
       };
 
       newSourceNode.start(startTime, data.offset);
-      console.log(
-        "Started playback at offset:",
-        data.offset,
-        "with delay:",
-        data.when,
-        "audio index:",
-        audioIndex
-      );
+      console.log("Started playback at offset:", data.offset, "with delay:", data.when, "audio index:", audioIndex);
 
       // Update state with the new source node and tracking info
       set((state) => ({
@@ -1115,12 +1034,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const elapsedSinceStart = stopTime - state.playbackStartTime;
       const currentTrackPosition = state.playbackOffset + elapsedSinceStart;
 
-      console.log(
-        "Stopping at:",
-        data.when,
-        "Current track position:",
-        currentTrackPosition
-      );
+      console.log("Stopping at:", data.when, "Current track position:", currentTrackPosition);
 
       set((state) => ({
         ...state,
@@ -1139,14 +1053,10 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     setConnectedClients: (clients) => {
       const clientId = getClientId();
-      const currentUser = clients.find(
-        (client) => client.clientId === clientId
-      );
+      const currentUser = clients.find((client) => client.clientId === clientId);
 
       if (!currentUser) {
-        throw new Error(
-          `Current user not found in connected clients: ${clientId}`
-        );
+        throw new Error(`Current user not found in connected clients: ${clientId}`);
       }
 
       set({ connectedClients: clients, currentUser });
@@ -1155,11 +1065,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     skipToNextTrack: (isAutoplay = false) => {
       // Accept optional isAutoplay flag
       const state = get();
-      const {
-        audioSources: audioSources,
-        selectedAudioUrl: selectedAudioId,
-        isShuffled,
-      } = state;
+      const { audioSources: audioSources, selectedAudioUrl: selectedAudioId, isShuffled } = state;
       if (audioSources.length <= 1) return; // Can't skip if only one track
 
       const currentIndex = state.findAudioIndexByUrl(selectedAudioId);
@@ -1197,10 +1103,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     skipToPreviousTrack: () => {
       const state = get();
-      const {
-        audioSources,
-        selectedAudioUrl: selectedAudioId /* isShuffled */,
-      } = state; // Note: isShuffled is NOT used here currently
+      const { audioSources, selectedAudioUrl: selectedAudioId /* isShuffled */ } = state; // Note: isShuffled is NOT used here currently
       if (audioSources.length === 0) return;
 
       const currentIndex = state.findAudioIndexByUrl(selectedAudioId);
@@ -1208,8 +1111,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Previous track always goes to the actual previous in the list, even if shuffled
       // This is a common behavior, but could be changed if needed.
-      const prevIndex =
-        (currentIndex - 1 + audioSources.length) % audioSources.length;
+      const prevIndex = (currentIndex - 1 + audioSources.length) % audioSources.length;
       const prevAudioId = audioSources[prevIndex].source.url;
 
       // setSelectedAudioId stops any current playback and sets isPlaying to false.
@@ -1218,21 +1120,16 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // If the track was playing before the manual skip, start playing the previous track.
       if (wasPlayingBeforeSkip) {
-        console.log(
-          `Skip to previous: ${prevAudioId}. Was playing: ${wasPlayingBeforeSkip}. Broadcasting play.`
-        );
+        console.log(`Skip to previous: ${prevAudioId}. Was playing: ${wasPlayingBeforeSkip}. Broadcasting play.`);
         state.broadcastPlay(0); // Play previous track from start
       } else {
-        console.log(
-          `Skip to previous: ${prevAudioId}. Was playing: ${wasPlayingBeforeSkip}. Not broadcasting play.`
-        );
+        console.log(`Skip to previous: ${prevAudioId}. Was playing: ${wasPlayingBeforeSkip}. Not broadcasting play.`);
       }
     },
 
     toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
 
-    setIsSpatialAudioEnabled: (isEnabled) =>
-      set({ isSpatialAudioEnabled: isEnabled }),
+    setIsSpatialAudioEnabled: (isEnabled) => set({ isSpatialAudioEnabled: isEnabled }),
 
     getCurrentGainValue: () => {
       const state = get();
@@ -1290,14 +1187,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     getAudioDuration: ({ url }) => {
       const state = get();
-      const audioSource = state.audioSources.find(
-        (as) => as.source.url === url
-      );
-      if (
-        !audioSource ||
-        audioSource.status !== "loaded" ||
-        !audioSource.buffer
-      ) {
+      const audioSource = state.audioSources.find((as) => as.source.url === url);
+      if (!audioSource || audioSource.status !== "loaded" || !audioSource.buffer) {
         // Return 0 for loading/error states or not found
         return 0;
       }
@@ -1308,11 +1199,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       if (!state.selectedAudioUrl) return null;
 
-      return (
-        state.audioSources.find(
-          (as) => as.source.url === state.selectedAudioUrl
-        ) || null
-      );
+      return state.audioSources.find((as) => as.source.url === state.selectedAudioUrl) || null;
     },
 
     async handleSetAudioSources({ sources, currentAudioSource }) {
@@ -1331,16 +1218,16 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Build completely new queue based on sources order
       const newQueue: string[] = [];
-      
+
       // Add current/selected track first (highest priority)
-      if (currentAudioSource && sources.some(s => s.url === currentAudioSource)) {
+      if (currentAudioSource && sources.some((s) => s.url === currentAudioSource)) {
         newQueue.push(currentAudioSource);
-      } else if (state.selectedAudioUrl && sources.some(s => s.url === state.selectedAudioUrl)) {
+      } else if (state.selectedAudioUrl && sources.some((s) => s.url === state.selectedAudioUrl)) {
         newQueue.push(state.selectedAudioUrl);
       }
-      
+
       // Add remaining tracks in playlist order
-      sources.forEach(source => {
+      sources.forEach((source) => {
         if (!newQueue.includes(source.url)) {
           newQueue.push(source.url);
         }
@@ -1349,13 +1236,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Create new audioSources array (preserving loaded buffers for tracks still in playlist)
       const newAudioSources: AudioSourceState[] = sources.map((source) => {
         // Try to preserve the status of the currently playing/selected track
-        if (
-          source.url === state.selectedAudioUrl ||
-          source.url === currentAudioSource
-        ) {
-          const existing = state.audioSources.find(
-            (as) => as.source.url === source.url
-          );
+        if (source.url === state.selectedAudioUrl || source.url === currentAudioSource) {
+          const existing = state.audioSources.find((as) => as.source.url === source.url);
           if (existing) {
             return existing;
           }
@@ -1376,9 +1258,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       }
 
       // Check if the currently selected/playing track was removed
-      const currentStillExists = newAudioSources.some(
-        (as) => as.source.url === state.selectedAudioUrl
-      );
+      const currentStillExists = newAudioSources.some((as) => as.source.url === state.selectedAudioUrl);
 
       if (!currentStillExists && state.selectedAudioUrl) {
         // Stop playback if current track was removed
@@ -1423,8 +1303,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       initializeAudioExclusively();
     },
     setReconnectionInfo: (info) => set({ reconnectionInfo: info }),
-    setPlaybackControlsPermissions: (permissions) =>
-      set({ playbackControlsPermissions: permissions }),
+    setPlaybackControlsPermissions: (permissions) => set({ playbackControlsPermissions: permissions }),
 
     // Search methods
     setSearchResults: (results, append = false) => {
@@ -1454,8 +1333,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       set({ searchResults: results });
     },
     setIsSearching: (isSearching) => set({ isSearching }),
-    setIsLoadingMoreResults: (isLoading) =>
-      set({ isLoadingMoreResults: isLoading }),
+    setIsLoadingMoreResults: (isLoading) => set({ isLoadingMoreResults: isLoading }),
     setSearchQuery: (query) => set({ searchQuery: query }),
     setSearchOffset: (offset) => set({ searchOffset: offset }),
     setHasMoreResults: (hasMore) => set({ hasMoreResults: hasMore }),
@@ -1479,9 +1357,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
       // Calculate next offset based on current results
       const currentResults =
-        state.searchResults?.type === "success"
-          ? state.searchResults.response.data.tracks.items.length
-          : 0;
+        state.searchResults?.type === "success" ? state.searchResults.response.data.tracks.items.length : 0;
       const nextOffset = searchOffset + currentResults;
 
       console.log("Loading more search results", { searchQuery, nextOffset });

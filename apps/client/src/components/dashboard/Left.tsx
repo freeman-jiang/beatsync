@@ -72,9 +72,7 @@ export const Left = ({ className }: LeftProps) => {
         <div className="flex flex-col gap-2 p-4 border-t border-neutral-800/50">
           <h5 className="text-xs font-medium text-neutral-300">Tips</h5>
           <ul className="list-disc list-outside pl-4 space-y-1.5">
-            <li className="text-xs leading-relaxed">
-              {"Play on speaker directly. Don't use Bluetooth."}
-            </li>
+            <li className="text-xs leading-relaxed">{"Play on speaker directly. Don't use Bluetooth."}</li>
           </ul>
         </div>
 

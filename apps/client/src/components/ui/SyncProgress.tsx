@@ -27,21 +27,12 @@ const OuterModal = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const SyncProgress = ({
-  isLoading = false,
-  loadingMessage = "Loading...",
-}: SyncProgressProps) => {
+export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." }: SyncProgressProps) => {
   // Internal state for tracking progress animation
-  const syncProgress = useGlobalStore(
-    (state) => state.ntpMeasurements.length / MAX_NTP_MEASUREMENTS
-  );
+  const syncProgress = useGlobalStore((state) => state.ntpMeasurements.length / MAX_NTP_MEASUREMENTS);
   const isSyncComplete = useGlobalStore((state) => state.isSynced);
-  const setIsInitingSystem = useGlobalStore(
-    (state) => state.setIsInitingSystem
-  );
-  const hasUserStartedSystem = useGlobalStore(
-    (state) => state.hasUserStartedSystem
-  );
+  const setIsInitingSystem = useGlobalStore((state) => state.setIsInitingSystem);
+  const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
   // Derive message from current state instead of using effect + setState
@@ -81,8 +72,7 @@ export const SyncProgress = ({
 
   // Check if max reconnection attempts have been reached
   const hasReconnectionFailed =
-    reconnectionInfo.isReconnecting &&
-    reconnectionInfo.currentAttempt >= reconnectionInfo.maxAttempts;
+    reconnectionInfo.isReconnecting && reconnectionInfo.currentAttempt >= reconnectionInfo.maxAttempts;
 
   // If reconnection failed after max attempts
   if (hasReconnectionFailed) {
@@ -135,8 +125,7 @@ export const SyncProgress = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.25 }}
           >
-            Unable to establish connection after {reconnectionInfo.maxAttempts}{" "}
-            attempts
+            Unable to establish connection after {reconnectionInfo.maxAttempts} attempts
           </motion.p>
 
           <motion.a
@@ -232,8 +221,7 @@ export const SyncProgress = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.25 }}
           >
-            Attempt {reconnectionInfo.currentAttempt} of{" "}
-            {reconnectionInfo.maxAttempts}
+            Attempt {reconnectionInfo.currentAttempt} of {reconnectionInfo.maxAttempts}
           </motion.p>
 
           <motion.p

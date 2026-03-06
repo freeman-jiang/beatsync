@@ -17,9 +17,7 @@ export const NTP = () => {
 
   return (
     <div>
-      {ntpMeasurements.length > 0 && (
-        <p>Synced {ntpMeasurements.length} times</p>
-      )}
+      {ntpMeasurements.length > 0 && <p>Synced {ntpMeasurements.length} times</p>}
       <p>Offset: {offsetEstimate} ms</p>
       <p>Round trip: {roundTripEstimate} ms</p>
       <Button onClick={resync}>Resync</Button>
