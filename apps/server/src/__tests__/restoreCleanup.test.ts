@@ -1,9 +1,8 @@
-import type { ServerWebSocket } from "bun";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { createMockWs } from "@/__tests__/mocks/websocket";
 import { BackupManager } from "@/managers/BackupManager";
 import { globalManager } from "@/managers/GlobalManager";
-import type { WSData } from "@/utils/websocket";
 
 mockR2({
   downloadJSON: mock(() => ({
@@ -107,22 +106,7 @@ describe("Restore Cleanup", () => {
     room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100); // Short delay for testing
 
     // Simulate a real client connecting
-    const mockWs = {
-      data: {
-        username: "realuser",
-        clientId: "real-client-1",
-        roomId: "test-room-1",
-      },
-      readyState: 1, // OPEN
-      subscribe: mock(() => {
-        /* noop */
-      }),
-      send: mock(() => {
-        /* noop */
-      }),
-    };
-
-    room.addClient(mockWs as unknown as ServerWebSocket<WSData>);
+    room.addClient(createMockWs({ clientId: "real-client-1", username: "realuser", roomId: "test-room-1" }));
 
     // Wait to ensure cleanup would have fired if not cancelled
     await new Promise((resolve) => setTimeout(resolve, 150));

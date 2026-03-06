@@ -7,15 +7,14 @@ import type { PlayActionType } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
 import { afterEach, beforeEach, describe, expect, it, mock, vi } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { createMockServer, createMockWs } from "@/__tests__/mocks/websocket";
 import { RoomManager } from "@/managers/RoomManager";
 import type { BunServer, WSData } from "@/utils/websocket";
 
-// Track broadcasts
 let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];
 
 mockR2();
 
-// Mock responses to capture broadcasts
 void mock.module("@/utils/responses", () => ({
   sendBroadcast: mock(
     ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
@@ -41,29 +40,6 @@ function createPlayAction(opts: { audioSource?: string; trackTimeSeconds?: numbe
   };
 }
 
-function createMockWs(clientId: string): ServerWebSocket<WSData> {
-  return {
-    data: { clientId, username: `user-${clientId}`, roomId: ROOM_ID },
-    subscribe: mock(() => {
-      /* noop */
-    }),
-    send: mock(() => {
-      /* noop */
-    }),
-    close: mock(() => {
-      /* noop */
-    }),
-  } as unknown as ServerWebSocket<WSData>;
-}
-
-function createMockServer(): BunServer {
-  return {
-    publish: mock(() => {
-      /* noop */
-    }),
-  } as unknown as BunServer;
-}
-
 function createRoomWithAudio(): RoomManager {
   const room = new RoomManager(ROOM_ID);
   room.addAudioSource({ url: AUDIO_URL });
@@ -73,7 +49,7 @@ function createRoomWithAudio(): RoomManager {
 function addClientsToRoom(room: RoomManager, count: number): ServerWebSocket<WSData>[] {
   const sockets: ServerWebSocket<WSData>[] = [];
   for (let i = 1; i <= count; i++) {
-    const ws = createMockWs(`client-${i}`);
+    const ws = createMockWs({ clientId: `client-${i}` });
     room.addClient(ws);
     sockets.push(ws);
   }

@@ -1,31 +1,10 @@
-import type { ServerWebSocket } from "bun";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { createMockWs } from "@/__tests__/mocks/websocket";
 import { globalManager } from "@/managers/GlobalManager";
 import type { RoomManager } from "@/managers/RoomManager";
-import type { WSData } from "@/utils/websocket";
 
 mockR2();
-
-// Helper function to create a mock WebSocket
-function createMockWs(clientId: string, username: string, roomId: string): ServerWebSocket<WSData> {
-  return {
-    data: {
-      clientId,
-      username,
-      roomId,
-    },
-    subscribe: mock(() => {
-      /* noop */
-    }),
-    send: mock(() => {
-      /* noop */
-    }),
-    close: mock(() => {
-      /* noop */
-    }),
-  } as unknown as ServerWebSocket<WSData>;
-}
 
 describe("Admin Persistence", () => {
   let room: RoomManager;
@@ -42,7 +21,7 @@ describe("Admin Persistence", () => {
   });
 
   it("should make the first person who joins an admin", () => {
-    const ws1 = createMockWs("client-1", "user1", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "user1", roomId: roomId });
 
     room.addClient(ws1);
 
@@ -53,9 +32,9 @@ describe("Admin Persistence", () => {
   });
 
   it("should promote a random client when the only admin leaves", () => {
-    const ws1 = createMockWs("client-1", "admin-user", roomId);
-    const ws2 = createMockWs("client-2", "user2", roomId);
-    const ws3 = createMockWs("client-3", "user3", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "admin-user", roomId: roomId });
+    const ws2 = createMockWs({ clientId: "client-2", username: "user2", roomId: roomId });
+    const ws3 = createMockWs({ clientId: "client-3", username: "user3", roomId: roomId });
 
     // Add clients in order
     room.addClient(ws1); // Admin
@@ -80,8 +59,8 @@ describe("Admin Persistence", () => {
   });
 
   it("should preserve admin status and username when client rejoins with same ID", () => {
-    const ws1 = createMockWs("client-1", "admin-user", roomId);
-    const ws2 = createMockWs("client-2", "user2", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "admin-user", roomId: roomId });
+    const ws2 = createMockWs({ clientId: "client-2", username: "user2", roomId: roomId });
 
     // Setup: admin and another user
     room.addClient(ws1);
@@ -101,7 +80,7 @@ describe("Admin Persistence", () => {
     expect(clients.find((c) => c.clientId === "client-2")?.isAdmin).toBe(true);
 
     // Original admin rejoins with same clientId
-    const ws1Reconnect = createMockWs("client-1", "admin-user", roomId);
+    const ws1Reconnect = createMockWs({ clientId: "client-1", username: "admin-user", roomId: roomId });
     room.addClient(ws1Reconnect);
 
     // Verify admin status is restored
@@ -114,8 +93,8 @@ describe("Admin Persistence", () => {
   });
 
   it("should keep non-admin as non-admin when rejoining", () => {
-    const ws1 = createMockWs("client-1", "admin", roomId);
-    const ws2 = createMockWs("client-2", "regular-user", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "admin", roomId: roomId });
+    const ws2 = createMockWs({ clientId: "client-2", username: "regular-user", roomId: roomId });
 
     // Setup: admin and regular user
     room.addClient(ws1);
@@ -128,7 +107,7 @@ describe("Admin Persistence", () => {
     // Non-admin disconnects and reconnects
     room.removeClient("client-2");
 
-    const ws2Reconnect = createMockWs("client-2", "regular-user", roomId);
+    const ws2Reconnect = createMockWs({ clientId: "client-2", username: "regular-user", roomId: roomId });
     room.addClient(ws2Reconnect);
 
     // Verify they're still not admin
@@ -138,9 +117,9 @@ describe("Admin Persistence", () => {
   });
 
   it("should handle multiple admins correctly", () => {
-    const ws1 = createMockWs("client-1", "admin1", roomId);
-    const ws2 = createMockWs("client-2", "user2", roomId);
-    const ws3 = createMockWs("client-3", "user3", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "admin1", roomId: roomId });
+    const ws2 = createMockWs({ clientId: "client-2", username: "user2", roomId: roomId });
+    const ws3 = createMockWs({ clientId: "client-3", username: "user3", roomId: roomId });
 
     // Setup: one admin, two regular users
     room.addClient(ws1);
@@ -165,7 +144,7 @@ describe("Admin Persistence", () => {
     expect(clients.find((c) => c.clientId === "client-3")?.isAdmin).toBe(false);
 
     // Original admin rejoins
-    const ws1Reconnect = createMockWs("client-1", "admin1", roomId);
+    const ws1Reconnect = createMockWs({ clientId: "client-1", username: "admin1", roomId: roomId });
     room.addClient(ws1Reconnect);
 
     // Both should be admins again
@@ -175,8 +154,8 @@ describe("Admin Persistence", () => {
   });
 
   it("should allow original admin to reclaim status after another was promoted", () => {
-    const ws1 = createMockWs("client-1", "original-admin", roomId);
-    const ws2 = createMockWs("client-2", "user2", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "original-admin", roomId: roomId });
+    const ws2 = createMockWs({ clientId: "client-2", username: "user2", roomId: roomId });
 
     // Setup: admin and regular user
     room.addClient(ws1);
@@ -189,7 +168,7 @@ describe("Admin Persistence", () => {
     expect(clients.find((c) => c.clientId === "client-2")?.isAdmin).toBe(true);
 
     // Original admin returns
-    const ws1Reconnect = createMockWs("client-1", "original-admin", roomId);
+    const ws1Reconnect = createMockWs({ clientId: "client-1", username: "original-admin", roomId: roomId });
     room.addClient(ws1Reconnect);
 
     // Both should be admins now
@@ -199,7 +178,7 @@ describe("Admin Persistence", () => {
   });
 
   it("should preserve client data even without active connection", () => {
-    const ws1 = createMockWs("client-1", "user1", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "user1", roomId: roomId });
 
     room.addClient(ws1);
 
@@ -222,8 +201,8 @@ describe("Admin Persistence", () => {
   });
 
   it("should handle empty room becoming populated again", () => {
-    const ws1 = createMockWs("client-1", "user1", roomId);
-    const ws2 = createMockWs("client-2", "user2", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "user1", roomId: roomId });
+    const ws2 = createMockWs({ clientId: "client-2", username: "user2", roomId: roomId });
 
     // Add and remove all clients
     room.addClient(ws1);
@@ -235,7 +214,7 @@ describe("Admin Persistence", () => {
     expect(room.getClients().length).toBe(0);
 
     // New client joins empty room (but with cached data)
-    const ws3 = createMockWs("client-3", "user3", roomId);
+    const ws3 = createMockWs({ clientId: "client-3", username: "user3", roomId: roomId });
     room.addClient(ws3);
 
     // Should become admin as first active connection
@@ -243,7 +222,7 @@ describe("Admin Persistence", () => {
     expect(clients.find((c) => c.clientId === "client-3")?.isAdmin).toBe(true);
 
     // Old admin rejoins
-    const ws1Reconnect = createMockWs("client-1", "user1", roomId);
+    const ws1Reconnect = createMockWs({ clientId: "client-1", username: "user1", roomId: roomId });
     room.addClient(ws1Reconnect);
 
     // Old admin should reclaim admin status
@@ -253,7 +232,7 @@ describe("Admin Persistence", () => {
   });
 
   it("should preserve old username if it changes on rejoin", () => {
-    const ws1 = createMockWs("client-1", "original-name", roomId);
+    const ws1 = createMockWs({ clientId: "client-1", username: "original-name", roomId: roomId });
 
     room.addClient(ws1);
 
@@ -263,7 +242,7 @@ describe("Admin Persistence", () => {
     // Disconnect and rejoin with different username
     room.removeClient("client-1");
 
-    const ws1NewName = createMockWs("client-1", "new-name", roomId);
+    const ws1NewName = createMockWs({ clientId: "client-1", username: "new-name", roomId: roomId });
     room.addClient(ws1NewName);
 
     clients = room.getClients();

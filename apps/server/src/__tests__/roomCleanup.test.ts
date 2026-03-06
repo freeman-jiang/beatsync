@@ -1,8 +1,7 @@
-import type { ServerWebSocket } from "bun";
-import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { createMockWs } from "@/__tests__/mocks/websocket";
 import { globalManager } from "@/managers/GlobalManager";
-import type { WSData } from "@/utils/websocket";
 
 mockR2();
 
@@ -31,22 +30,7 @@ describe("Room Cleanup Timer", () => {
 
     room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 60000);
 
-    // Mock adding a client (which should cancel cleanup)
-    const mockWs = {
-      data: {
-        username: "testuser",
-        clientId: "client-123",
-        roomId: "cancel-test",
-      },
-      subscribe: mock(() => {
-        /* noop */
-      }),
-      send: mock(() => {
-        /* noop */
-      }),
-    };
-
-    room.addClient(mockWs as unknown as ServerWebSocket<WSData>);
+    room.addClient(createMockWs({ clientId: "client-123", roomId: "cancel-test" }));
 
     // Cleanup should have been cancelled
     expect(cleanupCalled).toBe(false);
@@ -85,21 +69,7 @@ describe("Room Cleanup Timer", () => {
     const room = globalManager.getOrCreateRoom(roomId);
     let cleanupCalled = false;
 
-    // Add a client
-    const mockWs1 = {
-      data: {
-        username: "user1",
-        clientId: "client-1",
-        roomId: roomId,
-      },
-      subscribe: mock(() => {
-        /* noop */
-      }),
-      send: mock(() => {
-        /* noop */
-      }),
-    };
-    room.addClient(mockWs1 as unknown as ServerWebSocket<WSData>);
+    room.addClient(createMockWs({ clientId: "client-1", roomId }));
 
     // Remove the client (room becomes empty)
     room.removeClient("client-1");
@@ -114,21 +84,7 @@ describe("Room Cleanup Timer", () => {
     // Verify cleanup is scheduled but not called yet
     expect(cleanupCalled).toBe(false);
 
-    // Add a new client before cleanup executes
-    const mockWs2 = {
-      data: {
-        username: "user2",
-        clientId: "client-2",
-        roomId: roomId,
-      },
-      subscribe: mock(() => {
-        /* noop */
-      }),
-      send: mock(() => {
-        /* noop */
-      }),
-    };
-    room.addClient(mockWs2 as unknown as ServerWebSocket<WSData>);
+    room.addClient(createMockWs({ clientId: "client-2", roomId }));
 
     // Wait a bit to ensure cleanup would have been called if not cancelled
     await new Promise((resolve) => setTimeout(resolve, 100));

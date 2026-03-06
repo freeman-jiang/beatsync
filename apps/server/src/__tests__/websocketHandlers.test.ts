@@ -1,14 +1,12 @@
 import type { WSBroadcastType } from "@beatsync/shared";
-import type { ServerWebSocket } from "bun";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { createMockServer, createMockWs } from "@/__tests__/mocks/websocket";
 import { handleOpen } from "@/routes/websocketHandlers";
 import { globalManager } from "@/managers/GlobalManager";
-import type { BunServer, WSData } from "@/utils/websocket";
+import type { BunServer } from "@/utils/websocket";
 
-// Track messages sent via sendBroadcast
 let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];
 
-// Mock the sendBroadcast and sendUnicast functions
 void mock.module("@/utils/responses", () => ({
   sendBroadcast: mock(
     ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
@@ -43,29 +41,9 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       room.addAudioSource({ url: "https://example.com/song1.mp3" });
       room.addAudioSource({ url: "https://example.com/song2.mp3" });
 
-      // Create mock WebSocket
-      const mockWs = {
-        data: {
-          username: "returningUser",
-          clientId: "client-123",
-          roomId: roomId,
-        },
-        subscribe: mock(() => {
-          /* noop */
-        }),
-        send: mock(() => {
-          /* noop */
-        }),
-      };
+      const mockServer = createMockServer();
 
-      const mockServer = {
-        publish: mock(() => {
-          /* noop */
-        }),
-      } as unknown as BunServer;
-
-      // Simulate client connection
-      handleOpen(mockWs as unknown as ServerWebSocket<WSData>, mockServer);
+      handleOpen(createMockWs({ clientId: "client-123", username: "returningUser", roomId }), mockServer);
 
       // Verify SET_AUDIO_SOURCES was broadcast
       const audioSourcesMessage = broadcastMessages.find((msg) => {
@@ -90,32 +68,10 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       const roomId = "new-room";
       globalManager.getOrCreateRoom(roomId);
 
-      // Create mock WebSocket
-      const mockWs = {
-        data: {
-          username: "newUser",
-          clientId: "client-456",
-          roomId: roomId,
-        },
-        subscribe: mock(() => {
-          /* noop */
-        }),
-        send: mock(() => {
-          /* noop */
-        }),
-      };
-
-      const mockServer = {
-        publish: mock(() => {
-          /* noop */
-        }),
-      } as unknown as BunServer;
-
-      // Clear broadcast messages before this test
+      const mockServer = createMockServer();
       broadcastMessages = [];
 
-      // Simulate client connection
-      handleOpen(mockWs as unknown as ServerWebSocket<WSData>, mockServer);
+      handleOpen(createMockWs({ clientId: "client-456", username: "newUser", roomId }), mockServer);
 
       // Verify no SET_AUDIO_SOURCES was broadcast
       const audioSourcesMessage = broadcastMessages.find((msg) => {
@@ -131,48 +87,11 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       const room = globalManager.getOrCreateRoom(roomId);
       room.addAudioSource({ url: "https://example.com/shared.mp3" });
 
-      // First client joins
-      const mockWs1 = {
-        data: {
-          username: "user1",
-          clientId: "client-001",
-          roomId: roomId,
-        },
-        subscribe: mock(() => {
-          /* noop */
-        }),
-        send: mock(() => {
-          /* noop */
-        }),
-      };
-
-      // Second client joins
-      const mockWs2 = {
-        data: {
-          username: "user2",
-          clientId: "client-002",
-          roomId: roomId,
-        },
-        subscribe: mock(() => {
-          /* noop */
-        }),
-        send: mock(() => {
-          /* noop */
-        }),
-      };
-
-      const mockServer = {
-        publish: mock(() => {
-          /* noop */
-        }),
-      } as unknown as BunServer;
-
-      // Clear broadcast messages
+      const mockServer = createMockServer();
       broadcastMessages = [];
 
-      // Both clients connect
-      handleOpen(mockWs1 as unknown as ServerWebSocket<WSData>, mockServer);
-      handleOpen(mockWs2 as unknown as ServerWebSocket<WSData>, mockServer);
+      handleOpen(createMockWs({ clientId: "client-001", username: "user1", roomId }), mockServer);
+      handleOpen(createMockWs({ clientId: "client-002", username: "user2", roomId }), mockServer);
 
       // Count how many SET_AUDIO_SOURCES broadcasts were sent
       const audioSourcesMessages = broadcastMessages.filter((msg) => {
@@ -196,31 +115,11 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
   describe("Client State Management", () => {
     it("should add client to room on connection", () => {
       const roomId = "client-test-room";
-      const mockWs = {
-        data: {
-          username: "testUser",
-          clientId: "client-789",
-          roomId: roomId,
-        },
-        subscribe: mock(() => {
-          /* noop */
-        }),
-        send: mock(() => {
-          /* noop */
-        }),
-      };
+      const mockServer = createMockServer();
 
-      const mockServer = {
-        publish: mock(() => {
-          /* noop */
-        }),
-      } as unknown as BunServer;
-
-      // Verify room doesn't exist yet
       expect(globalManager.hasRoom(roomId)).toBe(false);
 
-      // Connect client
-      handleOpen(mockWs as unknown as ServerWebSocket<WSData>, mockServer);
+      handleOpen(createMockWs({ clientId: "client-789", username: "testUser", roomId }), mockServer);
 
       // Verify room was created and client was added
       expect(globalManager.hasRoom(roomId)).toBe(true);
