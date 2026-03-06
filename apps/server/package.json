@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "dev:log": "rm -f ../../logs/server.log && bun run --hot src/index.ts 2>&1 | tee ../../logs/server.log",
-    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --target=bun --outdir=dist --sourcemap",
+    "start": "bun run dist/index.js",
     "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
     "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live",
     "test": "bun test",
