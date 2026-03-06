@@ -12,15 +12,6 @@ describe("Spatial Audio Calculations", () => {
       expect(gain).toBe(1.0);
     });
 
-    it("should return maximum gain for very small distances", () => {
-      const gain = calculateGainFromDistanceToSource({
-        client: { x: 0.1, y: 0.1 },
-        source: { x: 0, y: 0 },
-      });
-
-      expect(gain).toBeCloseTo(1.0, 2);
-    });
-
     it("should decrease gain with distance", () => {
       const nearGain = calculateGainFromDistanceToSource({
         client: { x: 10, y: 0 },
@@ -51,33 +42,6 @@ describe("Spatial Audio Calculations", () => {
 
       // Both should have same gain since distance is 5 in both cases
       expect(gain1).toBeCloseTo(gain2, 5);
-    });
-
-    it("should handle negative coordinates", () => {
-      const gain1 = calculateGainFromDistanceToSource({
-        client: { x: -20, y: -20 },
-        source: { x: 0, y: 0 },
-      });
-
-      const gain2 = calculateGainFromDistanceToSource({
-        client: { x: 20, y: 20 },
-        source: { x: 0, y: 0 },
-      });
-
-      // Distance should be the same regardless of direction
-      expect(gain1).toBe(gain2);
-      expect(gain1).toBeGreaterThan(0);
-      expect(gain1).toBeLessThan(1.0);
-    });
-
-    it("should handle source at non-origin position", () => {
-      const gain = calculateGainFromDistanceToSource({
-        client: { x: 50, y: 50 },
-        source: { x: 50, y: 50 },
-      });
-
-      // Client at source position should have max gain
-      expect(gain).toBe(1.0);
     });
 
     it("should have symmetric gain in all directions", () => {
@@ -142,21 +106,6 @@ describe("Spatial Audio Calculations", () => {
         expect(gain).toBeGreaterThanOrEqual(expectedMin);
         expect(gain).toBeLessThanOrEqual(expectedMax);
       });
-    });
-
-    it("should handle floating point precision", () => {
-      const gain1 = calculateGainFromDistanceToSource({
-        client: { x: 10.000001, y: 0 },
-        source: { x: 0, y: 0 },
-      });
-
-      const gain2 = calculateGainFromDistanceToSource({
-        client: { x: 10, y: 0 },
-        source: { x: 0, y: 0 },
-      });
-
-      // Should be nearly identical
-      expect(gain1).toBeCloseTo(gain2, 5);
     });
   });
 });

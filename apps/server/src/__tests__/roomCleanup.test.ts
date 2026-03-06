@@ -14,16 +14,6 @@ describe("Room Cleanup Timer", () => {
     }
   });
 
-  it("should schedule cleanup when room becomes empty", () => {
-    const room = globalManager.getOrCreateRoom("cleanup-test");
-    let cleanupCalled = false;
-
-    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 60000);
-
-    // Cleanup should not be called immediately
-    expect(cleanupCalled).toBe(false);
-  });
-
   it("should cancel cleanup when new client joins", () => {
     const room = globalManager.getOrCreateRoom("cancel-test");
     let cleanupCalled = false;

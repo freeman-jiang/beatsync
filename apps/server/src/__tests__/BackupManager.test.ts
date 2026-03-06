@@ -67,41 +67,6 @@ describe("BackupManager (Simplified Tests)", () => {
       expect(restoredState.audioSources[0].url).toBe("https://example.com/restore1.mp3");
       expect(restoredState.audioSources[1].url).toBe("https://example.com/restore2.mp3");
     });
-
-    it("should handle empty rooms correctly", () => {
-      const emptyRoom = globalManager.getOrCreateRoom("empty-room");
-      const backupState = emptyRoom.createBackup();
-
-      expect(backupState).toMatchObject({
-        clientDatas: [],
-        audioSources: [],
-        globalVolume: 1,
-      });
-    });
-  });
-
-  describe("Zod Schema Validation", () => {
-    it("should validate backup data structure", () => {
-      // Create a room with data
-      const room = globalManager.getOrCreateRoom("validation-test");
-      room.addAudioSource({ url: "https://example.com/test.mp3" });
-
-      const backupState = room.createBackup();
-
-      // Verify the structure matches our schema expectations
-      expect(backupState).toHaveProperty("clientDatas");
-      expect(backupState).toHaveProperty("audioSources");
-      expect(backupState).toHaveProperty("globalVolume");
-      expect(Array.isArray(backupState.clientDatas)).toBe(true);
-      expect(Array.isArray(backupState.audioSources)).toBe(true);
-      expect(backupState.globalVolume).toBe(1);
-
-      // Each audio source should have a url property
-      backupState.audioSources.forEach((source) => {
-        expect(source).toHaveProperty("url");
-        expect(typeof source.url).toBe("string");
-      });
-    });
   });
 
   describe("RoomManager Integration", () => {

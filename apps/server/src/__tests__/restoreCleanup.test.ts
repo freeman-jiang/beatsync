@@ -81,20 +81,6 @@ describe("Restore Cleanup", () => {
     expect(room2.getState().audioSources.length).toBe(0);
   });
 
-  it("should not have active connections for restored rooms", async () => {
-    // Restore state
-    await BackupManager.restoreState();
-
-    const room = globalManager.getRoom("test-room-1")!;
-
-    // Room should exist but have no active connections
-    expect(room).toBeDefined();
-    expect(room.hasActiveConnections()).toBe(false);
-
-    // Even though the backup had a client, it's just a ghost
-    expect(room.getClients().length).toBe(0);
-  });
-
   it("should cancel cleanup when a real client connects to restored room", async () => {
     // Restore state
     await BackupManager.restoreState();

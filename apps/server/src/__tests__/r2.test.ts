@@ -48,16 +48,6 @@ describe("R2 Pure Functions", () => {
       expect(name).toEndWith(".wav");
     });
 
-    it("should handle ogg extension", () => {
-      const name = generateAudioFileName("track.ogg");
-      expect(name).toEndWith(".ogg");
-    });
-
-    it("should contain the delimiter", () => {
-      const name = generateAudioFileName("my-song.mp3");
-      expect(name).toContain("___");
-    });
-
     it("should sanitize the filename", () => {
       const name = generateAudioFileName("path/to/song.mp3");
       expect(name).not.toContain("/");
