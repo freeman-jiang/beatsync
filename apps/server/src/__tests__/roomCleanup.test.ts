@@ -1,27 +1,10 @@
 import type { ServerWebSocket } from "bun";
 import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { mockR2 } from "@/__tests__/mocks/r2";
 import { globalManager } from "@/managers/GlobalManager";
 import type { WSData } from "@/utils/websocket";
 
-// Mock the deleteObjectsWithPrefix to avoid R2 calls
-void mock.module("@/lib/r2", () => ({
-  deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
-  uploadJSON: mock(() => {
-    // noop
-  }),
-  downloadJSON: mock(() => null),
-  getLatestFileWithPrefix: mock(() => null),
-  getSortedFilesWithPrefix: mock(() => []),
-  deleteObject: mock(() => {
-    // noop
-  }),
-  validateAudioFileExists: mock(() => true), // Mock to always return true for tests
-  cleanupOrphanedRooms: mock(() => ({
-    orphanedRooms: [],
-    totalRooms: 0,
-    totalFiles: 0,
-  })),
-}));
+mockR2();
 
 describe("Room Cleanup Timer", () => {
   beforeEach(() => {

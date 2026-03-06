@@ -1,28 +1,11 @@
 import type { ServerWebSocket } from "bun";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { mockR2 } from "@/__tests__/mocks/r2";
 import { globalManager } from "@/managers/GlobalManager";
 import type { RoomManager } from "@/managers/RoomManager";
 import type { WSData } from "@/utils/websocket";
 
-// Mock the R2 module to avoid external calls
-void mock.module("@/lib/r2", () => ({
-  deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
-  uploadJSON: mock(() => {
-    // noop
-  }),
-  downloadJSON: mock(() => null),
-  getLatestFileWithPrefix: mock(() => null),
-  getSortedFilesWithPrefix: mock(() => []),
-  deleteObject: mock(() => {
-    // noop
-  }),
-  validateAudioFileExists: mock(() => true),
-  cleanupOrphanedRooms: mock(() => ({
-    orphanedRooms: [],
-    totalRooms: 0,
-    totalFiles: 0,
-  })),
-}));
+mockR2();
 
 // Helper function to create a mock WebSocket
 function createMockWs(clientId: string, username: string, roomId: string): ServerWebSocket<WSData> {

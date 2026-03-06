@@ -1,25 +1,9 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { mockR2 } from "@/__tests__/mocks/r2";
 import { globalManager } from "@/managers/GlobalManager";
 import type { RoomManager } from "@/managers/RoomManager";
 
-// Mock the r2 module before importing BackupManager
-void mock.module("@/lib/r2", () => ({
-  uploadJSON: mock(() => {
-    // noop
-  }),
-  downloadJSON: mock(() => null),
-  getLatestFileWithPrefix: mock(() => null),
-  getSortedFilesWithPrefix: mock(() => []),
-  deleteObject: mock(() => {
-    // noop
-  }),
-  validateAudioFileExists: mock(() => true), // Mock to always return true for tests
-  cleanupOrphanedRooms: mock(() => ({
-    orphanedRooms: [],
-    totalRooms: 0,
-    totalFiles: 0,
-  })),
-}));
+mockR2();
 
 describe("BackupManager (Simplified Tests)", () => {
   beforeEach(() => {

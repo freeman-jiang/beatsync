@@ -1,69 +1,52 @@
 import type { ServerWebSocket } from "bun";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { mockR2 } from "@/__tests__/mocks/r2";
 import { BackupManager } from "@/managers/BackupManager";
 import { globalManager } from "@/managers/GlobalManager";
 import type { WSData } from "@/utils/websocket";
 
-// Mock the R2 operations
-void mock.module("@/lib/r2", () => ({
-  deleteObjectsWithPrefix: mock(() => ({ deletedCount: 0 })),
-  uploadJSON: mock(() => {
-    // noop
-  }),
-  downloadJSON: mock((_key: string) => {
-    // Return test backup data
-    return {
-      timestamp: Date.now() - 60000, // 1 minute ago
-      data: {
-        rooms: {
-          "test-room-1": {
-            clientDatas: [
-              {
-                clientId: "ghost-1",
-                username: "user1",
-                isAdmin: false,
-                joinedAt: Date.now(),
-                rtt: 0,
-                position: { x: 0, y: 0 },
-                lastNtpResponse: Date.now(),
-              },
-            ],
-            audioSources: [{ url: "test.mp3" }],
-            globalVolume: 1,
-            playbackState: {
-              type: "paused",
-              audioSource: "",
-              serverTimeToExecute: 0,
-              trackPositionSeconds: 0,
+mockR2({
+  downloadJSON: mock(() => ({
+    timestamp: Date.now() - 60000,
+    data: {
+      rooms: {
+        "test-room-1": {
+          clientDatas: [
+            {
+              clientId: "ghost-1",
+              username: "user1",
+              isAdmin: false,
+              joinedAt: Date.now(),
+              rtt: 0,
+              position: { x: 0, y: 0 },
+              lastNtpResponse: Date.now(),
             },
+          ],
+          audioSources: [{ url: "test.mp3" }],
+          globalVolume: 1,
+          playbackState: {
+            type: "paused",
+            audioSource: "",
+            serverTimeToExecute: 0,
+            trackPositionSeconds: 0,
           },
-          "test-room-2": {
-            clientDatas: [],
-            audioSources: [],
-            globalVolume: 1,
-            playbackState: {
-              type: "paused",
-              audioSource: "",
-              serverTimeToExecute: 0,
-              trackPositionSeconds: 0,
-            },
+        },
+        "test-room-2": {
+          clientDatas: [],
+          audioSources: [],
+          globalVolume: 1,
+          playbackState: {
+            type: "paused",
+            audioSource: "",
+            serverTimeToExecute: 0,
+            trackPositionSeconds: 0,
           },
         },
       },
-    };
-  }),
-  getLatestFileWithPrefix: mock(() => "state-backup/backup-test.json"),
-  getSortedFilesWithPrefix: mock(() => []),
-  deleteObject: mock(() => {
-    // noop
-  }),
-  validateAudioFileExists: mock(() => true), // Mock to always return true for tests
-  cleanupOrphanedRooms: mock(() => ({
-    orphanedRooms: [],
-    totalRooms: 0,
-    totalFiles: 0,
+    },
   })),
-}));
+  getLatestFileWithPrefix: mock(() => "state-backup/backup-test.json"),
+});
 
 describe("Restore Cleanup", () => {
   beforeEach(() => {
