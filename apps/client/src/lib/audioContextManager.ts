@@ -10,6 +10,7 @@ class AudioContextManager {
   private audioContext: AudioContext | null = null;
   private masterGainNode: GainNode | null = null;
   private stateChangeCallback: ((state: AudioContextState) => void) | null = null;
+  private wakeLock: WakeLockSentinel | null = null;
 
   private constructor() {
     // Private constructor to enforce singleton pattern
@@ -64,6 +65,42 @@ class AudioContextManager {
         console.error("[AudioContextManager] Failed to resume AudioContext:", error);
         throw error;
       }
+    }
+
+    // Request wake lock to prevent device sleep and WiFi power-save mode
+    await this.requestWakeLock();
+  }
+
+  /**
+   * Request a screen wake lock to prevent WiFi Power Save Mode (PSM).
+   * PSM buffers incoming packets at the AP for 100-300ms, destroying sync.
+   * Re-acquires automatically when the page becomes visible again.
+   */
+  private async requestWakeLock(): Promise<void> {
+    if (this.wakeLock) return; // Already held
+
+    try {
+      if ("wakeLock" in navigator) {
+        this.wakeLock = await navigator.wakeLock.request("screen");
+        console.log("[AudioContextManager] Wake lock acquired");
+
+        // Re-acquire on visibility change (lock is released when page is hidden)
+        this.wakeLock.addEventListener("release", () => {
+          console.log("[AudioContextManager] Wake lock released");
+          this.wakeLock = null;
+        });
+
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible" && !this.wakeLock) {
+            this.requestWakeLock().catch(() => {
+              // Silently fail — wake lock is best-effort
+            });
+          }
+        });
+      }
+    } catch {
+      // Wake lock request can fail (e.g., low battery, unsupported browser)
+      console.warn("[AudioContextManager] Wake lock not available");
     }
   }
 
@@ -138,6 +175,25 @@ class AudioContextManager {
     } else {
       this.masterGainNode.gain.value = clampedValue;
     }
+  }
+
+  /**
+   * Convert a performance.now() timestamp to AudioContext.currentTime.
+   * Uses getOutputTimestamp() to bridge the two clock domains, correcting
+   * for drift between the system oscillator and audio hardware clock.
+   */
+  perfTimeToAudioTime(perfTimeMs: number): number {
+    const ctx = this.audioContext;
+    if (!ctx) return perfTimeMs / 1000;
+
+    const ts = ctx.getOutputTimestamp();
+    if (!ts.contextTime || !ts.performanceTime) {
+      // Fallback: assume clocks are aligned
+      return ctx.currentTime + (perfTimeMs - performance.now()) / 1000;
+    }
+
+    // Linear mapping: audioTime = contextTime + (perfTime - performanceTime) / 1000
+    return ts.contextTime + (perfTimeMs - ts.performanceTime) / 1000;
   }
 
   /**

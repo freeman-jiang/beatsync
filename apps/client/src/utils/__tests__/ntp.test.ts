@@ -1,5 +1,5 @@
-// Tests the NTP sync pure functions: offset estimation (best-half filtering),
-// wait time calculation, and NTP measurement creation from server timestamps.
+// Tests the NTP sync pure functions: min-RTT offset selection,
+// wait time calculation, and measurement filtering behavior.
 
 import { describe, expect, it, mock } from "bun:test";
 import { calculateOffsetEstimate, calculateWaitTimeMilliseconds, type NTPMeasurement } from "@/utils/ntp";
@@ -25,23 +25,50 @@ function createMeasurement(data: { roundTripDelay: number; clockOffset: number }
 }
 
 describe("calculateOffsetEstimate", () => {
-  it("should use only the best half of measurements by RTT for offset", () => {
-    // 4 measurements: best half (lowest RTT) = first 2
+  it("should select the offset from the minimum-RTT measurement", () => {
     const measurements: NTPMeasurement[] = [
       createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
       createMeasurement({ roundTripDelay: 20, clockOffset: 110 }),
-      createMeasurement({ roundTripDelay: 200, clockOffset: 500 }), // noisy — should be excluded
-      createMeasurement({ roundTripDelay: 300, clockOffset: 800 }), // noisy — should be excluded
+      createMeasurement({ roundTripDelay: 200, clockOffset: 500 }),
+      createMeasurement({ roundTripDelay: 300, clockOffset: 800 }),
     ];
 
     const result = calculateOffsetEstimate(measurements);
 
-    // Best half = measurements with RTT 10 and 20, offsets 100 and 110
-    // Average offset = (100 + 110) / 2 = 105
-    expect(result.averageOffset).toBe(105);
+    // Min RTT is 10, its offset is 100
+    expect(result.averageOffset).toBe(100);
 
     // Average round trip uses ALL measurements: (10 + 20 + 200 + 300) / 4 = 132.5
     expect(result.averageRoundTrip).toBe(132.5);
+  });
+
+  it("should ignore high-RTT spikes entirely", () => {
+    const measurements: NTPMeasurement[] = [
+      createMeasurement({ roundTripDelay: 18, clockOffset: 149 }),
+      createMeasurement({ roundTripDelay: 22, clockOffset: 151 }),
+      createMeasurement({ roundTripDelay: 20, clockOffset: 150 }),
+      createMeasurement({ roundTripDelay: 500, clockOffset: 350 }),
+      createMeasurement({ roundTripDelay: 800, clockOffset: -150 }),
+    ];
+
+    const result = calculateOffsetEstimate(measurements);
+
+    // Min RTT is 18, its offset is 149 — spikes have zero influence
+    expect(result.averageOffset).toBe(149);
+  });
+
+  it("should handle negative clock offsets (client ahead of server)", () => {
+    const measurements: NTPMeasurement[] = [
+      createMeasurement({ roundTripDelay: 12, clockOffset: -48 }),
+      createMeasurement({ roundTripDelay: 10, clockOffset: -50 }),
+      createMeasurement({ roundTripDelay: 15, clockOffset: -55 }),
+      createMeasurement({ roundTripDelay: 500, clockOffset: -200 }),
+    ];
+
+    const result = calculateOffsetEstimate(measurements);
+
+    // Min RTT is 10, its offset is -50
+    expect(result.averageOffset).toBe(-50);
   });
 
   it("should handle a single measurement", () => {
@@ -49,62 +76,8 @@ describe("calculateOffsetEstimate", () => {
 
     const result = calculateOffsetEstimate(measurements);
 
-    // Single measurement: best half = ceil(1/2) = 1, so it uses the only measurement
     expect(result.averageOffset).toBe(200);
     expect(result.averageRoundTrip).toBe(50);
-  });
-
-  it("should handle odd number of measurements (ceil for best half)", () => {
-    // 3 measurements: best half = ceil(3/2) = 2
-    const measurements: NTPMeasurement[] = [
-      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
-      createMeasurement({ roundTripDelay: 30, clockOffset: 120 }),
-      createMeasurement({ roundTripDelay: 500, clockOffset: 900 }), // excluded
-    ];
-
-    const result = calculateOffsetEstimate(measurements);
-
-    // Best 2: offsets 100 and 120 → average = 110
-    expect(result.averageOffset).toBe(110);
-  });
-
-  it("should handle negative clock offsets (client ahead of server)", () => {
-    const measurements: NTPMeasurement[] = [
-      createMeasurement({ roundTripDelay: 10, clockOffset: -50 }),
-      createMeasurement({ roundTripDelay: 15, clockOffset: -55 }),
-      createMeasurement({ roundTripDelay: 12, clockOffset: -48 }),
-      createMeasurement({ roundTripDelay: 500, clockOffset: -200 }), // spike — excluded
-    ];
-
-    const result = calculateOffsetEstimate(measurements);
-
-    // Best half = ceil(4/2) = 2 (RTT 10 and 12), offsets -50 and -48
-    // Average offset = (-50 + -48) / 2 = -49
-    expect(result.averageOffset).toBe(-49);
-  });
-
-  it("should filter out spiky measurements from offset calculation", () => {
-    // Simulate a realistic scenario: 10 measurements, 2 have high RTT spikes
-    const goodOffset = 150;
-    const measurements: NTPMeasurement[] = [
-      createMeasurement({ roundTripDelay: 20, clockOffset: goodOffset }),
-      createMeasurement({ roundTripDelay: 22, clockOffset: goodOffset + 1 }),
-      createMeasurement({ roundTripDelay: 18, clockOffset: goodOffset - 1 }),
-      createMeasurement({ roundTripDelay: 25, clockOffset: goodOffset + 2 }),
-      createMeasurement({ roundTripDelay: 21, clockOffset: goodOffset }),
-      createMeasurement({ roundTripDelay: 19, clockOffset: goodOffset - 1 }),
-      createMeasurement({ roundTripDelay: 23, clockOffset: goodOffset + 1 }),
-      createMeasurement({ roundTripDelay: 24, clockOffset: goodOffset + 2 }),
-      // Spikes — these should be excluded from offset calculation
-      createMeasurement({ roundTripDelay: 500, clockOffset: goodOffset + 200 }),
-      createMeasurement({ roundTripDelay: 800, clockOffset: goodOffset - 300 }),
-    ];
-
-    const result = calculateOffsetEstimate(measurements);
-
-    // The offset should be close to 150, not pulled by the spikes
-    expect(result.averageOffset).toBeGreaterThan(145);
-    expect(result.averageOffset).toBeLessThan(155);
   });
 });
 
