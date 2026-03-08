@@ -299,15 +299,6 @@ export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." 
             Start System
           </motion.button>
 
-          <motion.p
-            className="text-neutral-500 mt-4.5 text-center text-xs"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.3 }}
-          >
-            Use native device speakers.
-          </motion.p>
-
           <motion.div
             className="flex justify-center gap-6 mt-4 text-[11px] text-neutral-600 font-mono"
             initial={{ opacity: 0 }}

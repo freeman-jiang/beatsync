@@ -18,6 +18,7 @@ import { handleSetListeningSource } from "@/websocket/handlers/setListeningSourc
 import { handleStartSpatialAudio } from "@/websocket/handlers/startSpatialAudio";
 import { handleStopSpatialAudio } from "@/websocket/handlers/stopSpatialAudio";
 import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAudioSources";
+import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
 import { handleSync } from "@/websocket/handlers/sync";
 import type { WebsocketRegistry } from "@/websocket/types";
 
@@ -117,5 +118,9 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.REORDER_AUDIO_SOURCES]: {
     handle: handleReorderAudioSources,
     description: "Reorder audio sources in the room queue",
+  },
+  [ClientActionEnum.enum.SET_METRONOME]: {
+    handle: handleSetMetronome,
+    description: "Toggle metronome on/off for all clients in the room",
   },
 };

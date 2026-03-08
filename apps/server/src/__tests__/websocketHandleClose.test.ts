@@ -64,7 +64,7 @@ describe("handleClose", () => {
     handleOpen(ws2, server);
 
     // Keep client-2's NTP fresh
-    globalManager.getRoom(ROOM_ID)!.processNTPRequestFrom("client-2");
+    globalManager.getRoom(ROOM_ID)!.processNTPRequestFrom({ clientId: "client-2" });
 
     handleClose(ws1, server);
 

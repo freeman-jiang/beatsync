@@ -12,6 +12,7 @@ export const ClientDataSchema = z.object({
   username: z.string(),
   clientId: z.string(),
   rtt: z.number().nonnegative().default(0), // Round-trip time in milliseconds
+  compensationMs: z.number().nonnegative().default(0), // Client's local compensation (outputLatency + nudge)
   position: PositionSchema,
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
   isAdmin: z.boolean().default(false), // Admin status
@@ -83,6 +84,12 @@ const GlobalVolumeConfigSchema = z.object({
 });
 export type GlobalVolumeConfigType = z.infer<typeof GlobalVolumeConfigSchema>;
 
+const MetronomeConfigSchema = z.object({
+  type: z.literal("METRONOME_CONFIG"),
+  enabled: z.boolean(),
+});
+export type MetronomeConfigType = z.infer<typeof MetronomeConfigSchema>;
+
 const StreamJobUpdateSchema = z.object({
   type: z.literal("STREAM_JOB_UPDATE"),
   activeJobCount: z.number().nonnegative(),
@@ -98,6 +105,7 @@ export const ScheduledActionSchema = z.object({
     SpatialConfigSchema,
     StopSpatialAudioSchema,
     GlobalVolumeConfigSchema,
+    MetronomeConfigSchema,
   ]),
 });
 

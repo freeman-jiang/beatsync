@@ -33,6 +33,7 @@ export const ClientActionEnum = z.enum([
   "SEND_CHAT_MESSAGE", // Send a chat message,
   "AUDIO_SOURCE_LOADED", // Audio source loaded in response to a LOAD_AUDIO_SOURCE request
   "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
+  "SET_METRONOME", // Toggle metronome on/off for all clients
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -40,6 +41,7 @@ export const NTPRequestPacketSchema = z.object({
   t0: z.number(), // Client send timestamp
   t1: z.number().optional(), // Server receive timestamp (will be set by the server)
   clientRTT: z.number().optional(), // Client's current RTT estimate in ms
+  clientCompensationMs: z.number().optional(), // Total local compensation (outputLatency + nudge) the client subtracts from wait time
   probeGroupId: z.number(), // Coded probes (Huygens): shared ID for both probes in a pair
   probeGroupIndex: z.union([z.literal(0), z.literal(1)]), // Coded probes: 0 = first probe, 1 = second probe
 });
@@ -147,6 +149,11 @@ export const ReorderAudioSourcesSchema = z.object({
   reorderedAudioSources: z.array(AudioSourceSchema).min(1),
 });
 
+export const SetMetronomeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_METRONOME),
+  enabled: z.boolean(),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -168,6 +175,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SendChatMessageSchema,
   AudioSourceLoadedSchema,
   ReorderAudioSourcesSchema,
+  SetMetronomeSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

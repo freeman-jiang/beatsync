@@ -76,6 +76,19 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     },
   });
 
+  // Send current metronome state to the newly joined client only
+  sendUnicast({
+    ws,
+    message: {
+      type: "SCHEDULED_ACTION",
+      serverTimeToExecute: epochNow(),
+      scheduledAction: {
+        type: "METRONOME_CONFIG",
+        enabled: room.getIsMetronomeEnabled(),
+      },
+    },
+  });
+
   // Send chat history via broadcast (similar to audio sources)
   // The isFullSync flag tells existing clients to ignore this update
   const messages = room.getFullChatHistory();

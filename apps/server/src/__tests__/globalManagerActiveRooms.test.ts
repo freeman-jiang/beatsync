@@ -36,7 +36,7 @@ function createActiveRoom(
     const ws = createMockWs({ clientId: `${roomId}-client-${i}`, roomId });
     room.addClient(ws);
     // Keep NTP fresh so hasActiveConnections() returns true
-    room.processNTPRequestFrom(`${roomId}-client-${i}`);
+    room.processNTPRequestFrom({ clientId: `${roomId}-client-${i}` });
   }
 
   if (opts.playing !== false) {

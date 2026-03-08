@@ -16,6 +16,7 @@ import {
   ClientActionEnum,
   ClientDataType,
   GlobalVolumeConfigType,
+  MetronomeConfigType,
   GRID,
   LoadAudioSourceType,
   NTP_CONSTANTS,
@@ -100,6 +101,7 @@ interface GlobalStateValues {
   offsetEstimate: number;
   roundTripEstimate: number;
   isSynced: boolean;
+  nudgeOffsetMs: number;
 
   // Audio Player
   audioPlayer: AudioPlayerState | null;
@@ -134,6 +136,9 @@ interface GlobalStateValues {
 
   // Stream job tracking
   activeStreamJobs: number;
+
+  // Metronome
+  isMetronomeActive: boolean;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -163,6 +168,7 @@ interface GlobalState extends GlobalStateValues {
   processStopSpatialAudio: () => void;
   setConnectedClients: (clients: ClientDataType[]) => void;
   sendProbePair: () => void;
+  nudge: (data: { amountMs: number }) => void;
   resetNTPConfig: () => void;
   addProbePairResult: (result: NTPMeasurement) => void;
   onConnectionReset: () => void;
@@ -195,6 +201,10 @@ interface GlobalState extends GlobalStateValues {
 
   // Stream job methods
   setActiveStreamJobs: (count: number) => void;
+
+  // Metronome methods
+  toggleMetronome: () => void;
+  processMetronomeConfig: (config: MetronomeConfigType) => void;
 
   // Audio source methods
   handleLoadAudioSource: (sources: LoadAudioSourceType) => void;
@@ -232,6 +242,7 @@ const initialState: GlobalStateValues = {
   offsetEstimate: 0,
   roundTripEstimate: 0,
   isSynced: false,
+  nudgeOffsetMs: 0,
 
   // Loading state
   isInitingSystem: true,
@@ -261,6 +272,9 @@ const initialState: GlobalStateValues = {
 
   // Stream job tracking
   activeStreamJobs: 0,
+
+  // Metronome
+  isMetronomeActive: false,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -279,15 +293,28 @@ const getSocket = (state: GlobalState) => {
   };
 };
 
-const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
-  const { offsetEstimate } = state;
+const MAX_TRUSTWORTHY_OUTPUT_LATENCY_MS = 100;
 
-  const waitTimeMilliseconds = calculateWaitTimeMilliseconds(targetServerTime, offsetEstimate);
-
-  const outputLatencyMs = (audioContextManager.getContext().outputLatency ?? 0) * 1000;
-  if (outputLatencyMs > 0) {
-    console.log(`[OutputLatency] compensating ${outputLatencyMs.toFixed(1)}ms`);
+/**
+ * Read the browser's outputLatency, filtering out garbage values (e.g. Bluetooth reporting 648ms).
+ * Wired speakers (~24ms) are trustworthy. Bluetooth users should use manual nudge.
+ */
+const getFilteredOutputLatencyMs = (): number => {
+  const rawMs = (audioContextManager.getContext().outputLatency ?? 0) * 1000;
+  if (rawMs > MAX_TRUSTWORTHY_OUTPUT_LATENCY_MS) {
+    console.warn(`[OutputLatency] ignoring ${rawMs.toFixed(0)}ms (likely Bluetooth garbage — use nudge)`);
+    return 0;
   }
+  if (rawMs > 0) {
+    console.log(`[OutputLatency] compensating ${rawMs.toFixed(1)}ms`);
+  }
+  return rawMs;
+};
+
+const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
+  const effectiveOffset = state.offsetEstimate + state.nudgeOffsetMs;
+  const waitTimeMilliseconds = calculateWaitTimeMilliseconds(targetServerTime, effectiveOffset);
+  const outputLatencyMs = getFilteredOutputLatencyMs();
   return Math.max(0, (waitTimeMilliseconds - outputLatencyMs) / 1000);
 };
 
@@ -627,26 +654,34 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       //   await new Promise((resolve) => setTimeout(resolve, 1000));
       // }
 
-      const waitTimeSeconds = getWaitTimeSeconds(state, data.targetServerTime);
+      let waitTimeSeconds = getWaitTimeSeconds(state, data.targetServerTime);
+      console.log(`[Nudge] nudgeOffsetMs=${state.nudgeOffsetMs}ms, waitTimeSeconds=${waitTimeSeconds.toFixed(3)}s`);
 
-      // Check if the scheduled time has already passed (with 50ms tolerance)
+      // Check if the scheduled time has already passed
       if (waitTimeSeconds < 0.05) {
-        console.warn(`Scheduled playback time has passed or is too close. Requesting resync...`);
+        // Check if it would have been on time without nudge AND without output latency compensation
+        // (i.e., is the network genuinely late, or did local compensation consume the buffer?)
+        const rawWaitMs = calculateWaitTimeMilliseconds(data.targetServerTime, state.offsetEstimate);
+        const rawWaitSeconds = rawWaitMs / 1000;
 
-        // Don't play - request a fresh sync instead
-        const { socket } = getSocket(state);
-        sendWSRequest({
-          ws: socket,
-          request: { type: ClientActionEnum.enum.SYNC },
-        });
+        if (rawWaitSeconds < 0.05) {
+          // Network is genuinely late — resync
+          console.warn(`Scheduled playback time has passed. Requesting resync...`);
+          const { socket } = getSocket(state);
+          sendWSRequest({
+            ws: socket,
+            request: { type: ClientActionEnum.enum.SYNC },
+          });
+          toast.info("Experiencing some network delays...", {
+            id: "lateSchedule",
+            duration: 2000,
+          });
+          return;
+        }
 
-        // Show user feedback
-        toast.info("Experiencing some network delays...", {
-          id: "lateSchedule",
-          duration: 2000,
-        });
-
-        return; // Exit without playing
+        // Output latency and/or nudge consumed the buffer — play immediately
+        console.log(`[Nudge] Playing immediately (local compensation consumed scheduling buffer)`);
+        waitTimeSeconds = 0;
       }
 
       console.log(`Playing track ${data.audioSource} at ${data.trackTimeSeconds} seconds in ${waitTimeSeconds}`);
@@ -700,7 +735,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       state.playAudio({
         offset: data.trackTimeSeconds,
         when: waitTimeSeconds,
-        audioIndex, // Pass the found index for actual playback
+        audioIndex,
       });
     },
 
@@ -831,7 +866,30 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         console.warn("Latency is very high (>750ms). Sync may be unstable.");
       }
 
-      sendProbePairWS({ ws: socket, currentRTT: state.roundTripEstimate ?? undefined });
+      // Compute total local compensation (outputLatency + nudge) to report to server
+      const totalCompensationMs = getFilteredOutputLatencyMs() + state.nudgeOffsetMs;
+
+      sendProbePairWS({
+        ws: socket,
+        currentRTT: state.roundTripEstimate ?? undefined,
+        compensationMs: totalCompensationMs > 0 ? totalCompensationMs : undefined,
+      });
+    },
+
+    nudge: ({ amountMs }) => {
+      const state = get();
+      const newNudge = state.nudgeOffsetMs + amountMs;
+      set({ nudgeOffsetMs: newNudge });
+
+      // If currently playing, restart playback at the adjusted position
+      if (state.isPlaying && state.audioPlayer) {
+        const audioIndex = state.audioSources.findIndex((as) => as.source.url === state.selectedAudioUrl);
+        if (audioIndex === -1) return;
+
+        const currentPosition = state.getCurrentTrackPosition();
+        const adjustedPosition = Math.max(0, currentPosition - amountMs / 1000);
+        state.playAudio({ offset: adjustedPosition, when: 0, audioIndex });
+      }
     },
 
     resetNTPConfig() {
@@ -841,6 +899,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         offsetEstimate: 0,
         roundTripEstimate: 0,
         isSynced: false,
+        nudgeOffsetMs: 0,
       });
     },
 
@@ -1379,6 +1438,24 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     // Stream job methods
     setActiveStreamJobs: (count) => set({ activeStreamJobs: count }),
+
+    // Metronome methods
+    toggleMetronome: () => {
+      const { socket, isMetronomeActive } = get();
+      if (!socket) return;
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_METRONOME,
+          enabled: !isMetronomeActive,
+        },
+      });
+    },
+
+    processMetronomeConfig: (config: MetronomeConfigType) => {
+      set({ isMetronomeActive: config.enabled });
+    },
 
     // Audio source methods
     handleLoadAudioSource: ({ audioSourceToPlay }: LoadAudioSourceType) => {

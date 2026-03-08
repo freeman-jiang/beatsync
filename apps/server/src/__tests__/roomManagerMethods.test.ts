@@ -48,7 +48,7 @@ describe("processNTPRequestFrom", () => {
     const { room } = createRoomWithClients(1);
     const before = Date.now();
 
-    room.processNTPRequestFrom("client-1");
+    room.processNTPRequestFrom({ clientId: "client-1" });
 
     const client = room.getClient("client-1")!;
     expect(client.lastNtpResponse).toBeGreaterThanOrEqual(before);
@@ -57,7 +57,7 @@ describe("processNTPRequestFrom", () => {
   it("should set RTT directly on first measurement", () => {
     const { room } = createRoomWithClients(1);
 
-    room.processNTPRequestFrom("client-1", 100);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 100 });
 
     const client = room.getClient("client-1")!;
     expect(client.rtt).toBe(100);
@@ -67,28 +67,28 @@ describe("processNTPRequestFrom", () => {
     const { room } = createRoomWithClients(1);
 
     // First measurement: sets RTT directly
-    room.processNTPRequestFrom("client-1", 100);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 100 });
     expect(room.getClient("client-1")!.rtt).toBe(100);
 
     // Second measurement: EMA with alpha=0.2
     // newRTT = 100 * 0.8 + 200 * 0.2 = 80 + 40 = 120
-    room.processNTPRequestFrom("client-1", 200);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 200 });
     expect(room.getClient("client-1")!.rtt).toBeCloseTo(120, 5);
 
     // Third measurement
     // newRTT = 120 * 0.8 + 50 * 0.2 = 96 + 10 = 106
-    room.processNTPRequestFrom("client-1", 50);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 50 });
     expect(room.getClient("client-1")!.rtt).toBeCloseTo(106, 5);
   });
 
   it("should ignore RTT of zero or negative", () => {
     const { room } = createRoomWithClients(1);
 
-    room.processNTPRequestFrom("client-1", 100);
-    room.processNTPRequestFrom("client-1", 0);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 100 });
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 0 });
     expect(room.getClient("client-1")!.rtt).toBe(100);
 
-    room.processNTPRequestFrom("client-1", -50);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: -50 });
     expect(room.getClient("client-1")!.rtt).toBe(100);
   });
 });
@@ -97,10 +97,10 @@ describe("getMaxClientRTT", () => {
   it("should return the highest RTT among clients", () => {
     const { room } = createRoomWithClients(4);
 
-    room.processNTPRequestFrom("client-1", 50);
-    room.processNTPRequestFrom("client-2", 200);
-    room.processNTPRequestFrom("client-3", 150);
-    room.processNTPRequestFrom("client-4", 80);
+    room.processNTPRequestFrom({ clientId: "client-1", clientRTT: 50 });
+    room.processNTPRequestFrom({ clientId: "client-2", clientRTT: 200 });
+    room.processNTPRequestFrom({ clientId: "client-3", clientRTT: 150 });
+    room.processNTPRequestFrom({ clientId: "client-4", clientRTT: 80 });
 
     expect(room.getMaxClientRTT()).toBe(200);
   });
@@ -213,7 +213,7 @@ describe("syncClient", () => {
     const { room, sockets } = createRoomWithClients(2);
 
     // Give client-2 a high RTT
-    room.processNTPRequestFrom("client-2", 500);
+    room.processNTPRequestFrom({ clientId: "client-2", clientRTT: 500 });
 
     const twoSecondsAgo = Date.now() - 2000;
     room.updatePlaybackSchedulePlay({ type: "PLAY", audioSource: AUDIO_URL, trackTimeSeconds: 0 }, twoSecondsAgo);

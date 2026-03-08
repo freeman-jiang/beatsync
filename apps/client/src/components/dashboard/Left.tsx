@@ -9,6 +9,7 @@ import { Separator } from "../ui/separator";
 import { ConnectedUsersList } from "./ConnectedUsersList";
 import { RoomQRCode } from "./CopyRoom";
 import { GlobalVolumeControl } from "./GlobalVolumeControl";
+import { MobileNudgeControl } from "./MobileNudgeControl";
 import { PlaybackPermissions } from "./PlaybackPermissions";
 
 interface LeftProps {
@@ -57,6 +58,8 @@ export const Left = ({ className }: LeftProps) => {
 
       <div className="block lg:hidden">
         <GlobalVolumeControl isMobile />
+        <Separator className="bg-neutral-800/50" />
+        <MobileNudgeControl />
         <Separator className="bg-neutral-800/50" />
       </div>
 

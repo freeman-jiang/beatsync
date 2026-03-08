@@ -103,6 +103,7 @@ export class RoomManager {
   private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
   private playbackControlsPermissions: PlaybackControlsPermissionsType = "ADMIN_ONLY";
   private globalVolume = 1.0; // Default 100% volume
+  private isMetronomeEnabled = false;
   // Map of trackId to job status
   private activeStreamJobs = new Map<string, { status: string }>();
   private chatManager: ChatManager;
@@ -287,6 +288,7 @@ export class RoomManager {
       clientId,
       isAdmin: false,
       rtt: 0,
+      compensationMs: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
     };
@@ -548,20 +550,41 @@ export class RoomManager {
   }
 
   /**
-   * Get the scheduled execution time based on dynamic RTT
-   * @returns Server timestamp when the action should be executed
+   * Get the maximum client compensation (outputLatency + nudge) among all connected clients
+   */
+  getMaxClientCompensation(): number {
+    const activeClients = this.getClients();
+    let maxCompensation = 0;
+    for (const client of activeClients) {
+      if (client.compensationMs > maxCompensation) {
+        maxCompensation = client.compensationMs;
+      }
+    }
+    return maxCompensation;
+  }
+
+  /**
+   * Get the scheduled execution time based on dynamic RTT + max client compensation.
+   * The scheduling delay must be large enough for all clients to receive the message
+   * AND apply their local compensation (outputLatency + nudge) without going negative.
    */
   getScheduledExecutionTime(opts: { extraOffsetMs: number } = { extraOffsetMs: 0 }): number {
     const maxRTT = this.getMaxClientRTT();
-    const scheduleDelayMs = calculateScheduleTimeMs(maxRTT);
-    console.log(`Scheduling with dynamic delay: ${scheduleDelayMs}ms (max RTT: ${maxRTT}ms)`);
+    const maxCompensation = this.getMaxClientCompensation();
+    const baseDelayMs = calculateScheduleTimeMs(maxRTT);
+    // Ensure enough headroom for the client with the largest local compensation
+    const scheduleDelayMs = Math.max(baseDelayMs, maxCompensation + 200);
+    console.log(
+      `Scheduling with dynamic delay: ${scheduleDelayMs}ms (max RTT: ${maxRTT}ms, max compensation: ${maxCompensation}ms)`
+    );
     return epochNow() + scheduleDelayMs + opts.extraOffsetMs;
   }
 
   /**
    * Receive an NTP request from a client
    */
-  processNTPRequestFrom(clientId: string, clientRTT?: number): void {
+  processNTPRequestFrom(data: { clientId: string; clientRTT?: number; clientCompensationMs?: number }): void {
+    const { clientId, clientRTT, clientCompensationMs } = data;
     const client = this.clientData.get(clientId);
     if (!client) return;
     client.lastNtpResponse = Date.now();
@@ -573,6 +596,11 @@ export class RoomManager {
         client.rtt > 0
           ? client.rtt * (1 - alpha) + clientRTT * alpha // Exponential moving average
           : clientRTT; // First measurement
+    }
+
+    // Store client's total local compensation (outputLatency + nudge)
+    if (clientCompensationMs !== undefined && clientCompensationMs > 0) {
+      client.compensationMs = clientCompensationMs;
     }
 
     this.clientData.set(clientId, client);
@@ -647,6 +675,27 @@ export class RoomManager {
         },
       },
     });
+  }
+
+  setMetronome(enabled: boolean, server: BunServer): void {
+    this.isMetronomeEnabled = enabled;
+
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "SCHEDULED_ACTION",
+        serverTimeToExecute: epochNow(),
+        scheduledAction: {
+          type: "METRONOME_CONFIG",
+          enabled: this.isMetronomeEnabled,
+        },
+      },
+    });
+  }
+
+  getIsMetronomeEnabled(): boolean {
+    return this.isMetronomeEnabled;
   }
 
   /**

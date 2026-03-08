@@ -35,8 +35,12 @@ export const resetProbeState = () => {
  * inter-arrival gap matches, filtering out measurements corrupted by
  * queuing, TCP HOL blocking, or GC pauses.
  */
-export const sendProbePair = (data: { ws: WebSocket; currentRTT: number | undefined }) => {
-  const { ws, currentRTT } = data;
+export const sendProbePair = (data: {
+  ws: WebSocket;
+  currentRTT: number | undefined;
+  compensationMs: number | undefined;
+}) => {
+  const { ws, currentRTT, compensationMs } = data;
   if (ws.readyState !== WebSocket.OPEN) {
     throw new Error("Cannot send NTP request: WebSocket is not open");
   }
@@ -50,6 +54,7 @@ export const sendProbePair = (data: { ws: WebSocket; currentRTT: number | undefi
       type: ClientActionEnum.enum.NTP_REQUEST,
       t0: epochNow(),
       clientRTT: currentRTT,
+      clientCompensationMs: compensationMs,
       probeGroupId,
       probeGroupIndex: 0,
     },
@@ -64,6 +69,7 @@ export const sendProbePair = (data: { ws: WebSocket; currentRTT: number | undefi
         type: ClientActionEnum.enum.NTP_REQUEST,
         t0: epochNow(),
         clientRTT: currentRTT,
+        clientCompensationMs: compensationMs,
         probeGroupId,
         probeGroupIndex: 1,
       },

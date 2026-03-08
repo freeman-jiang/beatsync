@@ -52,6 +52,7 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   const setIsSpatialAudioEnabled = useGlobalStore((state) => state.setIsSpatialAudioEnabled);
   const processStopSpatialAudio = useGlobalStore((state) => state.processStopSpatialAudio);
   const processGlobalVolumeConfig = useGlobalStore((state) => state.processGlobalVolumeConfig);
+  const processMetronomeConfig = useGlobalStore((state) => state.processMetronomeConfig);
   const handleSetAudioSources = useGlobalStore((state) => state.handleSetAudioSources);
   const setPlaybackControlsPermissions = useGlobalStore((state) => state.setPlaybackControlsPermissions);
   const setActiveStreamJobs = useGlobalStore((state) => state.setActiveStreamJobs);
@@ -191,6 +192,8 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
           processStopSpatialAudio();
         } else if (scheduledAction.type === "GLOBAL_VOLUME_CONFIG") {
           processGlobalVolumeConfig(scheduledAction);
+        } else if (scheduledAction.type === "METRONOME_CONFIG") {
+          processMetronomeConfig(scheduledAction);
         }
       } else if (response.type === "SEARCH_RESPONSE") {
         console.log("Received search response:", response);
