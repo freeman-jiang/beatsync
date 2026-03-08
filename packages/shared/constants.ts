@@ -11,7 +11,7 @@ export const NTP_CONSTANTS = {
   // Timeout before considering connection stale
   RESPONSE_TIMEOUT_MS: 1.5 * STEADY_STATE_INTERVAL_MS,
   // Maximum number of NTP measurements to collect initially
-  MAX_MEASUREMENTS: 40,
+  MAX_MEASUREMENTS: 16,
   // Coded probes (Huygens) — inter-departure gap between probe pairs
   PROBE_GAP_MS: 5,
   // Coded probes — client accepts server gap within ±this tolerance
