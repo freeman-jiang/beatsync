@@ -39,8 +39,9 @@ export const sendProbePair = (data: {
   ws: WebSocket;
   currentRTT: number | undefined;
   compensationMs: number | undefined;
+  nudgeMs: number | undefined;
 }) => {
-  const { ws, currentRTT, compensationMs } = data;
+  const { ws, currentRTT, compensationMs, nudgeMs } = data;
   if (ws.readyState !== WebSocket.OPEN) {
     throw new Error("Cannot send NTP request: WebSocket is not open");
   }
@@ -55,6 +56,7 @@ export const sendProbePair = (data: {
       t0: epochNow(),
       clientRTT: currentRTT,
       clientCompensationMs: compensationMs,
+      clientNudgeMs: nudgeMs,
       probeGroupId,
       probeGroupIndex: 0,
     },
@@ -70,6 +72,7 @@ export const sendProbePair = (data: {
         t0: epochNow(),
         clientRTT: currentRTT,
         clientCompensationMs: compensationMs,
+        clientNudgeMs: nudgeMs,
         probeGroupId,
         probeGroupIndex: 1,
       },

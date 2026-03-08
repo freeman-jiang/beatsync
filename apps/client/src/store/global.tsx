@@ -139,6 +139,9 @@ interface GlobalStateValues {
 
   // Metronome
   isMetronomeActive: boolean;
+
+  // Whether nudge has been restored from server this connection (prevents re-restore on subsequent CLIENT_CHANGE)
+  didRestoreNudge: boolean;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -275,6 +278,8 @@ const initialState: GlobalStateValues = {
 
   // Metronome
   isMetronomeActive: false,
+
+  didRestoreNudge: false,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -873,6 +878,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         ws: socket,
         currentRTT: state.roundTripEstimate ?? undefined,
         compensationMs: totalCompensationMs > 0 ? totalCompensationMs : undefined,
+        nudgeMs: state.nudgeOffsetMs,
       });
     },
 
@@ -899,7 +905,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         offsetEstimate: 0,
         roundTripEstimate: 0,
         isSynced: false,
-        nudgeOffsetMs: 0,
+        // nudgeOffsetMs is intentionally NOT reset — it's a user preference persisted on the server
       });
     },
 
@@ -928,6 +934,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       if (state.isSpatialAudioEnabled) {
         state.processStopSpatialAudio();
       }
+
+      // Allow nudge to be restored from server on next CLIENT_CHANGE
+      set({ didRestoreNudge: false });
 
       // Delegate NTP reset to the single source of truth
       get().resetNTPConfig();
@@ -1119,7 +1128,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         throw new Error(`Current user not found in connected clients: ${clientId}`);
       }
 
-      set({ connectedClients: clients, currentUser });
+      // Restore nudge from server once per connection (e.g. after reconnect)
+      const { didRestoreNudge } = get();
+      const shouldRestoreNudge = !didRestoreNudge && currentUser.nudgeMs !== 0;
+
+      set({
+        connectedClients: clients,
+        currentUser,
+        ...(shouldRestoreNudge ? { nudgeOffsetMs: currentUser.nudgeMs, didRestoreNudge: true } : {}),
+      });
     },
 
     skipToNextTrack: (isAutoplay = false) => {

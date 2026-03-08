@@ -11,6 +11,7 @@ class AudioContextManager {
   private masterGainNode: GainNode | null = null;
   private stateChangeCallback: ((state: AudioContextState) => void) | null = null;
   private wakeLock: WakeLockSentinel | null = null;
+  private hasVisibilityListener = false;
 
   private constructor() {
     // Private constructor to enforce singleton pattern
@@ -90,13 +91,17 @@ class AudioContextManager {
           this.wakeLock = null;
         });
 
-        document.addEventListener("visibilitychange", () => {
-          if (document.visibilityState === "visible" && !this.wakeLock) {
-            this.requestWakeLock().catch(() => {
-              // Silently fail — wake lock is best-effort
-            });
-          }
-        });
+        // Register visibility listener once to re-acquire wake lock after tab becomes visible
+        if (!this.hasVisibilityListener) {
+          this.hasVisibilityListener = true;
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && !this.wakeLock) {
+              this.requestWakeLock().catch(() => {
+                // Silently fail — wake lock is best-effort
+              });
+            }
+          });
+        }
       }
     } catch {
       // Wake lock request can fail (e.g., low battery, unsupported browser)
@@ -147,7 +152,7 @@ class AudioContextManager {
   }
 
   /**
-   * Setup the master gain node
+   * Setup the master gain node and Bluetooth keepalive
    */
   private setupMasterGain(): void {
     if (!this.audioContext) return;
@@ -157,6 +162,17 @@ class AudioContextManager {
 
     // Default to full volume
     this.masterGainNode.gain.value = 1.0;
+
+    // Bluetooth keepalive: prevents A2DP buffer from resettling between pause/play
+    // cycles. Uses inaudibly quiet signal (-80dB) instead of gain=0, because browsers
+    // optimize away gain=0 subgraphs and Bluetooth stacks treat that as silence.
+    const keepalive = this.audioContext.createOscillator();
+    keepalive.frequency.value = 1; // 1Hz — below audible range
+    const keepaliveGain = this.audioContext.createGain();
+    keepaliveGain.gain.value = 0.0001; // -80dB, inaudible but not optimized away
+    keepalive.connect(keepaliveGain);
+    keepaliveGain.connect(this.masterGainNode);
+    keepalive.start();
   }
 
   /**

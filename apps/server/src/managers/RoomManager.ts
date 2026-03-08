@@ -289,6 +289,7 @@ export class RoomManager {
       isAdmin: false,
       rtt: 0,
       compensationMs: 0,
+      nudgeMs: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
     };
@@ -301,6 +302,7 @@ export class RoomManager {
       clientData.location = cachedClient.location;
       clientData.isAdmin = cachedClient.isAdmin;
       clientData.joinedAt = cachedClient.joinedAt;
+      clientData.nudgeMs = cachedClient.nudgeMs;
     }
 
     // Always ensure that the first client to join an empty room becomes admin regardless
@@ -583,8 +585,13 @@ export class RoomManager {
   /**
    * Receive an NTP request from a client
    */
-  processNTPRequestFrom(data: { clientId: string; clientRTT?: number; clientCompensationMs?: number }): void {
-    const { clientId, clientRTT, clientCompensationMs } = data;
+  processNTPRequestFrom(data: {
+    clientId: string;
+    clientRTT?: number;
+    clientCompensationMs?: number;
+    clientNudgeMs?: number;
+  }): void {
+    const { clientId, clientRTT, clientCompensationMs, clientNudgeMs } = data;
     const client = this.clientData.get(clientId);
     if (!client) return;
     client.lastNtpResponse = Date.now();
@@ -601,6 +608,11 @@ export class RoomManager {
     // Store client's total local compensation (outputLatency + nudge)
     if (clientCompensationMs !== undefined && clientCompensationMs > 0) {
       client.compensationMs = clientCompensationMs;
+    }
+
+    // Store client's manual nudge value (always update, including 0)
+    if (clientNudgeMs !== undefined) {
+      client.nudgeMs = clientNudgeMs;
     }
 
     this.clientData.set(clientId, client);

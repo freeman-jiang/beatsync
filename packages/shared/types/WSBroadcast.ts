@@ -13,6 +13,7 @@ export const ClientDataSchema = z.object({
   clientId: z.string(),
   rtt: z.number().nonnegative().default(0), // Round-trip time in milliseconds
   compensationMs: z.number().nonnegative().default(0), // Client's local compensation (outputLatency + nudge)
+  nudgeMs: z.number().default(0), // Manual timing nudge set by the user
   position: PositionSchema,
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
   isAdmin: z.boolean().default(false), // Admin status

@@ -19,6 +19,7 @@ describe("Chat Persistence", () => {
       joinedAt: Date.now(),
       rtt: 50,
       compensationMs: 0,
+      nudgeMs: 0,
       lastNtpResponse: Date.now(),
       disconnectedAt: null,
     };

@@ -42,6 +42,7 @@ export const NTPRequestPacketSchema = z.object({
   t1: z.number().optional(), // Server receive timestamp (will be set by the server)
   clientRTT: z.number().optional(), // Client's current RTT estimate in ms
   clientCompensationMs: z.number().optional(), // Total local compensation (outputLatency + nudge) the client subtracts from wait time
+  clientNudgeMs: z.number().optional(), // Manual timing nudge set by the user (persisted per-client)
   probeGroupId: z.number(), // Coded probes (Huygens): shared ID for both probes in a pair
   probeGroupIndex: z.union([z.literal(0), z.literal(1)]), // Coded probes: 0 = first probe, 1 = second probe
 });

@@ -16,6 +16,7 @@ export const handleNTPRequest: HandlerFunction<ExtractWSRequestFrom["NTP_REQUEST
     clientId: ws.data.clientId,
     clientRTT: message.clientRTT,
     clientCompensationMs: message.clientCompensationMs,
+    clientNudgeMs: message.clientNudgeMs,
   });
 
   sendUnicast({
