@@ -13,8 +13,8 @@ export const AnnouncementBanner = () => {
       <div className="relative">
         <div className="container mx-auto px-4 py-3">
           <p className="text-xs sm:text-sm font-medium text-center">
-            <span className="font-semibold">{"Nov 6, 2025: "}</span>
-            Add ability to reorder the music queue.
+            <span className="font-semibold">{"Mar 8, 2026: "}</span>
+            Sync algorithm improvements — better, faster, stronger.
             {/* <a
               href="#"
               className="ml-3 inline-flex items-center text-white underline hover:no-underline font-semibold"
