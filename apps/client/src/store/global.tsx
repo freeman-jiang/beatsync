@@ -2,7 +2,13 @@
 import { audioContextManager } from "@/lib/audioContextManager";
 import { getClientId } from "@/lib/clientId";
 import { extractFileNameFromUrl } from "@/lib/utils";
-import { _sendNTPRequest, calculateOffsetEstimate, calculateWaitTimeMilliseconds, NTPMeasurement } from "@/utils/ntp";
+import {
+  calculateOffsetEstimate,
+  calculateWaitTimeMilliseconds,
+  NTPMeasurement,
+  resetProbeState,
+  sendProbePair as sendProbePairWS,
+} from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
 import {
   AudioSourceSchema,
@@ -90,7 +96,7 @@ interface GlobalStateValues {
   currentUser: ClientDataType | null;
 
   // NTP
-  ntpMeasurements: NTPMeasurement[];
+  syncMeasurements: NTPMeasurement[];
   offsetEstimate: number;
   roundTripEstimate: number;
   isSynced: boolean;
@@ -156,9 +162,9 @@ interface GlobalState extends GlobalStateValues {
   setIsSpatialAudioEnabled: (isEnabled: boolean) => void;
   processStopSpatialAudio: () => void;
   setConnectedClients: (clients: ClientDataType[]) => void;
-  sendNTPRequest: () => void;
+  sendProbePair: () => void;
   resetNTPConfig: () => void;
-  addNTPMeasurement: (measurement: NTPMeasurement) => void;
+  addProbePairResult: (result: NTPMeasurement) => void;
   onConnectionReset: () => void;
   playAudio: (data: { offset: number; when: number; audioIndex?: number }) => void;
   processSpatialConfig: (config: SpatialConfigType) => void;
@@ -222,7 +228,7 @@ const initialState: GlobalStateValues = {
   currentUser: null,
 
   // NTP state
-  ntpMeasurements: [],
+  syncMeasurements: [],
   offsetEstimate: 0,
   roundTripEstimate: 0,
   isSynced: false,
@@ -817,49 +823,43 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       get().applyFinalGain();
     },
 
-    sendNTPRequest: () => {
+    sendProbePair: () => {
       const state = get();
       const { socket } = getSocket(state);
 
-      // Always send NTP request for continuous heartbeat, include current RTT
-      _sendNTPRequest(socket, state.roundTripEstimate || undefined); // don't send 0 but undefined if not properly calc'd
-
-      // Show warning if latency is high
       if (state.isSynced && state.roundTripEstimate > 750) {
         console.warn("Latency is very high (>750ms). Sync may be unstable.");
       }
+
+      sendProbePairWS({ ws: socket, currentRTT: state.roundTripEstimate ?? undefined });
     },
 
     resetNTPConfig() {
+      resetProbeState();
       set({
-        ntpMeasurements: [],
+        syncMeasurements: [],
         offsetEstimate: 0,
         roundTripEstimate: 0,
         isSynced: false,
       });
     },
 
-    addNTPMeasurement: (measurement) =>
+    addProbePairResult: (result) =>
       set((state) => {
-        let measurements = [...state.ntpMeasurements];
-
-        // Rolling queue: keep only last MAX_NTP_MEASUREMENTS
-        if (measurements.length >= MAX_NTP_MEASUREMENTS) {
-          measurements = [...measurements.slice(1), measurement];
-          if (!state.isSynced) {
-            set({ isSynced: true });
-          }
+        let results = [...state.syncMeasurements];
+        if (results.length >= MAX_NTP_MEASUREMENTS) {
+          results = [...results.slice(1), result];
         } else {
-          measurements.push(measurement);
+          results.push(result);
         }
 
-        // Always recalculate offset with current measurements
-        const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(measurements);
-
+        const nowSynced = !state.isSynced && results.length >= MAX_NTP_MEASUREMENTS;
+        const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(results);
         return {
-          ntpMeasurements: measurements,
+          syncMeasurements: results,
           offsetEstimate: averageOffset,
           roundTripEstimate: averageRoundTrip,
+          ...(nowSynced ? { isSynced: true } : {}),
         };
       }),
     onConnectionReset: () => {
@@ -870,12 +870,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         state.processStopSpatialAudio();
       }
 
-      set({
-        ntpMeasurements: [],
-        offsetEstimate: 0,
-        roundTripEstimate: 0,
-        isSynced: false,
-      });
+      // Delegate NTP reset to the single source of truth
+      get().resetNTPConfig();
     },
 
     getCurrentTrackPosition: () => {

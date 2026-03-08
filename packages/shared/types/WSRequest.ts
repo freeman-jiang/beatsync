@@ -32,7 +32,7 @@ export const ClientActionEnum = z.enum([
   "SET_GLOBAL_VOLUME", // Set global volume for all clients
   "SEND_CHAT_MESSAGE", // Send a chat message,
   "AUDIO_SOURCE_LOADED", // Audio source loaded in response to a LOAD_AUDIO_SOURCE request
-  "REORDER_AUDIO_SOURCES" // Reorder audio sources in the room queue
+  "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -40,6 +40,8 @@ export const NTPRequestPacketSchema = z.object({
   t0: z.number(), // Client send timestamp
   t1: z.number().optional(), // Server receive timestamp (will be set by the server)
   clientRTT: z.number().optional(), // Client's current RTT estimate in ms
+  probeGroupId: z.number(), // Coded probes (Huygens): shared ID for both probes in a pair
+  probeGroupIndex: z.union([z.literal(0), z.literal(1)]), // Coded probes: 0 = first probe, 1 = second probe
 });
 
 export const PlayActionSchema = z.object({
@@ -100,13 +102,8 @@ const SetAdminSchema = z.object({
   isAdmin: z.boolean(), // The new admin status
 });
 
-export const PlaybackControlsPermissionsEnum = z.enum([
-  "ADMIN_ONLY",
-  "EVERYONE",
-]);
-export type PlaybackControlsPermissionsType = z.infer<
-  typeof PlaybackControlsPermissionsEnum
->;
+export const PlaybackControlsPermissionsEnum = z.enum(["ADMIN_ONLY", "EVERYONE"]);
+export type PlaybackControlsPermissionsType = z.infer<typeof PlaybackControlsPermissionsEnum>;
 
 export const SetPlaybackControlsSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_PLAYBACK_CONTROLS),

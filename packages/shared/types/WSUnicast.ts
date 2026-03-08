@@ -9,6 +9,8 @@ const NTPResponseMessageSchema = z.object({
   t1: z.number(), // Server receive timestamp
   t2: z.number(), // Server send timestamp
   clientRTT: z.number().optional(), // Client's current RTT estimate in ms
+  probeGroupId: z.number(), // Coded probes (Huygens): echoed from request
+  probeGroupIndex: z.union([z.literal(0), z.literal(1)]), // Coded probes: echoed from request
 });
 export type NTPResponseMessageType = z.infer<typeof NTPResponseMessageSchema>;
 

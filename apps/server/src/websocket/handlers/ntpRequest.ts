@@ -21,6 +21,8 @@ export const handleNTPRequest: HandlerFunction<ExtractWSRequestFrom["NTP_REQUEST
       t0: message.t0, // Echo back the client's t0
       t1: message.t1, // Server receive time
       t2: epochNow(), // Server send time
+      probeGroupId: message.probeGroupId, // Coded probes: echo back
+      probeGroupIndex: message.probeGroupIndex, // Coded probes: echo back
     },
   });
 };

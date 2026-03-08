@@ -17,7 +17,7 @@ export const TopBar = ({ roomId }: TopBarProps) => {
   const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
   const connectedClients = useGlobalStore((state) => state.connectedClients);
   const clockOffset = useGlobalStore((state) => state.offsetEstimate);
-  const ntpMeasurements = useGlobalStore((state) => state.ntpMeasurements);
+  const syncMeasurements = useGlobalStore((state) => state.syncMeasurements);
 
   // Get current user from global store to check admin status
   const currentUser = useGlobalStore((state) => state.currentUser);
@@ -57,18 +57,18 @@ export const TopBar = ({ roomId }: TopBarProps) => {
                 stroke="currentColor"
                 strokeWidth="1.5"
                 className="text-green-500"
-                strokeDasharray={`${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`}
+                strokeDasharray={`${(syncMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`}
                 strokeLinecap="round"
                 transform="rotate(-90 7 7)"
                 initial={{ strokeDasharray: "0 31.4" }}
                 animate={{
-                  strokeDasharray: `${(ntpMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`,
+                  strokeDasharray: `${(syncMeasurements.length / MAX_NTP_MEASUREMENTS) * 31.4} 31.4`,
                 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
               />
             </motion.svg>
             <span className="text-xs">
-              {ntpMeasurements.length}/{MAX_NTP_MEASUREMENTS}
+              {syncMeasurements.length}/{MAX_NTP_MEASUREMENTS}
             </span>
           </div>
           <div className="flex items-center">

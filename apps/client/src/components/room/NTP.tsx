@@ -2,8 +2,8 @@ import { useGlobalStore } from "@/store/global";
 import { Button } from "../ui/button";
 
 export const NTP = () => {
-  const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
-  const ntpMeasurements = useGlobalStore((state) => state.ntpMeasurements);
+  const sendProbePair = useGlobalStore((state) => state.sendProbePair);
+  const syncMeasurements = useGlobalStore((state) => state.syncMeasurements);
   const offsetEstimate = useGlobalStore((state) => state.offsetEstimate);
   const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
   const resetNTPConfig = useGlobalStore((state) => state.resetNTPConfig);
@@ -12,12 +12,12 @@ export const NTP = () => {
   const resync = () => {
     pauseAudio({ when: 0 });
     resetNTPConfig();
-    sendNTPRequest();
+    sendProbePair();
   };
 
   return (
     <div>
-      {ntpMeasurements.length > 0 && <p>Synced {ntpMeasurements.length} times</p>}
+      {syncMeasurements.length > 0 && <p>Synced {syncMeasurements.length} times</p>}
       <p>Offset: {offsetEstimate} ms</p>
       <p>Round trip: {roundTripEstimate} ms</p>
       <Button onClick={resync}>Resync</Button>

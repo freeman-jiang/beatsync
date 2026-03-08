@@ -9,7 +9,7 @@ interface UseNtpHeartbeatProps {
 export const useNtpHeartbeat = ({ onConnectionStale }: UseNtpHeartbeatProps) => {
   const ntpTimerRef = useRef<number | null>(null);
   const lastNtpRequestTime = useRef<number | null>(null);
-  const sendNTPRequest = useGlobalStore((state) => state.sendNTPRequest);
+  const sendProbePair = useGlobalStore((state) => state.sendProbePair);
 
   // Store the schedule function in a ref to allow self-referencing without
   // declaring a variable before its useCallback definition
@@ -23,7 +23,7 @@ export const useNtpHeartbeat = ({ onConnectionStale }: UseNtpHeartbeatProps) => 
     }
 
     // Determine interval based on whether we have initial measurements
-    const currentMeasurements = useGlobalStore.getState().ntpMeasurements;
+    const currentMeasurements = useGlobalStore.getState().syncMeasurements;
     const interval =
       currentMeasurements.length < MAX_NTP_MEASUREMENTS
         ? NTP_CONSTANTS.INITIAL_INTERVAL_MS
@@ -40,10 +40,10 @@ export const useNtpHeartbeat = ({ onConnectionStale }: UseNtpHeartbeatProps) => 
 
       // Only reset timer and send request if the previous one didn't timeout
       lastNtpRequestTime.current = Date.now();
-      sendNTPRequest();
+      sendProbePair();
       scheduleRef.current(); // Schedule the next one via ref
     }, interval);
-  }, [sendNTPRequest, onConnectionStale]);
+  }, [sendProbePair, onConnectionStale]);
 
   // Keep scheduleRef in sync with the latest callback via useEffect
   useEffect(() => {

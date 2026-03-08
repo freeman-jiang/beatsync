@@ -29,7 +29,7 @@ const OuterModal = ({ children }: { children: React.ReactNode }) => {
 
 export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." }: SyncProgressProps) => {
   // Internal state for tracking progress animation
-  const syncProgress = useGlobalStore((state) => state.ntpMeasurements.length / MAX_NTP_MEASUREMENTS);
+  const syncProgress = useGlobalStore((state) => state.syncMeasurements.length / MAX_NTP_MEASUREMENTS);
   const isSyncComplete = useGlobalStore((state) => state.isSynced);
   const setIsInitingSystem = useGlobalStore((state) => state.setIsInitingSystem);
   const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);

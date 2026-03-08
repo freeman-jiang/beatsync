@@ -6,31 +6,25 @@ import { getUserLocation } from "@/lib/ip";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { NTPMeasurement } from "@/utils/ntp";
+import { validateProbePair, NTPMeasurement } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum, epochNow, NTPResponseMessageType, WSResponseSchema } from "@beatsync/shared";
 import { useEffect } from "react";
 
-// Helper function for NTP response handling
-const handleNTPResponse = (response: NTPResponseMessageType) => {
+/**
+ * Process an NTP_RESPONSE into a measurement and attempt to complete a probe pair.
+ * Returns a ProbePairResult if both probes in the pair have been received and validated,
+ * or null if still waiting for the second probe or the pair was impure.
+ */
+const handleNTPResponse = (response: NTPResponseMessageType): NTPMeasurement | null => {
   const t3 = epochNow();
-  const { t0, t1, t2 } = response;
+  const { t0, t1, t2, probeGroupId, probeGroupIndex } = response;
 
-  // Calculate round-trip delay and clock offset
-  // See: https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
   const clockOffset = (t1 - t0 + (t2 - t3)) / 2;
   const roundTripDelay = t3 - t0 - (t2 - t1);
+  const measurement: NTPMeasurement = { t0, t1, t2, t3, roundTripDelay, clockOffset };
 
-  const measurement: NTPMeasurement = {
-    t0,
-    t1,
-    t2,
-    t3,
-    roundTripDelay,
-    clockOffset,
-  };
-
-  return measurement;
+  return validateProbePair({ measurement, probeGroupId, probeGroupIndex });
 };
 
 interface WebSocketManagerProps {
@@ -52,7 +46,7 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   const schedulePlay = useGlobalStore((state) => state.schedulePlay);
   const schedulePause = useGlobalStore((state) => state.schedulePause);
   const processSpatialConfig = useGlobalStore((state) => state.processSpatialConfig);
-  const addNTPMeasurement = useGlobalStore((state) => state.addNTPMeasurement);
+  const addProbePairResult = useGlobalStore((state) => state.addProbePairResult);
   const setConnectedClients = useGlobalStore((state) => state.setConnectedClients);
   const isSpatialAudioEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
   const setIsSpatialAudioEnabled = useGlobalStore((state) => state.setIsSpatialAudioEnabled);
@@ -150,10 +144,12 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
       const response = WSResponseSchema.parse(JSON.parse(msg.data));
 
       if (response.type === "NTP_RESPONSE") {
-        const ntpMeasurement = handleNTPResponse(response);
-        addNTPMeasurement(ntpMeasurement);
+        const pairResult = handleNTPResponse(response);
+        if (pairResult) {
+          addProbePairResult(pairResult);
+        }
 
-        // Mark that we received the NTP response
+        // Mark that we received an NTP response (for staleness detection)
         markNTPResponseReceived();
       } else if (response.type === "ROOM_EVENT") {
         const { event } = response;
