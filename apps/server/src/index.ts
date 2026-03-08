@@ -1,6 +1,8 @@
+import { DEMO } from "@/config";
 import { BackupManager } from "@/managers/BackupManager";
 import { getActiveRooms } from "@/routes/active";
 import { handleGetDefaultAudio } from "@/routes/default";
+import { handleServeAudio } from "@/routes/demoAudio";
 import { handleDiscover } from "@/routes/discover";
 import { handleRoot } from "@/routes/root";
 import { handleStats } from "@/routes/stats";
@@ -23,6 +25,11 @@ const server = Bun.serve<WSData>({
     }
 
     try {
+      // Demo mode: serve local audio files
+      if (DEMO && url.pathname.startsWith("/audio/")) {
+        return await handleServeAudio(url.pathname);
+      }
+
       switch (url.pathname) {
         case "/":
           return handleRoot(req);
@@ -31,9 +38,11 @@ const server = Bun.serve<WSData>({
           return handleWebSocketUpgrade(req, server);
 
         case "/upload/get-presigned-url":
+          if (DEMO) return errorResponse("Uploads disabled in demo mode", 403);
           return handleGetPresignedURL(req);
 
         case "/upload/complete":
+          if (DEMO) return errorResponse("Uploads disabled in demo mode", 403);
           return handleUploadComplete(req, server);
 
         case "/stats":
@@ -73,26 +82,30 @@ const server = Bun.serve<WSData>({
 
 console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
 
-// Restore state from backup on startup
-BackupManager.restoreState().catch((error) => {
-  console.error("Failed to restore state on startup:", error);
-});
-
-// Set up periodic backups every minute (for Render persistence issues)
-const BACKUP_INTERVAL_MS = 60 * 1000; // 1 minute
-setInterval(() => {
-  console.log("🔄 Performing periodic backup at", new Date().toISOString());
-  BackupManager.backupState().catch((error) => {
-    console.error("Failed to perform periodic backup:", error);
+if (!DEMO) {
+  // Restore state from backup on startup
+  BackupManager.restoreState().catch((error) => {
+    console.error("Failed to restore state on startup:", error);
   });
-}, BACKUP_INTERVAL_MS);
+
+  // Set up periodic backups every minute (for Render persistence issues)
+  const BACKUP_INTERVAL_MS = 60 * 1000; // 1 minute
+  setInterval(() => {
+    console.log("🔄 Performing periodic backup at", new Date().toISOString());
+    BackupManager.backupState().catch((error) => {
+      console.error("Failed to perform periodic backup:", error);
+    });
+  }, BACKUP_INTERVAL_MS);
+}
 
 // Simple graceful shutdown
 const shutdown = async () => {
   console.log("\n⚠️ Shutting down...");
 
   void server.stop(); // Stop accepting new connections
-  await BackupManager.backupState(); // Save state
+  if (!DEMO) {
+    await BackupManager.backupState(); // Save state
+  }
 
   process.exit(0);
 };

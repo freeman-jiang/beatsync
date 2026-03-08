@@ -41,3 +41,5 @@ yarn-error.log*
 next-env.d.ts
 public/audio
 dist/
+
+demo-audio/

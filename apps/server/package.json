@@ -1,7 +1,9 @@
 {
   "name": "server",
   "scripts": {
+    "demo": "DEMO=1 bun run dist/index.js",
     "dev": "bun run --hot src/index.ts",
+    "dev:demo": "DEMO=1 bun run --hot src/index.ts",
     "dev:log": "rm -f ../../logs/server.log && bun run --hot src/index.ts 2>&1 | tee ../../logs/server.log",
     "build": "bun build src/index.ts --target=bun --outdir=dist --sourcemap",
     "start": "bun run dist/index.js",

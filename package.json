@@ -16,6 +16,8 @@
     "pm2:stop": "pm2 stop beatsync-server",
     "pm2:restart": "pm2 restart beatsync-server",
     "pm2:logs": "pm2 logs beatsync-server",
+    "demo:dev": "turbo run dev:demo",
+    "demo": "turbo run demo",
     "dev:log": "turbo run dev:log",
     "prepare": "lefthook install"
   },

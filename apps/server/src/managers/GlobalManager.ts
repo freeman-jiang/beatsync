@@ -1,4 +1,5 @@
 import type { DiscoverRoomsType } from "@beatsync/shared";
+import { DEMO, DEMO_AUDIO_FILENAMES } from "@/config";
 import { RoomManager } from "@/managers/RoomManager";
 
 /**
@@ -29,6 +30,11 @@ export class GlobalManager {
     let room = this.rooms.get(roomId);
     if (!room) {
       room = new RoomManager(roomId, () => this.markActiveUserCountDirty());
+      if (DEMO) {
+        for (const filename of DEMO_AUDIO_FILENAMES) {
+          room.addAudioSource({ url: `/audio/${encodeURIComponent(filename)}` });
+        }
+      }
       this.rooms.set(roomId, room);
     }
     return room;

@@ -1,6 +1,7 @@
 import type { WSBroadcastType } from "@beatsync/shared";
 import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
+import { DEMO } from "@/config";
 import { globalManager } from "@/managers";
 import { sendBroadcast, sendUnicast } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
@@ -44,6 +45,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
           type: "SET_AUDIO_SOURCES",
           sources: audioSources,
           currentAudioSource: room.getPlaybackState().audioSource || undefined,
+          eagerLoad: DEMO,
         },
       },
     });

@@ -31,6 +31,7 @@ const SetAudioSourcesSchema = z.object({
   type: z.literal("SET_AUDIO_SOURCES"),
   sources: z.array(AudioSourceSchema),
   currentAudioSource: z.string().optional(),
+  eagerLoad: z.boolean().optional(),
 });
 export type SetAudioSourcesType = z.infer<typeof SetAudioSourcesSchema>;
 

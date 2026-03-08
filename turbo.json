@@ -9,6 +9,15 @@
       "persistent": true,
       "cache": false
     },
+    "dev:demo": {
+      "persistent": true,
+      "cache": false
+    },
+    "demo": {
+      "dependsOn": ["build"],
+      "persistent": true,
+      "cache": false
+    },
     "dev:log": {
       "persistent": true,
       "cache": false

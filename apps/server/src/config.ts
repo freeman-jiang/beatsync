@@ -1,7 +1,31 @@
-// Removed legacy AUDIO_DIR - now using R2 for all storage
+import { readdirSync } from "fs";
+import { resolve } from "path";
 
-// https://developers.cloudflare.com/r2/api/s3/api/
-// R2 Configuration
+// Demo mode — serve audio locally instead of R2
+export const DEMO = process.env.DEMO === "1";
+export const DEMO_AUDIO_DIR = resolve(process.env.DEMO_AUDIO_DIR ?? "./demo-audio");
+
+const AUDIO_EXTENSIONS = new Set([".mp3", ".wav", ".flac", ".ogg", ".m4a"]);
+
+export const DEMO_AUDIO_FILENAMES: string[] = DEMO
+  ? (() => {
+      try {
+        return readdirSync(DEMO_AUDIO_DIR).filter((f) => {
+          const ext = f.slice(f.lastIndexOf(".")).toLowerCase();
+          return AUDIO_EXTENSIONS.has(ext);
+        });
+      } catch {
+        console.error(`DEMO mode: failed to read audio directory: ${DEMO_AUDIO_DIR}`);
+        console.error(`Create the directory or set DEMO_AUDIO_DIR to an existing path.`);
+        process.exit(1);
+      }
+    })()
+  : [];
+
+if (DEMO) {
+  console.log(`🎤 Demo mode enabled — serving ${DEMO_AUDIO_FILENAMES.length} files from ${DEMO_AUDIO_DIR}`);
+  DEMO_AUDIO_FILENAMES.forEach((f) => console.log(`   📁 ${f}`));
+}
 
 // Audio settings
 export const AUDIO_LOW = 0.15;

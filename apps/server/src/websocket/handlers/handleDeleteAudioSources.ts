@@ -1,4 +1,5 @@
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
+import { DEMO } from "@/config";
 import { deleteObject, extractKeyFromUrl } from "@/lib/r2";
 import { sendBroadcast } from "@/utils/responses";
 import { requireCanMutate } from "@/websocket/middlewares";
@@ -19,6 +20,20 @@ export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DEL
 
   if (urlsToDelete.length === 0) {
     return; // nothing to do, silent idempotency
+  }
+
+  // In demo mode, skip R2 deletion — just remove from room state
+  if (DEMO) {
+    const { updated } = room.removeAudioSources(urlsToDelete);
+    sendBroadcast({
+      server,
+      roomId: ws.data.roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: { type: "SET_AUDIO_SOURCES", sources: updated },
+      },
+    });
+    return;
   }
 
   // First, attempt to delete room-specific files from R2 storage

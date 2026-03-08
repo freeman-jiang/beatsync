@@ -323,6 +323,9 @@ const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   return Math.max(0, (waitTimeMilliseconds - outputLatencyMs) / 1000);
 };
 
+const resolveAudioUrl = (url: string): string =>
+  url.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL}${url}` : url;
+
 const downloadBufferFromURL = async ({ url }: { url: string }) => {
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
@@ -388,9 +391,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   // Load audio buffer for a source
   const loadAudioSource = async (url: string) => {
     try {
-      // Check if already loaded, if so just tell the server that you have it
       const state = get();
       const existing = state.audioSources.find((as) => as.source.url === url);
+
+      // Skip if already loaded or in-flight
+      if (existing && existing.status === "loading") {
+        return;
+      }
       if (existing && existing.status === "loaded") {
         // Update LRU queue when accessing an already loaded buffer
         addURLToLRU(url);
@@ -1279,11 +1286,15 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return state.audioSources.find((as) => as.source.url === state.selectedAudioUrl) || null;
     },
 
-    async handleSetAudioSources({ sources, currentAudioSource }) {
+    async handleSetAudioSources({ sources: rawSources, currentAudioSource: rawCurrentAudioSource, eagerLoad }) {
       // Wait for audio initialization to complete if it's in progress
       if (initializationMutex.isLocked()) {
         await initializationMutex.waitForUnlock();
       }
+
+      // Resolve relative URLs (e.g. /audio/song.mp3) to absolute at ingestion
+      const sources = rawSources.map((s) => ({ ...s, url: resolveAudioUrl(s.url) }));
+      const currentAudioSource = rawCurrentAudioSource ? resolveAudioUrl(rawCurrentAudioSource) : rawCurrentAudioSource;
 
       const state = get();
 
@@ -1332,6 +1343,18 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       if (currentAudioSource) {
         set({ selectedAudioUrl: currentAudioSource });
         loadAudioSource(currentAudioSource);
+      }
+
+      // Eagerly load remaining sources (capped to cache size to avoid LRU thrashing)
+      if (eagerLoad) {
+        let loaded = currentAudioSource ? 1 : 0;
+        for (const source of sources) {
+          if (loaded >= MAX_CACHED_BUFFERS) break;
+          if (source.url !== currentAudioSource) {
+            loadAudioSource(source.url);
+            loaded++;
+          }
+        }
       }
 
       // Check if the currently selected/playing track was removed
@@ -1476,8 +1499,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     // Audio source methods
     handleLoadAudioSource: ({ audioSourceToPlay }: LoadAudioSourceType) => {
-      set({ selectedAudioUrl: audioSourceToPlay.url });
-      loadAudioSource(audioSourceToPlay.url);
+      const url = resolveAudioUrl(audioSourceToPlay.url);
+      set({ selectedAudioUrl: url });
+      loadAudioSource(url);
     },
   };
 });

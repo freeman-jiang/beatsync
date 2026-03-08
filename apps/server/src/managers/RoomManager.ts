@@ -16,7 +16,7 @@ import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
 import { z } from "zod";
-import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "@/config";
+import { DEMO, calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "@/config";
 import { deleteObjectsWithPrefix } from "@/lib/r2";
 import { calculateGainFromDistanceToSource } from "@/spatial";
 import { sendBroadcast, sendUnicast } from "@/utils/responses";
@@ -947,11 +947,13 @@ export class RoomManager {
     this.stopSpatialAudio();
     this.stopHeartbeatChecking();
 
-    try {
-      const result = await deleteObjectsWithPrefix(`room-${this.roomId}`);
-      console.log(`✅ Room ${this.roomId} objects deleted: ${result.deletedCount}`);
-    } catch (error) {
-      console.error(`❌ Room ${this.roomId} cleanup failed:`, error);
+    if (!DEMO) {
+      try {
+        const result = await deleteObjectsWithPrefix(`room-${this.roomId}`);
+        console.log(`✅ Room ${this.roomId} objects deleted: ${result.deletedCount}`);
+      } catch (error) {
+        console.error(`❌ Room ${this.roomId} cleanup failed:`, error);
+      }
     }
   }
 

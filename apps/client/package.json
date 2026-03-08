@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:demo": "next dev",
     "dev:log": "rm -f ../../logs/client.log && next dev 2>&1 | tee ../../logs/client.log",
     "build": "next build",
     "start": "next start",
+    "demo": "next start",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
