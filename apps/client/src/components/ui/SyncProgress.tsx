@@ -35,6 +35,8 @@ export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." 
   const isSyncComplete = useGlobalStore((state) => state.isSynced);
   const setIsInitingSystem = useGlobalStore((state) => state.setIsInitingSystem);
   const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
+  const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
+  const offsetEstimate = useGlobalStore((state) => state.offsetEstimate);
 
   const message = isLoading ? loadingMessage : "Synchronizing time...";
 
@@ -305,6 +307,24 @@ export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." 
           >
             Use native device speakers.
           </motion.p>
+
+          <motion.div
+            className="flex justify-center gap-6 mt-4 text-[11px] text-neutral-600 font-mono"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.35 }}
+          >
+            <span>
+              RTT <span className="text-neutral-500">{roundTripEstimate.toFixed(0)}ms</span>
+            </span>
+            <span>
+              Offset{" "}
+              <span className="text-neutral-500">
+                {offsetEstimate >= 0 ? "+" : ""}
+                {offsetEstimate.toFixed(1)}ms
+              </span>
+            </span>
+          </motion.div>
         </motion.div>
       </OuterModal>
     );
