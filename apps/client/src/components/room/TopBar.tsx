@@ -1,5 +1,6 @@
 "use client";
 import { SOCIAL_LINKS } from "@/constants";
+import { audioContextManager } from "@/lib/audioContextManager";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { Crown, Hash, Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -88,9 +89,8 @@ export const TopBar = ({ roomId }: TopBarProps) => {
           {/* Hide Offset/RTT on small screens */}
           <div className="hidden md:flex items-center space-x-2">
             <span>Offset: {clockOffset.toFixed(2)}ms</span>
-            <span>
-              RTT: <span>{roundTripEstimate.toFixed(2)}</span>ms
-            </span>
+            <span>RTT: {roundTripEstimate.toFixed(2)}ms</span>
+            <span>OL: {((audioContextManager.getContext().outputLatency ?? 0) * 1000).toFixed(0)}ms</span>
           </div>
         </div>
 

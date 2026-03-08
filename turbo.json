@@ -13,8 +13,12 @@
       "persistent": true,
       "cache": false
     },
+    "build:demo": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
     "demo": {
-      "dependsOn": ["build"],
+      "dependsOn": ["build:demo"],
       "persistent": true,
       "cache": false
     },

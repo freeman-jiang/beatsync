@@ -6,6 +6,7 @@
     "dev:demo": "DEMO=1 bun run --hot src/index.ts",
     "dev:log": "rm -f ../../logs/server.log && bun run --hot src/index.ts 2>&1 | tee ../../logs/server.log",
     "build": "bun build src/index.ts --target=bun --outdir=dist --sourcemap",
+    "build:demo": "bun run build",
     "start": "bun run dist/index.js",
     "cleanup": "bun run scripts/cleanup-orphaned-rooms.ts",
     "cleanup:live": "bun run scripts/cleanup-orphaned-rooms.ts --live",

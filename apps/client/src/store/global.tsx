@@ -324,7 +324,7 @@ const resolveAudioUrl = (url: string): string =>
   url.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL}${url}` : url;
 
 const downloadBufferFromURL = async ({ url }: { url: string }) => {
-  const response = await fetch(url);
+  const response = await fetch(resolveAudioUrl(url));
   const arrayBuffer = await response.arrayBuffer();
   const audioBuffer = await audioContextManager.decodeAudioData(arrayBuffer);
   return {
@@ -664,7 +664,12 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // }
 
       let waitTimeSeconds = getWaitTimeSeconds(state, data.targetServerTime);
-      console.log(`[Nudge] nudgeOffsetMs=${state.nudgeOffsetMs}ms, waitTimeSeconds=${waitTimeSeconds.toFixed(3)}s`);
+      const _olMs = getFilteredOutputLatencyMs();
+      const _effectiveOffset = state.offsetEstimate + state.nudgeOffsetMs;
+      const _rawWaitMs = calculateWaitTimeMilliseconds(data.targetServerTime, _effectiveOffset);
+      console.log(
+        `[Schedule] wait=${waitTimeSeconds.toFixed(3)}s = max(0, (${_rawWaitMs.toFixed(1)}ms - ${_olMs.toFixed(1)}ms OL) / 1000) | offset=${state.offsetEstimate.toFixed(1)}ms nudge=${state.nudgeOffsetMs}ms`
+      );
 
       // Check if the scheduled time has already passed
       if (waitTimeSeconds < 0.05) {
@@ -1283,15 +1288,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return state.audioSources.find((as) => as.source.url === state.selectedAudioUrl) || null;
     },
 
-    async handleSetAudioSources({ sources: rawSources, currentAudioSource: rawCurrentAudioSource, eagerLoad }) {
+    async handleSetAudioSources({ sources, currentAudioSource, eagerLoad }) {
       // Wait for audio initialization to complete if it's in progress
       if (initializationMutex.isLocked()) {
         await initializationMutex.waitForUnlock();
       }
-
-      // Resolve relative URLs (e.g. /audio/song.mp3) to absolute at ingestion
-      const sources = rawSources.map((s) => ({ ...s, url: resolveAudioUrl(s.url) }));
-      const currentAudioSource = rawCurrentAudioSource ? resolveAudioUrl(rawCurrentAudioSource) : rawCurrentAudioSource;
 
       const state = get();
 
@@ -1496,9 +1497,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     // Audio source methods
     handleLoadAudioSource: ({ audioSourceToPlay }: LoadAudioSourceType) => {
-      const url = resolveAudioUrl(audioSourceToPlay.url);
-      set({ selectedAudioUrl: url });
-      loadAudioSource(url);
+      set({ selectedAudioUrl: audioSourceToPlay.url });
+      loadAudioSource(audioSourceToPlay.url);
     },
   };
 });
