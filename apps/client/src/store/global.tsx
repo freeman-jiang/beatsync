@@ -277,7 +277,12 @@ const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   const { offsetEstimate } = state;
 
   const waitTimeMilliseconds = calculateWaitTimeMilliseconds(targetServerTime, offsetEstimate);
-  return waitTimeMilliseconds / 1000;
+
+  const outputLatencyMs = (audioContextManager.getContext().outputLatency ?? 0) * 1000;
+  if (outputLatencyMs > 0) {
+    console.log(`[OutputLatency] compensating ${outputLatencyMs.toFixed(1)}ms`);
+  }
+  return Math.max(0, (waitTimeMilliseconds - outputLatencyMs) / 1000);
 };
 
 const downloadBufferFromURL = async ({ url }: { url: string }) => {
