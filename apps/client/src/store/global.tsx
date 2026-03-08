@@ -310,9 +310,6 @@ const getFilteredOutputLatencyMs = (): number => {
     console.warn(`[OutputLatency] ignoring ${rawMs.toFixed(0)}ms (likely Bluetooth garbage — use nudge)`);
     return 0;
   }
-  if (rawMs > 0) {
-    console.log(`[OutputLatency] compensating ${rawMs.toFixed(1)}ms`);
-  }
   return rawMs;
 };
 
