@@ -2,53 +2,42 @@
 
 import { getClientId } from "@/lib/clientId";
 import { usePathname, useSearchParams } from "next/navigation";
-import type { PostHog } from "posthog-js";
-import { createContext, Suspense, useContext, useEffect, useRef, useState } from "react";
-
-const PostHogContext = createContext<PostHog | null>(null);
+import posthog from "posthog-js";
+import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react";
+import { Suspense, useEffect } from "react";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
-  const [posthog, setPosthog] = useState<PostHog | null>(null);
-  const initRef = useRef(false);
-
   useEffect(() => {
-    if (initRef.current || !process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
-    initRef.current = true;
-
-    import("posthog-js").then((mod) => {
-      const ph = mod.default;
-      ph.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+    if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
         api_host: "/relay-OsR8",
         ui_host: "https://us.posthog.com",
-        autocapture: false,
-        capture_pageview: false,
-        capture_pageleave: true,
-        capture_performance: false,
+        autocapture: false, // Disable auto-capture of clicks, forms, inputs
+        capture_pageview: false, // We capture pageviews manually
+        capture_pageleave: true, // Enable pageleave capture
+        capture_performance: false, // Enable web vitals capture,
         capture_heatmaps: false,
+        // debug: process.env.NODE_ENV === "development",
       });
 
+      // Identify the user with their persistent client ID
       const clientId = getClientId();
-      ph.identify(clientId);
-      setPosthog(ph);
-    });
+      posthog.identify(clientId);
+    }
   }, []);
 
   return (
-    <PostHogContext.Provider value={posthog}>
-      {posthog && (
-        <Suspense fallback={null}>
-          <PostHogPageView />
-        </Suspense>
-      )}
+    <PHProvider client={posthog}>
+      <SuspendedPostHogPageView />
       {children}
-    </PostHogContext.Provider>
+    </PHProvider>
   );
 }
 
 function PostHogPageView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const posthog = useContext(PostHogContext);
+  const posthog = usePostHog();
 
   useEffect(() => {
     if (pathname && posthog) {
@@ -62,4 +51,12 @@ function PostHogPageView() {
   }, [pathname, searchParams, posthog]);
 
   return null;
+}
+
+function SuspendedPostHogPageView() {
+  return (
+    <Suspense fallback={null}>
+      <PostHogPageView />
+    </Suspense>
+  );
 }
