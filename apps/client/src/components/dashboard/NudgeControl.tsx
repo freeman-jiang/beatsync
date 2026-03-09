@@ -38,11 +38,11 @@ export const NudgeControl = () => {
         <span
           className={cn(
             "text-[11px] font-mono min-w-[3.5rem] text-center tabular-nums",
-            nudgeOffsetMs > 0 ? "text-green-500/70" : nudgeOffsetMs < 0 ? "text-red-500/70" : "text-neutral-400"
+            nudgeOffsetMs < 0 ? "text-green-500/70" : nudgeOffsetMs > 0 ? "text-red-500/70" : "text-neutral-400"
           )}
         >
-          {nudgeOffsetMs >= 0 ? "+" : ""}
-          {nudgeOffsetMs}ms
+          {-nudgeOffsetMs >= 0 ? "+" : ""}
+          {-nudgeOffsetMs}ms
         </span>
         <button
           className="text-neutral-400 hover:text-white transition-colors p-1 rounded-sm hover:bg-neutral-800"

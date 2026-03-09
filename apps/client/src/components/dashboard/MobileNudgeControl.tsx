@@ -46,11 +46,11 @@ export const MobileNudgeControl = () => {
           <span
             className={cn(
               "text-sm font-mono flex-1 text-center tabular-nums",
-              nudgeOffsetMs > 0 ? "text-green-500/70" : nudgeOffsetMs < 0 ? "text-red-500/70" : "text-neutral-400"
+              nudgeOffsetMs < 0 ? "text-green-500/70" : nudgeOffsetMs > 0 ? "text-red-500/70" : "text-neutral-400"
             )}
           >
-            {nudgeOffsetMs >= 0 ? "+" : ""}
-            {nudgeOffsetMs}ms
+            {-nudgeOffsetMs >= 0 ? "+" : ""}
+            {-nudgeOffsetMs}ms
           </span>
 
           <button
