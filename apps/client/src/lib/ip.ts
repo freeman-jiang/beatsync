@@ -15,10 +15,10 @@ export const getUserLocation = async (): Promise<z.infer<typeof LocationSchema>>
   }
 
   const locationServices = [
-    getUserLocationCountryIs,
     getUserLocationGeoJS,
-    getUserLocationKameroGeo,
     getUserLocationIPAPICo,
+    getUserLocationCountryIs,
+    getUserLocationKameroGeo,
     getUserLocationIPWhoIs,
   ];
 

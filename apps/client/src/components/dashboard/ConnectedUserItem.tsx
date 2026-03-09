@@ -40,7 +40,9 @@ const LocationContent = ({ client }: { client: ClientDataType }) => (
             <span className="text-sm">{client.location.flagEmoji}</span>
           </div>
           <span className="text-foreground/70">
-            {`${client.location.city}, ${client.location.region} • ${client.location.country}`}
+            {[[client.location.city, client.location.region].filter(Boolean).join(", "), client.location.country]
+              .filter(Boolean)
+              .join(" • ")}
           </span>
         </div>
       </div>
