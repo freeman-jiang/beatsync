@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { audioContextManager } from "@/lib/audioContextManager";
 import { getClientId } from "@/lib/clientId";
+import { IS_DEMO_MODE } from "@/lib/demo";
 import { extractFileNameFromUrl } from "@/lib/utils";
 import {
   calculateOffsetEstimate,
@@ -949,9 +950,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         ...(nowSynced ? { isSynced: true } : {}),
       });
 
-      // NTP sync just completed — eagerly load any idle audio sources
+      // In demo mode, NTP sync just completed — eagerly load idle audio sources
       // (they arrived from handleOpen before sync finished)
-      if (nowSynced) {
+      if (nowSynced && IS_DEMO_MODE) {
         eagerLoadIdleSources();
       }
     },
@@ -1339,13 +1340,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
 
       // Create new audioSources array (preserving loaded buffers for tracks still in playlist)
+      const existingByUrl = new Map(state.audioSources.map((as) => [as.source.url, as]));
       const newAudioSources: AudioSourceState[] = sources.map((source) => {
-        // Try to preserve the status of the currently playing/selected track
-        if (source.url === state.selectedAudioUrl || source.url === currentAudioSource) {
-          const existing = state.audioSources.find((as) => as.source.url === source.url);
-          if (existing) {
-            return existing;
-          }
+        const existing = existingByUrl.get(source.url);
+        if (existing) {
+          return existing;
         }
         return {
           source,
@@ -1362,10 +1361,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         loadAudioSource(currentAudioSource);
       }
 
-      // If NTP sync is already done, eagerly load remaining sources.
-      // If sync isn't done yet, sources stay idle — addProbePairResult
-      // triggers loading once NTP completes (avoids decode jitter during probes).
-      if (get().isSynced) {
+      // In demo mode, eagerly load remaining sources if sync is done.
+      // In prod, sources load on-demand when the user selects them.
+      if (IS_DEMO_MODE && get().isSynced) {
         eagerLoadIdleSources({ skip: currentAudioSource });
       }
 
