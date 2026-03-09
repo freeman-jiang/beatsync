@@ -14,7 +14,12 @@ export const RoomQRCode = () => {
   const [copied, setCopied] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const roomId = useRoomStore((state) => state.roomId);
-  const roomUrl = typeof window !== "undefined" ? window.location.href : "";
+  const roomUrl = (() => {
+    if (typeof window === "undefined") return "";
+    const url = new URL(window.location.href);
+    url.searchParams.delete("admin");
+    return url.toString();
+  })();
 
   // Generate QR code when dialog opens
   useEffect(() => {
