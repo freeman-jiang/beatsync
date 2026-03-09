@@ -18,7 +18,9 @@
     "pm2:logs": "pm2 logs beatsync-server",
     "demo:dev": "turbo run dev:demo",
     "demo": "turbo run demo",
+    "demo:log": "turbo run demo:log",
     "dev:log": "turbo run dev:log",
+    "start:log": "turbo run start:log",
     "prepare": "lefthook install"
   },
   "workspaces": [

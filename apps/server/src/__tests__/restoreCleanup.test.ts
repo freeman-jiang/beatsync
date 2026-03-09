@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import sinon from "sinon";
 import { mockR2 } from "@/__tests__/mocks/r2";
 import { createMockWs } from "@/__tests__/mocks/websocket";
 import { BackupManager } from "@/managers/BackupManager";
@@ -48,12 +49,18 @@ mockR2({
 });
 
 describe("Restore Cleanup", () => {
+  let clock: sinon.SinonFakeTimers;
+
   beforeEach(() => {
-    // Clear all rooms before each test
+    clock = sinon.useFakeTimers();
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
       globalManager.deleteRoom(roomId);
     }
+  });
+
+  afterEach(() => {
+    clock.restore();
   });
 
   it("should schedule cleanup for restored rooms with no active connections", async () => {
@@ -82,72 +89,57 @@ describe("Restore Cleanup", () => {
   });
 
   it("should cancel cleanup when a real client connects to restored room", async () => {
-    // Restore state
     await BackupManager.restoreState();
 
     const room = globalManager.getRoom("test-room-1")!;
     let cleanupCalled = false;
 
-    // Schedule cleanup manually to test cancellation
-    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100); // Short delay for testing
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100);
 
     // Simulate a real client connecting
     room.addClient(createMockWs({ clientId: "real-client-1", username: "realuser", roomId: "test-room-1" }));
 
-    // Wait to ensure cleanup would have fired if not cancelled
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Advance past the cleanup delay — it should have been cancelled
+    clock.tick(150);
 
-    // Cleanup should not have been called
     expect(cleanupCalled).toBe(false);
-
-    // Room should now have an active connection
     expect(room.hasActiveConnections()).toBe(true);
   });
 
   it("should execute cleanup for abandoned restored rooms", async () => {
-    // Restore state
     await BackupManager.restoreState();
 
     const room = globalManager.getRoom("test-room-1")!;
     let cleanupCalled = false;
 
-    // Schedule cleanup with short delay for testing
     room.scheduleCleanup(async () => {
       cleanupCalled = true;
       await room.cleanup();
       globalManager.deleteRoom("test-room-1");
     }, 100);
 
-    // Wait for cleanup to execute
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    clock.tick(101);
+    // Flush microtasks so the async cleanup callback resolves
+    await clock.tickAsync(0);
 
-    // Cleanup should have been called
     expect(cleanupCalled).toBe(true);
-
-    // Room should be deleted
     expect(globalManager.hasRoom("test-room-1")).toBe(false);
   });
 
   it("should handle ghost clients correctly", () => {
-    // Create a room with a ghost client (no WebSocket)
     const room = globalManager.getOrCreateRoom("ghost-room");
 
-    // Add a client without a valid WebSocket
     const ghostClient = {
       username: "ghost",
       clientId: "ghost-1",
-      ws: null, // No WebSocket
+      ws: null,
       rtt: 0,
       position: { x: 0, y: 0 },
     };
 
-    // Manually add ghost to clientData map
     (room as unknown as { clientData: Map<string, typeof ghostClient> }).clientData.set("ghost-1", ghostClient);
 
-    // Room should not be empty (has a ghost)
-    expect(room.getClients().length).toBe(0); // Ghost client has no WebSocket so it won't be returned
-
-    // But should have no active connections
+    expect(room.getClients().length).toBe(0);
     expect(room.hasActiveConnections()).toBe(false);
   });
 });

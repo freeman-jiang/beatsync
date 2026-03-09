@@ -13,6 +13,9 @@ void mock.module("@/utils/responses", () => ({
       broadcastMessages.push({ server, roomId, message });
     }
   ),
+  sendToClient: mock(({ ws, message }: { ws: ReturnType<typeof createMockWs>; message: WSBroadcastType }) => {
+    ws.send(JSON.stringify(message));
+  }),
   sendUnicast: mock(() => {
     /* noop */
   }),

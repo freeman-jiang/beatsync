@@ -19,6 +19,14 @@ const createClientUpdate = (roomId: string) => {
   return message;
 };
 
+function debouncedClientChangeBroadcast(server: BunServer, roomId: string): void {
+  const room = globalManager.getRoom(roomId);
+  if (!room) return;
+  room.scheduleClientChangeBroadcast(() => {
+    sendBroadcast({ server, roomId, message: createClientUpdate(roomId) });
+  });
+}
+
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   console.log(`WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`);
 
@@ -98,11 +106,24 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     });
   }
 
-  // In demo mode, send CLIENT_CHANGE as unicast only (avoids O(n²) broadcasts)
   if (IS_DEMO_MODE) {
-    sendToClient({ ws, message: createClientUpdate(roomId) });
+    // In demo mode, only send this client's own entry (no point sending thousands of stale entries)
+    const self = globalManager.getRoom(roomId)?.getClient(ws.data.clientId);
+    sendToClient({
+      ws,
+      message: {
+        type: "ROOM_EVENT",
+        event: {
+          type: "CLIENT_CHANGE",
+          clients: self ? [self] : [],
+        },
+      },
+    });
   } else {
-    sendBroadcast({ server, roomId, message: createClientUpdate(roomId) });
+    // Unicast full client list to the joining client immediately
+    sendToClient({ ws, message: createClientUpdate(roomId) });
+    // Broadcast to others: debounced
+    debouncedClientChangeBroadcast(server, roomId);
   }
 };
 
@@ -150,10 +171,9 @@ export const handleClose = (ws: ServerWebSocket<WSData>, server: BunServer) => {
 
     ws.unsubscribe(roomId);
 
-    // Skip CLIENT_CHANGE broadcast in demo mode to avoid O(n²) with thousands of clients
+    // Debounced broadcast in prod, skipped in demo mode
     if (!IS_DEMO_MODE) {
-      const message = createClientUpdate(roomId);
-      server.publish(roomId, JSON.stringify(message));
+      debouncedClientChangeBroadcast(server, roomId);
     }
   } catch (error) {
     console.error(`Error handling WebSocket close for ${ws.data?.username}:`, error);

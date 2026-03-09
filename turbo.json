@@ -29,6 +29,16 @@
     "start": {
       "dependsOn": ["build"],
       "outputs": [".next/**"]
+    },
+    "start:log": {
+      "dependsOn": ["build"],
+      "persistent": true,
+      "cache": false
+    },
+    "demo:log": {
+      "dependsOn": ["build:demo"],
+      "persistent": true,
+      "cache": false
     }
   }
 }

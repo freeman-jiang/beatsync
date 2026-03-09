@@ -99,6 +99,7 @@ export class RoomManager {
   };
   private intervalId?: NodeJS.Timeout;
   private cleanupTimer?: NodeJS.Timeout;
+  private clientChangeBroadcastTimer?: NodeJS.Timeout;
   private heartbeatCheckInterval?: NodeJS.Timeout;
   private onClientCountChange?: () => void;
   private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
@@ -951,6 +952,24 @@ export class RoomManager {
       clearTimeout(this.cleanupTimer);
       this.cleanupTimer = undefined;
       console.log(`🚫 Cleanup timer cleared for room ${this.roomId}`);
+    }
+  }
+
+  /** Debounce a CLIENT_CHANGE broadcast. Coalesces rapid joins/leaves into one callback. */
+  scheduleClientChangeBroadcast(callback: () => void, delayMs = 500): void {
+    if (this.clientChangeBroadcastTimer) {
+      clearTimeout(this.clientChangeBroadcastTimer);
+    }
+    this.clientChangeBroadcastTimer = setTimeout(() => {
+      this.clientChangeBroadcastTimer = undefined;
+      callback();
+    }, delayMs);
+  }
+
+  clearClientChangeBroadcast(): void {
+    if (this.clientChangeBroadcastTimer) {
+      clearTimeout(this.clientChangeBroadcastTimer);
+      this.clientChangeBroadcastTimer = undefined;
     }
   }
 

@@ -1,4 +1,5 @@
-import { describe, expect, it, beforeEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import sinon from "sinon";
 import { mockR2 } from "@/__tests__/mocks/r2";
 import { createMockWs } from "@/__tests__/mocks/websocket";
 import { globalManager } from "@/managers/GlobalManager";
@@ -6,12 +7,18 @@ import { globalManager } from "@/managers/GlobalManager";
 mockR2();
 
 describe("Room Cleanup Timer", () => {
+  let clock: sinon.SinonFakeTimers;
+
   beforeEach(() => {
-    // Clear all rooms before each test
+    clock = sinon.useFakeTimers();
     const roomIds = globalManager.getRoomIds();
     for (const roomId of roomIds) {
       globalManager.deleteRoom(roomId);
     }
+  });
+
+  afterEach(() => {
+    clock.restore();
   });
 
   it("should cancel cleanup when new client joins", () => {
@@ -54,53 +61,42 @@ describe("Room Cleanup Timer", () => {
     expect(cleanupCalled).toBe(false);
   });
 
-  it("should cancel cleanup when client rejoins within grace period", async () => {
+  it("should cancel cleanup when client rejoins within grace period", () => {
     const roomId = "rejoin-test";
     const room = globalManager.getOrCreateRoom(roomId);
     let cleanupCalled = false;
 
     room.addClient(createMockWs({ clientId: "client-1", roomId }));
-
-    // Remove the client (room becomes empty)
     room.removeClient("client-1");
 
-    // Schedule cleanup (simulating what handleClose does)
     room.scheduleCleanup(async () => {
       cleanupCalled = true;
       await room.cleanup();
       globalManager.deleteRoom(roomId);
-    }, 3000); // Using 3 seconds like in websocketHandlers
+    }, 3000);
 
-    // Verify cleanup is scheduled but not called yet
     expect(cleanupCalled).toBe(false);
 
     room.addClient(createMockWs({ clientId: "client-2", roomId }));
 
-    // Wait a bit to ensure cleanup would have been called if not cancelled
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Advance past the cleanup delay — it should have been cancelled
+    clock.tick(3100);
 
-    // Cleanup should not have been called
     expect(cleanupCalled).toBe(false);
-
-    // Room should still exist and have the new client
     expect(room.getClients().length).toBe(1);
     expect(room.getClients()[0].clientId).toBe("client-2");
   });
 
-  it("should execute cleanup after the specified delay", async () => {
+  it("should execute cleanup after the specified delay", () => {
     const room = globalManager.getOrCreateRoom("timer-test");
     let cleanupCalled = false;
 
-    // Schedule cleanup with a very short delay
-    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100); // 100ms delay
+    room.scheduleCleanup(() => Promise.resolve(void (cleanupCalled = true)), 100);
 
-    // Cleanup should not be called immediately
     expect(cleanupCalled).toBe(false);
 
-    // Wait for the timer to fire
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    clock.tick(101);
 
-    // Cleanup should have been called
     expect(cleanupCalled).toBe(true);
   });
 });
