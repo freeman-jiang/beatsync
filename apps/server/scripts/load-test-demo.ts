@@ -1,23 +1,25 @@
 /**
- * Beatsync Load Test — Simulates concurrent WebSocket clients
+ * Beatsync Demo Load Test — Simulates the Symposium demo scenario
  *
- * Mimics the real client flow:
- *   1. Connect to WS with roomId/username/clientId
- *   2. Receive initial state messages
- *   3. Run NTP sync probes (coded probe pairs, ~40 exchanges over ~2s)
- *   4. Respond to LOAD_AUDIO_SOURCE with AUDIO_SOURCE_LOADED
- *   5. Continue steady-state NTP pings every 2.5s
+ * Realistic client flow for DEMO=1 mode:
+ *   1. Connect WS with roomId/username/clientId
+ *   2. Receive initial state (audio sources, playback controls, volume, etc.)
+ *   3. Run NTP sync probes (coded probe pairs, ~16 measurements over ~500ms)
+ *   4. After sync: eager-load ALL audio files via HTTP (demo mode behavior)
+ *   5. Respond to LOAD_AUDIO_SOURCE by downloading audio + sending AUDIO_SOURCE_LOADED
+ *   6. Continue steady-state NTP pings every 2.5s
  *
  * Usage:
- *   bun run scripts/load-test.ts [options]
+ *   bun run scripts/load-test-demo.ts [options]
  *
  * Options:
  *   --clients <n>     Number of clients to simulate (default: 2500)
- *   --room <id>       Room ID to join (default: 100000)
+ *   --room <id>       Room ID to join (default: 000000)
  *   --host <url>      Server WebSocket URL (default: ws://localhost:8080)
- *   --ramp <ms>       Time to ramp up all connections (default: 10000)
+ *   --ramp <ms>       Time to ramp up all connections (default: 15000)
  *   --duration <s>    How long to run after all connected (default: 10)
  *   --admin <secret>  Admin secret for demo mode
+ *   --skip-audio      Skip audio downloads (WS-only stress test)
  */
 
 import { cpus, freemem, totalmem } from "os";
@@ -29,13 +31,24 @@ function getArg(name: string, fallback: string): string {
   return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
 }
 
+function hasFlag(name: string): boolean {
+  return args.includes(`--${name}`);
+}
+
 const TOTAL_CLIENTS = parseInt(getArg("clients", "2500"));
-const ROOM_ID = getArg("room", "100000");
+const ROOM_ID = getArg("room", "000000");
 const WS_HOST = getArg("host", "ws://localhost:8080");
-const RAMP_MS = parseInt(getArg("ramp", "10000"));
+const RAMP_MS = parseInt(getArg("ramp", "15000"));
 const DURATION_S = parseInt(getArg("duration", "10"));
 const ADMIN_SECRET = getArg("admin", "");
+const SKIP_AUDIO = hasFlag("skip-audio");
 const HTTP_BASE = WS_HOST.replace("ws://", "http://").replace("wss://", "https://");
+
+// NTP constants matching the real client
+const NTP_INITIAL_INTERVAL_MS = 30;
+const NTP_STEADY_STATE_INTERVAL_MS = 2500;
+const NTP_MAX_MEASUREMENTS = 16;
+const NTP_PROBE_GAP_MS = 5;
 
 // ── Metrics ──────────────────────────────────────────────────────────
 interface Metrics {
@@ -51,9 +64,14 @@ interface Metrics {
   ntpRttCount: number;
   audioLoadRequests: number;
   audioLoadResponses: number;
+  audioDownloads: number;
+  audioDownloadBytes: number;
+  audioDownloadFailures: number;
+  audioDownloadTotalMs: number;
   errors: string[];
   openConnections: number;
   peakConnections: number;
+  clientsSynced: number;
 }
 
 const metrics: Metrics = {
@@ -69,27 +87,62 @@ const metrics: Metrics = {
   ntpRttCount: 0,
   audioLoadRequests: 0,
   audioLoadResponses: 0,
+  audioDownloads: 0,
+  audioDownloadBytes: 0,
+  audioDownloadFailures: 0,
+  audioDownloadTotalMs: 0,
   errors: [],
   openConnections: 0,
   peakConnections: 0,
+  clientsSynced: 0,
 };
+
+// ── Audio Download ───────────────────────────────────────────────────
+// Every client downloads every file independently, just like real phones.
+// We consume and discard the body to avoid holding GBs in memory.
+
+async function downloadAudio(url: string): Promise<boolean> {
+  const start = performance.now();
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      metrics.audioDownloadFailures++;
+      return false;
+    }
+    // Stream and discard — stresses server I/O without holding bytes in memory
+    const reader = resp.body?.getReader();
+    if (!reader) {
+      metrics.audioDownloadFailures++;
+      return false;
+    }
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+    }
+    metrics.audioDownloads++;
+    metrics.audioDownloadBytes += totalBytes;
+    metrics.audioDownloadTotalMs += performance.now() - start;
+    return true;
+  } catch {
+    metrics.audioDownloadFailures++;
+    return false;
+  }
+}
 
 // ── Resource Monitoring ──────────────────────────────────────────────
 
 interface ResourceSnapshot {
   timestamp: number;
   phase: string;
-  // Load test process
   loadTestRssMB: number;
   loadTestHeapMB: number;
-  // Server process (from /stats endpoint)
   serverRssMB: number;
   serverHeapMB: number;
-  // System
   systemFreeMB: number;
   systemTotalMB: number;
   cpuCount: number;
-  // Derived
   connections: number;
   avgRtt: number;
 }
@@ -98,7 +151,6 @@ const resourceSnapshots: ResourceSnapshot[] = [];
 let resourceInterval: ReturnType<typeof setInterval> | null = null;
 let currentPhase = "idle";
 
-// Track peak values
 let peakLoadTestRss = 0;
 let peakServerRss = 0;
 let peakSystemUsedPct = 0;
@@ -134,7 +186,6 @@ async function sampleResources(): Promise<void> {
   const systemUsedPct = ((systemTotalMB - systemFreeMB) / systemTotalMB) * 100;
   const avgRtt = getAvgRtt();
 
-  // Update peaks
   if (loadTestRssMB > peakLoadTestRss) peakLoadTestRss = loadTestRssMB;
   if (serverRssMB > peakServerRss) peakServerRss = serverRssMB;
   if (systemUsedPct > peakSystemUsedPct) peakSystemUsedPct = systemUsedPct;
@@ -155,9 +206,7 @@ async function sampleResources(): Promise<void> {
 }
 
 function startResourceMonitoring(): void {
-  // Sample every 2s
   resourceInterval = setInterval(() => void sampleResources(), 2000);
-  // Take an immediate sample
   void sampleResources();
 }
 
@@ -185,6 +234,9 @@ interface SimulatedClient {
   probeGroupId: number;
   ntpInterval: ReturnType<typeof setInterval> | null;
   isConnected: boolean;
+  ntpMeasurements: number;
+  isSynced: boolean;
+  audioSources: string[];
 }
 
 const clients: SimulatedClient[] = [];
@@ -215,6 +267,9 @@ function createClient(index: number): Promise<SimulatedClient> {
       probeGroupId: 0,
       ntpInterval: null,
       isConnected: false,
+      ntpMeasurements: 0,
+      isSynced: false,
+      audioSources: [],
     };
 
     const timeout = setTimeout(() => {
@@ -233,7 +288,7 @@ function createClient(index: number): Promise<SimulatedClient> {
       }
       client.isConnected = true;
 
-      // Start initial rapid NTP sync (mimic client: ~40 probes over ~2s)
+      // Start NTP sync (matches real client: 30ms intervals, coded probe pairs)
       startInitialSync(client);
 
       resolve(client);
@@ -252,7 +307,6 @@ function createClient(index: number): Promise<SimulatedClient> {
     ws.onerror = () => {
       clearTimeout(timeout);
       metrics.connectFailures++;
-      // onerror gives no useful info — onclose has the code/reason
     };
 
     ws.onclose = (event) => {
@@ -264,7 +318,6 @@ function createClient(index: number): Promise<SimulatedClient> {
         clearInterval(client.ntpInterval);
         client.ntpInterval = null;
       }
-      // Log unexpected closes (not clean close by us)
       if (event.code !== 1000 && event.code !== 1001) {
         const reason = event.reason || "no reason";
         const errorMsg = `Client ${index} closed: code=${event.code} reason="${reason}"`;
@@ -286,56 +339,86 @@ function sendMessage(client: SimulatedClient, msg: Record<string, unknown>): voi
 }
 
 function sendNtpProbe(client: SimulatedClient, groupIndex: 0 | 1): void {
-  const msg = {
+  sendMessage(client, {
     type: "NTP_REQUEST",
     t0: epochNow(),
     probeGroupId: client.probeGroupId,
     probeGroupIndex: groupIndex,
-  };
-  sendMessage(client, msg);
+  });
 }
 
 function sendCodedProbePair(client: SimulatedClient): void {
   client.probeGroupId = ++probeGroupCounter;
   sendNtpProbe(client, 0);
-  // Second probe after ~5ms gap (PROBE_GAP_MS)
-  setTimeout(() => sendNtpProbe(client, 1), 5);
+  setTimeout(() => sendNtpProbe(client, 1), NTP_PROBE_GAP_MS);
 }
 
 function startInitialSync(client: SimulatedClient): void {
-  // Send ~20 coded probe pairs (40 messages) over ~2 seconds
-  // Interval: 30ms between pairs (INITIAL_INTERVAL_MS)
   let probeCount = 0;
-  const maxProbes = 20;
 
   const interval = setInterval(() => {
-    if (!client.isConnected || probeCount >= maxProbes) {
+    if (!client.isConnected || probeCount >= NTP_MAX_MEASUREMENTS) {
       clearInterval(interval);
-      // Transition to steady-state NTP pings
-      startSteadyStateSync(client);
+      onSyncComplete(client);
       return;
     }
     sendCodedProbePair(client);
     probeCount++;
-  }, 30);
+  }, NTP_INITIAL_INTERVAL_MS);
 }
 
-function startSteadyStateSync(client: SimulatedClient): void {
-  // Steady-state: one coded probe pair every 2.5s
+function onSyncComplete(client: SimulatedClient): void {
+  client.isSynced = true;
+  metrics.clientsSynced++;
+
+  // Start steady-state NTP pings
   client.ntpInterval = setInterval(() => {
     if (client.isConnected) {
       sendCodedProbePair(client);
     }
-  }, 2500);
+  }, NTP_STEADY_STATE_INTERVAL_MS);
+
+  // Demo mode: eager-load ALL audio sources after sync
+  if (!SKIP_AUDIO && client.audioSources.length > 0) {
+    for (const url of client.audioSources) {
+      void downloadAudioAndNotify(client, url);
+    }
+  }
 }
 
-function handleServerMessage(
-  client: SimulatedClient,
-  data: { type: string; t0?: number; event?: { type: string; audioSourceToPlay?: { url: string } } }
-): void {
+async function downloadAudioAndNotify(client: SimulatedClient, audioUrl: string): Promise<void> {
+  const ok = await downloadAudio(audioUrl);
+  if (ok && client.isConnected) {
+    sendMessage(client, {
+      type: "AUDIO_SOURCE_LOADED",
+      source: { url: audioUrl },
+    });
+    metrics.audioLoadResponses++;
+  }
+}
+
+interface ServerMessage {
+  type: string;
+  t0?: number;
+  event?: {
+    type: string;
+    sources?: Array<{ url: string }>;
+    audioSourceToPlay?: { url: string };
+    currentAudioSource?: string;
+  };
+  serverTimeToExecute?: number;
+  scheduledAction?: {
+    type: string;
+    audioSource?: string;
+    trackTimeSeconds?: number;
+  };
+}
+
+function handleServerMessage(client: SimulatedClient, data: ServerMessage): void {
   switch (data.type) {
     case "NTP_RESPONSE": {
       metrics.ntpResponsesReceived++;
+      client.ntpMeasurements++;
       if (data.t0) {
         const rtt = epochNow() - data.t0;
         metrics.ntpRttSum += rtt;
@@ -345,118 +428,200 @@ function handleServerMessage(
       }
       break;
     }
+
     case "ROOM_EVENT": {
-      if (data.event?.type === "LOAD_AUDIO_SOURCE" && data.event.audioSourceToPlay) {
+      if (!data.event) break;
+
+      if (data.event.type === "SET_AUDIO_SOURCES" && data.event.sources) {
+        // Store audio source URLs for eager loading after sync
+        // Resolve relative URLs (demo mode serves at /audio/...)
+        client.audioSources = data.event.sources.map((s) =>
+          s.url.startsWith("/") ? `${HTTP_BASE}${s.url}` : s.url
+        );
+      }
+
+      if (data.event.type === "LOAD_AUDIO_SOURCE" && data.event.audioSourceToPlay) {
         metrics.audioLoadRequests++;
-        // Simulate audio loading delay (50-200ms)
-        const delay = 50 + Math.random() * 150;
-        setTimeout(() => {
-          sendMessage(client, {
-            type: "AUDIO_SOURCE_LOADED",
-            source: { url: data.event!.audioSourceToPlay!.url },
-          });
-          metrics.audioLoadResponses++;
-        }, delay);
+        const rawUrl = data.event.audioSourceToPlay.url;
+        const url = rawUrl.startsWith("/") ? `${HTTP_BASE}${rawUrl}` : rawUrl;
+
+        if (SKIP_AUDIO) {
+          // Fake it — just send loaded response after short delay
+          const delay = 50 + Math.random() * 150;
+          setTimeout(() => {
+            sendMessage(client, {
+              type: "AUDIO_SOURCE_LOADED",
+              source: { url },
+            });
+            metrics.audioLoadResponses++;
+          }, delay);
+        } else {
+          // Actually download the audio file
+          void downloadAudioAndNotify(client, url);
+        }
       }
       break;
     }
-    // All other messages silently consumed
+
+    // SCHEDULED_ACTION, etc. — silently consumed
   }
 }
 
 // ── Reporting ────────────────────────────────────────────────────────
 
+// ANSI helpers (zero deps)
+const c = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  red: "\x1b[31m",
+  cyan: "\x1b[36m",
+  magenta: "\x1b[35m",
+  white: "\x1b[37m",
+  gray: "\x1b[90m",
+};
+
 function formatMB(mb: number): string {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)}GB` : `${mb.toFixed(0)}MB`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)}GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  return `${bytes}B`;
+}
+
+function colorValue(value: string | number, color = c.white): string {
+  return `${color}${value}${c.reset}`;
+}
+
+function row(label: string, value: string | number, color = c.white): string {
+  return `  ${c.dim}${label.padEnd(22)}${c.reset}${color}${value}${c.reset}`;
+}
+
+function header(title: string): string {
+  return `\n  ${c.bold}${c.cyan}${title}${c.reset}`;
+}
+
+function divider(): string {
+  return `  ${c.dim}${"─".repeat(50)}${c.reset}`;
+}
+
+function rttColor(avgRtt: number): string {
+  if (avgRtt < 5) return c.green;
+  if (avgRtt < 20) return c.yellow;
+  if (avgRtt < 50) return c.yellow;
+  return c.red;
+}
+
+function rttVerdict(avgRtt: number): string {
+  if (avgRtt < 5) return `${c.green}EXCELLENT${c.reset} ${c.dim}(<5ms)${c.reset}`;
+  if (avgRtt < 20) return `${c.green}GOOD${c.reset} ${c.dim}(<20ms)${c.reset}`;
+  if (avgRtt < 50) return `${c.yellow}ACCEPTABLE${c.reset} ${c.dim}(<50ms)${c.reset}`;
+  return `${c.red}POOR${c.reset} ${c.dim}(${avgRtt.toFixed(0)}ms)${c.reset}`;
 }
 
 function printMetrics(): void {
   const avgRtt = getAvgRtt();
   const minRtt = metrics.ntpMinRtt === Infinity ? 0 : metrics.ntpMinRtt;
+  const avgDownloadMs =
+    metrics.audioDownloads > 0 ? metrics.audioDownloadTotalMs / metrics.audioDownloads : 0;
+  const successRate = metrics.connectAttempts > 0 ? (metrics.connectSuccesses / metrics.connectAttempts) * 100 : 0;
+  const connColor = successRate === 100 ? c.green : successRate > 75 ? c.yellow : c.red;
+  const failColor = metrics.connectFailures === 0 ? c.green : c.red;
+  const dlFailColor = metrics.audioDownloadFailures === 0 ? c.green : c.red;
 
-  console.log("\n══════════════════════════════════════════════════════");
-  console.log("  BEATSYNC LOAD TEST RESULTS");
-  console.log("══════════════════════════════════════════════════════");
-  console.log(`  Target clients:       ${TOTAL_CLIENTS}`);
-  console.log(`  Room ID:              ${ROOM_ID}`);
-  console.log(`  Ramp time:            ${RAMP_MS}ms`);
-  console.log(`  Steady-state dur:     ${DURATION_S}s`);
-  console.log("──────────────────────────────────────────────────────");
-  console.log("  CONNECTIONS");
-  console.log(`    Attempted:          ${metrics.connectAttempts}`);
-  console.log(`    Succeeded:          ${metrics.connectSuccesses}`);
-  console.log(`    Failed:             ${metrics.connectFailures}`);
-  console.log(`    Currently open:     ${metrics.openConnections}`);
-  console.log(`    Peak concurrent:    ${metrics.peakConnections}`);
-  console.log("──────────────────────────────────────────────────────");
-  console.log("  MESSAGES");
-  console.log(`    Sent:               ${metrics.messagesSent}`);
-  console.log(`    Received:           ${metrics.messagesReceived}`);
-  console.log("──────────────────────────────────────────────────────");
-  console.log("  NTP SYNC");
-  console.log(`    Responses:          ${metrics.ntpResponsesReceived}`);
-  console.log(`    Min RTT:            ${minRtt.toFixed(2)}ms`);
-  console.log(`    Avg RTT:            ${avgRtt.toFixed(2)}ms`);
-  console.log(`    Max RTT:            ${metrics.ntpMaxRtt.toFixed(2)}ms`);
-  console.log("──────────────────────────────────────────────────────");
-  console.log("  AUDIO LOADING");
-  console.log(`    Load requests:      ${metrics.audioLoadRequests}`);
-  console.log(`    Load responses:     ${metrics.audioLoadResponses}`);
-  console.log("──────────────────────────────────────────────────────");
-  console.log("  RESOURCES (peak)");
-  console.log(`    Load test RSS:      ${formatMB(peakLoadTestRss)}`);
-  console.log(`    Server RSS:         ${formatMB(peakServerRss)}`);
-  console.log(`    System memory used: ${peakSystemUsedPct.toFixed(1)}%`);
-  if (resourceSnapshots.length > 0) {
-    const last = resourceSnapshots[resourceSnapshots.length - 1];
-    console.log(`    CPU cores:          ${last.cpuCount}`);
+  console.log(`\n  ${c.bold}${c.cyan}══════════════════════════════════════════════════${c.reset}`);
+  console.log(`  ${c.bold}  BEATSYNC DEMO LOAD TEST RESULTS${c.reset}`);
+  console.log(`  ${c.bold}${c.cyan}══════════════════════════════════════════════════${c.reset}`);
+
+  // Config
+  console.log(header("CONFIG"));
+  console.log(row("Target clients", TOTAL_CLIENTS));
+  console.log(row("Room ID", ROOM_ID));
+  console.log(row("Ramp / Duration", `${RAMP_MS}ms / ${DURATION_S}s`));
+  console.log(row("Audio downloads", SKIP_AUDIO ? `${c.yellow}SKIPPED` : `${c.green}ENABLED`));
+
+  // Connections
+  console.log(header("CONNECTIONS"));
+  console.log(divider());
+  console.log(row("Succeeded", `${metrics.connectSuccesses}/${metrics.connectAttempts}`, connColor));
+  console.log(row("Failed", metrics.connectFailures, failColor));
+  console.log(row("Peak concurrent", metrics.peakConnections, c.white));
+  console.log(row("Synced", metrics.clientsSynced, metrics.clientsSynced === metrics.connectSuccesses ? c.green : c.yellow));
+
+  // Messages
+  console.log(header("MESSAGES"));
+  console.log(divider());
+  console.log(row("Sent", metrics.messagesSent.toLocaleString()));
+  console.log(row("Received", metrics.messagesReceived.toLocaleString()));
+
+  // NTP
+  console.log(header("NTP SYNC"));
+  console.log(divider());
+  console.log(row("Responses", metrics.ntpResponsesReceived.toLocaleString()));
+  console.log(row("Min RTT", `${minRtt.toFixed(2)}ms`, c.green));
+  console.log(row("Avg RTT", `${avgRtt.toFixed(2)}ms`, rttColor(avgRtt)));
+  console.log(row("Max RTT", `${metrics.ntpMaxRtt.toFixed(2)}ms`, metrics.ntpMaxRtt > 100 ? c.red : c.yellow));
+
+  // Audio
+  if (!SKIP_AUDIO) {
+    console.log(header("AUDIO"));
+    console.log(divider());
+    console.log(row("Downloads", metrics.audioDownloads.toLocaleString()));
+    console.log(row("Total bytes", formatBytes(metrics.audioDownloadBytes)));
+    console.log(row("Avg download time", `${avgDownloadMs.toFixed(0)}ms`));
+    console.log(row("Failures", metrics.audioDownloadFailures, dlFailColor));
+    console.log(row("Load responses", metrics.audioLoadResponses.toLocaleString()));
   }
-  console.log("──────────────────────────────────────────────────────");
 
-  // Resource timeline
+  // Resources
+  console.log(header("RESOURCES (peak)"));
+  console.log(divider());
+  console.log(row("Load test RSS", formatMB(peakLoadTestRss)));
+  console.log(row("Server RSS", formatMB(peakServerRss)));
+  console.log(row("System memory", `${peakSystemUsedPct.toFixed(1)}%`, peakSystemUsedPct > 95 ? c.red : c.white));
   if (resourceSnapshots.length > 0) {
-    console.log("  RESOURCE TIMELINE");
+    console.log(row("CPU cores", resourceSnapshots[0].cpuCount));
+  }
+
+  // Timeline
+  if (resourceSnapshots.length > 0) {
+    console.log(header("RESOURCE TIMELINE"));
+    console.log(divider());
+    const hdr = `  ${c.dim}${"time".padStart(4)}  ${"phase".padEnd(6)}  ${"conn".padStart(6)}  ${"rtt".padStart(9)}  ${"lt-rss".padStart(7)}  ${"srv-rss".padStart(7)}  ${"sys".padStart(4)}${c.reset}`;
+    console.log(hdr);
     const start = resourceSnapshots[0].timestamp;
     for (const snap of resourceSnapshots) {
-      const t = ((snap.timestamp - start) / 1000).toFixed(0).padStart(3);
+      const t = `${((snap.timestamp - start) / 1000).toFixed(0)}s`.padStart(4);
+      const phase = snap.phase.padEnd(6);
       const conn = String(snap.connections).padStart(6);
-      const rtt = snap.avgRtt.toFixed(1).padStart(8);
+      const rtt = `${snap.avgRtt.toFixed(1)}ms`.padStart(9);
       const ltRss = formatMB(snap.loadTestRssMB).padStart(7);
       const srvRss = formatMB(snap.serverRssMB).padStart(7);
-      const sysPct = (((snap.systemTotalMB - snap.systemFreeMB) / snap.systemTotalMB) * 100)
-        .toFixed(0)
-        .padStart(3);
-      console.log(
-        `    ${t}s | ${snap.phase.padEnd(6)} | conn:${conn} | rtt:${rtt}ms | lt:${ltRss} srv:${srvRss} | sys:${sysPct}%`
-      );
+      const sysPct = `${(((snap.systemTotalMB - snap.systemFreeMB) / snap.systemTotalMB) * 100).toFixed(0)}%`.padStart(4);
+      console.log(`  ${c.dim}${t}${c.reset}  ${phase}  ${conn}  ${rtt}  ${ltRss}  ${srvRss}  ${sysPct}`);
     }
-    console.log("──────────────────────────────────────────────────────");
   }
 
+  // Errors
   if (metrics.errors.length > 0) {
-    console.log("  ERRORS (first 10):");
-    metrics.errors.slice(0, 10).forEach((e) => console.log(`    - ${e}`));
+    console.log(header(`${c.red}ERRORS`));
+    console.log(divider());
+    metrics.errors.slice(0, 10).forEach((e) => console.log(`  ${c.red}${e}${c.reset}`));
     if (metrics.errors.length > 10) {
-      console.log(`    ... and ${metrics.errors.length - 10} more`);
+      console.log(`  ${c.dim}... and ${metrics.errors.length - 10} more${c.reset}`);
     }
-    console.log("──────────────────────────────────────────────────────");
   }
 
   // Verdict
-  const successRate = metrics.connectAttempts > 0 ? (metrics.connectSuccesses / metrics.connectAttempts) * 100 : 0;
-
-  console.log("  VERDICT");
-  console.log(`    Connection rate:    ${successRate.toFixed(1)}%`);
-  if (avgRtt < 5) {
-    console.log(`    NTP quality:        EXCELLENT (<5ms avg RTT)`);
-  } else if (avgRtt < 20) {
-    console.log(`    NTP quality:        GOOD (<20ms avg RTT)`);
-  } else if (avgRtt < 50) {
-    console.log(`    NTP quality:        ACCEPTABLE (<50ms avg RTT)`);
-  } else {
-    console.log(`    NTP quality:        POOR (${avgRtt.toFixed(0)}ms avg RTT)`);
-  }
-  console.log("══════════════════════════════════════════════════════\n");
+  console.log(`\n  ${c.bold}${c.cyan}──────────────────────────────────────────────────${c.reset}`);
+  console.log(row("Connection rate", `${successRate.toFixed(1)}%`, connColor));
+  console.log(row("NTP quality", rttVerdict(avgRtt)));
+  console.log(`  ${c.bold}${c.cyan}══════════════════════════════════════════════════${c.reset}\n`);
 }
 
 let liveInterval: ReturnType<typeof setInterval> | null = null;
@@ -466,13 +631,18 @@ function startLiveReporting(): void {
     const avgRtt = getAvgRtt();
     const mem = process.memoryUsage();
     const ltRss = formatMB(mem.rss / 1024 / 1024);
+    const rc = rttColor(avgRtt);
+    const errStr = metrics.connectFailures > 0 ? `${c.red}${metrics.connectFailures}${c.reset}` : `${c.green}0${c.reset}`;
+    const dl = SKIP_AUDIO ? "" : ` ${c.dim}|${c.reset} DL:${colorValue(formatBytes(metrics.audioDownloadBytes), c.magenta)}`;
     process.stdout.write(
-      `\r  Conn: ${metrics.openConnections}/${TOTAL_CLIENTS}` +
-        ` | RTT: ${avgRtt.toFixed(1)}ms` +
-        ` | Msgs: ${metrics.messagesSent}` +
-        ` | Err: ${metrics.connectFailures}` +
-        ` | LT: ${ltRss}` +
-        ` | Srv: ${formatMB(peakServerRss)}     `
+      `\r  ${c.dim}Conn:${c.reset}${colorValue(`${metrics.openConnections}/${TOTAL_CLIENTS}`, c.cyan)}` +
+        ` ${c.dim}Sync:${c.reset}${colorValue(metrics.clientsSynced, c.green)}` +
+        ` ${c.dim}RTT:${c.reset}${colorValue(`${avgRtt.toFixed(1)}ms`, rc)}` +
+        ` ${c.dim}Msgs:${c.reset}${metrics.messagesSent}` +
+        ` ${c.dim}Err:${c.reset}${errStr}` +
+        dl +
+        ` ${c.dim}LT:${c.reset}${ltRss}` +
+        ` ${c.dim}Srv:${c.reset}${formatMB(peakServerRss)}     `
     );
   }, 500);
 }
@@ -481,17 +651,18 @@ function stopLiveReporting(): void {
   if (liveInterval) {
     clearInterval(liveInterval);
     liveInterval = null;
-    console.log(""); // newline after \r output
+    console.log("");
   }
 }
 
 // ── Main ─────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log(`\nBeatsync Load Test`);
-  console.log(`  Target: ${TOTAL_CLIENTS} clients → room ${ROOM_ID}`);
-  console.log(`  Server: ${WS_HOST}`);
-  console.log(`  Ramp: ${RAMP_MS}ms, Duration: ${DURATION_S}s\n`);
+  console.log(`\n  ${c.bold}${c.cyan}Beatsync Demo Load Test${c.reset}`);
+  console.log(`  ${c.dim}Target:${c.reset} ${c.bold}${TOTAL_CLIENTS}${c.reset} clients → room ${c.bold}${ROOM_ID}${c.reset}`);
+  console.log(`  ${c.dim}Server:${c.reset} ${WS_HOST}`);
+  console.log(`  ${c.dim}Ramp:${c.reset} ${RAMP_MS}ms ${c.dim}Duration:${c.reset} ${DURATION_S}s`);
+  console.log(`  ${c.dim}Audio:${c.reset} ${SKIP_AUDIO ? `${c.yellow}SKIPPED${c.reset}` : `${c.green}ENABLED${c.reset} ${c.dim}(real HTTP downloads)${c.reset}`}\n`);
 
   // Check server is reachable
   try {
@@ -550,7 +721,7 @@ async function main(): Promise<void> {
   if (rampResult === "timeout") {
     console.log(`  Ramp timed out after ${(RAMP_TIMEOUT_MS / 1000).toFixed(0)}s — ${metrics.openConnections} connected\n`);
   } else {
-    console.log(`  Phase 1 complete: ${metrics.openConnections} connected\n`);
+    console.log(`  Phase 1 complete: ${metrics.openConnections} connected, ${metrics.clientsSynced} synced\n`);
   }
 
   // Phase 2: Steady state with early exit on degradation
@@ -589,10 +760,8 @@ async function main(): Promise<void> {
     }
   }
 
-  // Give sockets time to close
   await new Promise((r) => setTimeout(r, 2000));
 
-  // Final resource sample
   await sampleResources();
   stopResourceMonitoring();
 
