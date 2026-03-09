@@ -8,21 +8,21 @@ import { Metronome as MetronomeIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 const BEAT_INTERVAL_MS = 1000;
-const WOODBLOCK_URL = "/woodblock.wav";
+const KICK_URL = "/kick.wav";
 
-/** Lazily fetch + decode the woodblock sample once, then cache it. Clears cache on failure so retries work. */
-let clickBufferPromise: Promise<AudioBuffer> | null = null;
-export function getClickBuffer(ctx: AudioContext): Promise<AudioBuffer> {
-  if (!clickBufferPromise) {
-    clickBufferPromise = fetch(WOODBLOCK_URL)
+/** Lazily fetch + decode the kick sample once, then cache it. Clears cache on failure so retries work. */
+let kickBufferPromise: Promise<AudioBuffer> | null = null;
+export function getKickBuffer(ctx: AudioContext): Promise<AudioBuffer> {
+  if (!kickBufferPromise) {
+    kickBufferPromise = fetch(KICK_URL)
       .then((res) => res.arrayBuffer())
       .then((buf) => ctx.decodeAudioData(buf))
       .catch((err) => {
-        clickBufferPromise = null;
+        kickBufferPromise = null;
         throw err;
       });
   }
-  return clickBufferPromise;
+  return kickBufferPromise;
 }
 
 export const MetronomeButton = () => {
@@ -38,7 +38,7 @@ export const MetronomeButton = () => {
     let cancelled = false;
     let cleanupRef: (() => void) | null = null;
 
-    getClickBuffer(ctx).then((clickBuffer) => {
+    getKickBuffer(ctx).then((kickBuffer) => {
       if (cancelled) return;
 
       // Seed with current beat so we don't fire immediately on start
@@ -64,7 +64,7 @@ export const MetronomeButton = () => {
         const startTime = ctx.currentTime + delayS;
 
         const source = ctx.createBufferSource();
-        source.buffer = clickBuffer;
+        source.buffer = kickBuffer;
         source.connect(ctx.destination);
         source.start(startTime);
       }, 10);

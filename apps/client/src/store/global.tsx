@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { audioContextManager } from "@/lib/audioContextManager";
 import { getClientId } from "@/lib/clientId";
-import { getClickBuffer } from "@/components/dashboard/Metronome";
+import { getKickBuffer } from "@/components/dashboard/Metronome";
 import { IS_DEMO_MODE } from "@/lib/demo";
 import { extractFileNameFromUrl } from "@/lib/utils";
 import {
@@ -970,7 +970,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // (they arrived from handleOpen before sync finished)
       if (nowSynced && IS_DEMO_MODE) {
         eagerLoadIdleSources();
-        getClickBuffer(audioContextManager.getContext());
+        getKickBuffer(audioContextManager.getContext());
       }
     },
     onConnectionReset: () => {
