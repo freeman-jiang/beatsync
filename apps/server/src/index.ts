@@ -1,4 +1,4 @@
-import { DEMO } from "@/config";
+import { IS_DEMO_MODE } from "@/config";
 import { BackupManager } from "@/managers/BackupManager";
 import { getActiveRooms } from "@/routes/active";
 import { handleGetDefaultAudio } from "@/routes/default";
@@ -26,7 +26,7 @@ const server = Bun.serve<WSData>({
 
     try {
       // Demo mode: serve local audio files
-      if (DEMO && url.pathname.startsWith("/audio/")) {
+      if (IS_DEMO_MODE && url.pathname.startsWith("/audio/")) {
         return await handleServeAudio(url.pathname);
       }
 
@@ -38,11 +38,11 @@ const server = Bun.serve<WSData>({
           return handleWebSocketUpgrade(req, server);
 
         case "/upload/get-presigned-url":
-          if (DEMO) return errorResponse("Uploads disabled in demo mode", 403);
+          if (IS_DEMO_MODE) return errorResponse("Uploads disabled in demo mode", 403);
           return handleGetPresignedURL(req);
 
         case "/upload/complete":
-          if (DEMO) return errorResponse("Uploads disabled in demo mode", 403);
+          if (IS_DEMO_MODE) return errorResponse("Uploads disabled in demo mode", 403);
           return handleUploadComplete(req, server);
 
         case "/stats":
@@ -82,7 +82,7 @@ const server = Bun.serve<WSData>({
 
 console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
 
-if (!DEMO) {
+if (!IS_DEMO_MODE) {
   // Restore state from backup on startup
   BackupManager.restoreState().catch((error) => {
     console.error("Failed to restore state on startup:", error);
@@ -103,7 +103,7 @@ const shutdown = async () => {
   console.log("\n⚠️ Shutting down...");
 
   void server.stop(); // Stop accepting new connections
-  if (!DEMO) {
+  if (!IS_DEMO_MODE) {
     await BackupManager.backupState(); // Save state
   }
 

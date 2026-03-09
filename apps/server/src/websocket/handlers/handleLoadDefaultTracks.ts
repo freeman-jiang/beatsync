@@ -1,15 +1,15 @@
-import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { DEMO } from "@/config";
+import { IS_DEMO_MODE } from "@/config";
 import { listObjectsWithPrefix } from "@/lib/r2";
 import { sendBroadcast } from "@/utils/responses";
 import { requireCanMutate } from "@/websocket/middlewares";
 import type { HandlerFunction } from "@/websocket/types";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 
 export const handleLoadDefaultTracks: HandlerFunction<ExtractWSRequestFrom["LOAD_DEFAULT_TRACKS"]> = async ({
   ws,
   server,
 }) => {
-  if (DEMO) return;
+  if (IS_DEMO_MODE) return;
   const { room } = requireCanMutate(ws);
 
   // List default objects from R2 and map to public URLs

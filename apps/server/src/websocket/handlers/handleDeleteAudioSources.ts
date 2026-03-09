@@ -1,9 +1,9 @@
-import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { DEMO } from "@/config";
+import { IS_DEMO_MODE } from "@/config";
 import { deleteObject, extractKeyFromUrl } from "@/lib/r2";
 import { sendBroadcast } from "@/utils/responses";
 import { requireCanMutate } from "@/websocket/middlewares";
 import type { HandlerFunction } from "@/websocket/types";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 
 export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DELETE_AUDIO_SOURCES"]> = async ({
   ws,
@@ -23,7 +23,7 @@ export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DEL
   }
 
   // In demo mode, skip R2 deletion — just remove from room state
-  if (DEMO) {
+  if (IS_DEMO_MODE) {
     const { updated } = room.removeAudioSources(urlsToDelete);
     sendBroadcast({
       server,

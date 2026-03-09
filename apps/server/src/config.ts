@@ -2,13 +2,13 @@ import { readdirSync } from "fs";
 import { resolve } from "path";
 
 // Demo mode — serve audio locally instead of R2
-export const DEMO = process.env.DEMO === "1";
+export const IS_DEMO_MODE = process.env.DEMO === "1";
 export const DEMO_AUDIO_DIR = resolve(process.env.DEMO_AUDIO_DIR ?? "./demo-audio");
 export const DEMO_ADMIN_SECRET = process.env.DEMO_ADMIN_SECRET ?? "beatsync";
 
 const AUDIO_EXTENSIONS = new Set([".mp3", ".wav", ".flac", ".ogg", ".m4a"]);
 
-export const DEMO_AUDIO_FILENAMES: string[] = DEMO
+export const DEMO_AUDIO_FILENAMES: string[] = IS_DEMO_MODE
   ? (() => {
       try {
         return readdirSync(DEMO_AUDIO_DIR).filter((f) => {
@@ -23,7 +23,7 @@ export const DEMO_AUDIO_FILENAMES: string[] = DEMO
     })()
   : [];
 
-if (DEMO) {
+if (IS_DEMO_MODE) {
   console.log(`🎤 Demo mode enabled — serving ${DEMO_AUDIO_FILENAMES.length} files from ${DEMO_AUDIO_DIR}`);
   DEMO_AUDIO_FILENAMES.forEach((f) => console.log(`   📁 ${f}`));
 }

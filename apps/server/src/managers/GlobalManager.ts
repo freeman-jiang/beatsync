@@ -1,6 +1,6 @@
-import type { DiscoverRoomsType } from "@beatsync/shared";
-import { DEMO, DEMO_AUDIO_FILENAMES } from "@/config";
+import { DEMO_AUDIO_FILENAMES, IS_DEMO_MODE } from "@/config";
 import { RoomManager } from "@/managers/RoomManager";
+import type { DiscoverRoomsType } from "@beatsync/shared";
 
 /**
  * GlobalManager is a singleton that manages all active rooms.
@@ -30,7 +30,7 @@ export class GlobalManager {
     let room = this.rooms.get(roomId);
     if (!room) {
       room = new RoomManager(roomId, () => this.markActiveUserCountDirty());
-      if (DEMO) {
+      if (IS_DEMO_MODE) {
         for (const filename of DEMO_AUDIO_FILENAMES) {
           room.addAudioSource({ url: `/audio/${encodeURIComponent(filename)}` });
         }

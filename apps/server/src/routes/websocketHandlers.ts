@@ -1,11 +1,11 @@
-import type { WSBroadcastType } from "@beatsync/shared";
-import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
-import type { ServerWebSocket } from "bun";
-import { DEMO } from "@/config";
+import { IS_DEMO_MODE } from "@/config";
 import { globalManager } from "@/managers";
 import { sendBroadcast, sendToClient, sendUnicast } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
 import { dispatchMessage } from "@/websocket/dispatch";
+import type { WSBroadcastType } from "@beatsync/shared";
+import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
+import type { ServerWebSocket } from "bun";
 
 const createClientUpdate = (roomId: string) => {
   const room = globalManager.getRoom(roomId);
@@ -32,7 +32,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   // In demo mode, skip most join messages to avoid O(n²) broadcasts.
   // But send CLIENT_CHANGE as unicast so the client knows its own admin status.
   // Audio sources are sent later on SYNC (after NTP + "Start System").
-  if (DEMO) {
+  if (IS_DEMO_MODE) {
     const message = createClientUpdate(roomId);
     sendToClient({ ws, message });
     return;
@@ -157,7 +157,7 @@ export const handleClose = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     ws.unsubscribe(roomId);
 
     // Skip CLIENT_CHANGE broadcast in demo mode to avoid O(n²) with thousands of clients
-    if (!DEMO) {
+    if (!IS_DEMO_MODE) {
       const message = createClientUpdate(roomId);
       server.publish(roomId, JSON.stringify(message));
     }

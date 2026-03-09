@@ -1,17 +1,17 @@
-import type { ExtractWSRequestFrom } from "@beatsync/shared";
-import { DEMO } from "@/config";
+import { IS_DEMO_MODE } from "@/config";
 import { generateAudioFileName, uploadBytes } from "@/lib/r2";
 import { globalManager } from "@/managers";
 import { MUSIC_PROVIDER_MANAGER } from "@/managers/MusicProviderManager";
 import { sendBroadcast } from "@/utils/responses";
 import type { HandlerFunction } from "@/websocket/types";
+import type { ExtractWSRequestFrom } from "@beatsync/shared";
 
 export const handleStreamMusic: HandlerFunction<ExtractWSRequestFrom["STREAM_MUSIC"]> = async ({
   ws,
   message,
   server,
 }) => {
-  if (DEMO) return;
+  if (IS_DEMO_MODE) return;
   const roomId = ws.data.roomId;
 
   // Require room to exist before processing stream request
