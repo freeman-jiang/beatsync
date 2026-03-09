@@ -1,5 +1,5 @@
 import { countryCodeEmoji } from "@/lib/country/countryCode";
-import { LocationSchema } from "@beatsync/shared";
+import { LocationSchema, MAX_LOCATION_QUALITY, sanitizeLocationFields, scoreLocationQuality } from "@beatsync/shared";
 import { z } from "zod";
 import { getCountryName } from "./country/codeToName";
 
@@ -8,6 +8,16 @@ type RequiredResponse = Pick<z.infer<typeof LocationSchema>, "city" | "country" 
 const FETCH_TIMEOUT_MS = 5000;
 
 let cachedLocation: z.infer<typeof LocationSchema> | null = null;
+
+const toLocation = (response: RequiredResponse): z.infer<typeof LocationSchema> => {
+  const sanitized = sanitizeLocationFields(response);
+  return {
+    ...sanitized,
+    country: getCountryName(sanitized.countryCode) || sanitized.country,
+    flagEmoji: countryCodeEmoji(sanitized.countryCode),
+    flagSvgURL: getFlagSvgURLFromCountryCode(sanitized.countryCode),
+  };
+};
 
 export const getUserLocation = async (): Promise<z.infer<typeof LocationSchema>> => {
   if (cachedLocation) {
@@ -22,24 +32,34 @@ export const getUserLocation = async (): Promise<z.infer<typeof LocationSchema>>
     getUserLocationIPWhoIs,
   ];
 
-  for (const [index, service] of locationServices.entries()) {
-    try {
-      const response = await service();
-      console.log(`Response ${index + 1} from ${service.name}: succeeded. Hello person from ${response.country}!`);
-      const location = {
-        ...response,
-        country: getCountryName(response.countryCode) || response.country,
-        flagEmoji: countryCodeEmoji(response.countryCode),
-        flagSvgURL: getFlagSvgURLFromCountryCode(response.countryCode),
-      };
-      cachedLocation = location;
-      return location;
-    } catch (error) {
-      console.warn(`Location service ${service.name} failed:`, error);
+  const results = await Promise.allSettled(locationServices.map((service) => service()));
+
+  let bestResponse: RequiredResponse | null = null;
+  let bestScore = -1;
+
+  for (const [index, result] of results.entries()) {
+    if (result.status === "rejected") {
+      console.warn(`Location service ${locationServices[index].name} failed:`, result.reason);
+      continue;
+    }
+    const response = result.value;
+    const score = scoreLocationQuality(response);
+    console.log(
+      `${locationServices[index].name}: score=${score}/${MAX_LOCATION_QUALITY}. Hello person from ${response.country}!`
+    );
+    if (score > bestScore) {
+      bestResponse = response;
+      bestScore = score;
     }
   }
 
-  throw new Error("All IP location services failed");
+  if (!bestResponse) {
+    throw new Error("All IP location services failed");
+  }
+
+  const location = toLocation(bestResponse);
+  cachedLocation = location;
+  return location;
 };
 
 const getFlagSvgURLFromCountryCode = (countryCode: string) => {
