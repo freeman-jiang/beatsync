@@ -2,7 +2,6 @@
 
 import { SOCIAL_LINKS } from "@/constants";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
-import { getProbeStats } from "@/utils/ntp";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -52,9 +51,7 @@ export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." 
     return () => clearTimeout(timer);
   }, [isSyncComplete]);
 
-  // Probe stats are plain module variables — they update when measurementCount
-  // changes (which triggers a re-render via Zustand), so no polling needed
-  const probeStats = getProbeStats();
+  const probeStats = useGlobalStore((state) => state.probeStats);
 
   const message = isLoading ? loadingMessage : "Synchronizing time...";
   const litPills = isLoading ? 0 : Math.min(PILL_COUNT, Math.floor(measurementCount / MEASUREMENTS_PER_PILL));

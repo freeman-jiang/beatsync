@@ -6,6 +6,7 @@ import { extractFileNameFromUrl } from "@/lib/utils";
 import {
   calculateOffsetEstimate,
   calculateWaitTimeMilliseconds,
+  getProbeStats,
   NTPMeasurement,
   resetProbeState,
   sendProbePair as sendProbePairWS,
@@ -27,6 +28,7 @@ import {
   SearchResponseType,
   SetAudioSourcesType,
   SpatialConfigType,
+  epochNow,
 } from "@beatsync/shared";
 import { Mutex } from "async-mutex";
 import { toast } from "sonner";
@@ -103,6 +105,7 @@ interface GlobalStateValues {
   roundTripEstimate: number;
   isSynced: boolean;
   nudgeOffsetMs: number;
+  probeStats: { totalSent: number; pureCount: number; impureCount: number };
 
   // Audio Player
   audioPlayer: AudioPlayerState | null;
@@ -247,6 +250,7 @@ const initialState: GlobalStateValues = {
   roundTripEstimate: 0,
   isSynced: false,
   nudgeOffsetMs: 0,
+  probeStats: { totalSent: 0, pureCount: 0, impureCount: 0 },
 
   // Loading state
   isInitingSystem: true,
@@ -673,10 +677,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         return;
       }
 
-      // Simulate scheduling delay for testing: sleep for 2s
-      // if (Math.random() < 0.5) {
-      //   await new Promise((resolve) => setTimeout(resolve, 1000));
-      // }
+      // Simulate scheduling delay for testing:
+      // await new Promise((resolve) => setTimeout(resolve, 500));
 
       let waitTimeSeconds = getWaitTimeSeconds(state, data.targetServerTime);
       const _olMs = getFilteredOutputLatencyMs();
@@ -691,19 +693,30 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         // Check if it would have been on time without nudge AND without output latency compensation
         // (i.e., is the network genuinely late, or did local compensation consume the buffer?)
         const rawWaitMs = calculateWaitTimeMilliseconds(data.targetServerTime, state.offsetEstimate);
-        const rawWaitSeconds = rawWaitMs / 1000;
 
-        if (rawWaitSeconds < 0.05) {
-          // Network is genuinely late — resync
-          console.warn(`Scheduled playback time has passed. Requesting resync...`);
-          const { socket } = getSocket(state);
-          sendWSRequest({
-            ws: socket,
-            request: { type: ClientActionEnum.enum.SYNC },
-          });
-          toast.info("Experiencing some network delays...", {
-            id: "lateSchedule",
-            duration: 2000,
+        if (rawWaitMs < 50) {
+          // Network is genuinely late — reschedule locally with proportional buffer.
+          // No server round-trip needed; we have all the info to calculate the right position.
+          const missedByMs = 50 - rawWaitMs;
+          const retryDelayMs = Math.min(missedByMs + 200, 2000);
+          const elapsedSinceTargetMs = epochNow() + state.offsetEstimate - data.targetServerTime;
+          const trackPositionAtRetry = data.trackTimeSeconds + (elapsedSinceTargetMs + retryDelayMs) / 1000;
+
+          console.warn(
+            `[Schedule] Missed by ${missedByMs.toFixed(0)}ms, rescheduling in ${retryDelayMs.toFixed(0)}ms at track position ${trackPositionAtRetry.toFixed(2)}s`
+          );
+
+          // Update state and schedule on audio thread (sample-accurate)
+          if (data.audioSource !== state.selectedAudioUrl) {
+            set({ selectedAudioUrl: data.audioSource });
+          }
+          const audioIndex = state.findAudioIndexByUrl(data.audioSource);
+          if (audioIndex === null) return;
+
+          state.playAudio({
+            offset: trackPositionAtRetry,
+            when: retryDelayMs / 1000,
+            audioIndex,
           });
           return;
         }
@@ -948,6 +961,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         syncMeasurements: results,
         offsetEstimate: averageOffset,
         roundTripEstimate: averageRoundTrip,
+        probeStats: getProbeStats(),
         ...(nowSynced ? { isSynced: true } : {}),
       });
 
