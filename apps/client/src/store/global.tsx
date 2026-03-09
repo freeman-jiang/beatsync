@@ -360,9 +360,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     // Add URL to front
     queue.unshift(url);
 
-    // Determine which URLs to evict (if any)
+    // Determine which URLs to evict (if any) — skip eviction in demo mode
     const urlsToEvict: string[] = [];
-    while (queue.length > MAX_CACHED_BUFFERS) {
+    while (!IS_DEMO_MODE && queue.length > MAX_CACHED_BUFFERS) {
       const urlToEvict = queue.pop();
       if (urlToEvict) {
         // Don't evict the currently selected/playing track
@@ -450,12 +450,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     }
   };
 
-  // Eagerly load idle audio sources up to cache limit (skips loading/loaded/error)
+  // Eagerly load idle audio sources (skips loading/loaded/error).
+  // In demo mode: no cap (load everything). In prod: capped to MAX_CACHED_BUFFERS.
   const eagerLoadIdleSources = ({ skip }: { skip?: string } = {}) => {
     const state = get();
-    let loaded = skip ? 1 : 0; // count skip URL as already loaded
+    let loaded = skip ? 1 : 0;
     for (const as of state.audioSources) {
-      if (loaded >= MAX_CACHED_BUFFERS) break;
+      if (!IS_DEMO_MODE && loaded >= MAX_CACHED_BUFFERS) break;
       if (as.source.url === skip) continue;
       if (as.status === "idle") {
         loadAudioSource(as.source.url);
