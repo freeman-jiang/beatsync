@@ -233,18 +233,23 @@ export class RoomManager {
     }
 
     const { playAction } = this.pendingPlay;
-
-    // Clear everything here
     this.clearAudioLoadingState();
+    this.broadcastPlay(playAction, server);
+  }
 
-    // Use dynamic scheduling based on max client RTT
+  /**
+   * Skip audio loading coordination and broadcast play immediately.
+   * Used in demo mode where audio is pre-cached on clients.
+   */
+  executeImmediatePlay(playAction: PlayActionType, server: BunServer): void {
+    this.broadcastPlay(playAction, server);
+  }
+
+  private broadcastPlay(playAction: PlayActionType, server: BunServer): void {
     const serverTimeToExecute = this.getScheduledExecutionTime();
-
-    // Update playback state
     const success = this.updatePlaybackSchedulePlay(playAction, serverTimeToExecute);
 
     if (success) {
-      // Send the scheduled play action
       sendBroadcast({
         server,
         roomId: this.roomId,
@@ -254,8 +259,7 @@ export class RoomManager {
           serverTimeToExecute,
         },
       });
-
-      console.log(`Executed scheduled play for ${playAction.audioSource} in room ${this.roomId}`);
+      console.log(`Scheduled play for ${playAction.audioSource} in room ${this.roomId}`);
     } else {
       console.warn(`Failed to execute play - track may have been removed: ${playAction.audioSource}`);
     }

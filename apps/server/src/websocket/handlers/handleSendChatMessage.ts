@@ -1,6 +1,7 @@
 import type { SendChatMessageSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
 import type { z } from "zod";
+import { IS_DEMO_MODE } from "@/demo";
 import { sendBroadcast } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
 import { requireRoom } from "@/websocket/middlewares";
@@ -14,6 +15,7 @@ export function handleSendChatMessage({
   message: z.infer<typeof SendChatMessageSchema>;
   server: BunServer;
 }) {
+  if (IS_DEMO_MODE) return;
   const { room } = requireRoom(ws);
 
   try {
