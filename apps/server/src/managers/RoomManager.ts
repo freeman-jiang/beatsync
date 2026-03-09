@@ -1,4 +1,5 @@
-import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS, IS_DEMO_MODE } from "@/config";
+import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "@/config";
+import { IS_DEMO_MODE } from "@/demo";
 import { deleteObjectsWithPrefix } from "@/lib/r2";
 import { ChatManager } from "@/managers/ChatManager";
 import { calculateGainFromDistanceToSource } from "@/spatial";
@@ -110,8 +111,6 @@ export class RoomManager {
 
   // Audio loading state for synchronized playback
   private pendingPlay?: PendingPlayState;
-  // Clients that have already received SET_AUDIO_SOURCES via SYNC (demo mode)
-  private clientsReceivedAudioSources = new Set<string>();
   constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
@@ -266,14 +265,6 @@ export class RoomManager {
     return this.audioSources;
   }
 
-  hasReceivedAudioSources(clientId: string): boolean {
-    return this.clientsReceivedAudioSources.has(clientId);
-  }
-
-  markReceivedAudioSources(clientId: string): void {
-    this.clientsReceivedAudioSources.add(clientId);
-  }
-
   getPlaybackControlsPermissions(): PlaybackControlsPermissionsType {
     return this.playbackControlsPermissions;
   }
@@ -290,9 +281,6 @@ export class RoomManager {
     this.cancelCleanup();
 
     const { username, clientId } = ws.data;
-
-    // Reset audio sources flag so reconnecting clients get sources on next SYNC
-    this.clientsReceivedAudioSources.delete(clientId);
 
     // Check if this client has cached data from a previous connection
     const clientData: ClientDataType = {

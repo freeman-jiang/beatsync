@@ -429,8 +429,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Update LRU queue after successfully loading a new buffer
       addURLToLRU(url);
 
-      // Send message to server that the source is loaded
-      const { socket } = getSocket(state);
+      // Send message to server that the source is loaded (re-read socket in case of reconnect during fetch)
+      const { socket } = getSocket(get());
       sendWSRequest({
         ws: socket,
         request: {
@@ -446,6 +446,20 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           as.source.url === url ? { ...as, status: "error", error: String(error) } : as
         ),
       }));
+    }
+  };
+
+  // Eagerly load idle audio sources up to cache limit (skips loading/loaded/error)
+  const eagerLoadIdleSources = ({ skip }: { skip?: string } = {}) => {
+    const state = get();
+    let loaded = skip ? 1 : 0; // count skip URL as already loaded
+    for (const as of state.audioSources) {
+      if (loaded >= MAX_CACHED_BUFFERS) break;
+      if (as.source.url === skip) continue;
+      if (as.status === "idle") {
+        loadAudioSource(as.source.url);
+        loaded++;
+      }
     }
   };
 
@@ -586,8 +600,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
         const { socket } = getSocket(get());
 
-        // Request sync with room — in demo mode this also triggers
-        // the server to send SET_AUDIO_SOURCES for the first time
+        // Request sync with room (catches up playback state if a track is playing)
         sendWSRequest({
           ws: socket,
           request: { type: ClientActionEnum.enum.SYNC },
@@ -918,24 +931,30 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
     },
 
-    addProbePairResult: (result) =>
-      set((state) => {
-        let results = [...state.syncMeasurements];
-        if (results.length >= MAX_NTP_MEASUREMENTS) {
-          results = [...results.slice(1), result];
-        } else {
-          results.push(result);
-        }
+    addProbePairResult: (result) => {
+      const prev = get();
+      let results = [...prev.syncMeasurements];
+      if (results.length >= MAX_NTP_MEASUREMENTS) {
+        results = [...results.slice(1), result];
+      } else {
+        results.push(result);
+      }
 
-        const nowSynced = !state.isSynced && results.length >= MAX_NTP_MEASUREMENTS;
-        const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(results);
-        return {
-          syncMeasurements: results,
-          offsetEstimate: averageOffset,
-          roundTripEstimate: averageRoundTrip,
-          ...(nowSynced ? { isSynced: true } : {}),
-        };
-      }),
+      const nowSynced = !prev.isSynced && results.length >= MAX_NTP_MEASUREMENTS;
+      const { averageOffset, averageRoundTrip } = calculateOffsetEstimate(results);
+      set({
+        syncMeasurements: results,
+        offsetEstimate: averageOffset,
+        roundTripEstimate: averageRoundTrip,
+        ...(nowSynced ? { isSynced: true } : {}),
+      });
+
+      // NTP sync just completed — eagerly load any idle audio sources
+      // (they arrived from handleOpen before sync finished)
+      if (nowSynced) {
+        eagerLoadIdleSources();
+      }
+    },
     onConnectionReset: () => {
       const state = get();
 
@@ -1288,7 +1307,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return state.audioSources.find((as) => as.source.url === state.selectedAudioUrl) || null;
     },
 
-    async handleSetAudioSources({ sources, currentAudioSource, eagerLoad }) {
+    async handleSetAudioSources({ sources, currentAudioSource }) {
       // Wait for audio initialization to complete if it's in progress
       if (initializationMutex.isLocked()) {
         await initializationMutex.waitForUnlock();
@@ -1343,16 +1362,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         loadAudioSource(currentAudioSource);
       }
 
-      // Eagerly load remaining sources (capped to cache size to avoid LRU thrashing)
-      if (eagerLoad) {
-        let loaded = currentAudioSource ? 1 : 0;
-        for (const source of sources) {
-          if (loaded >= MAX_CACHED_BUFFERS) break;
-          if (source.url !== currentAudioSource) {
-            loadAudioSource(source.url);
-            loaded++;
-          }
-        }
+      // If NTP sync is already done, eagerly load remaining sources.
+      // If sync isn't done yet, sources stay idle — addProbePairResult
+      // triggers loading once NTP completes (avoids decode jitter during probes).
+      if (get().isSynced) {
+        eagerLoadIdleSources({ skip: currentAudioSource });
       }
 
       // Check if the currently selected/playing track was removed

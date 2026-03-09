@@ -1,12 +1,11 @@
 "use client";
 import { Join } from "@/components/Join";
+import { DEMO_ROOM_ID, IS_DEMO_MODE } from "@/lib/demo";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-
-const DEMO_ROOM = process.env.NEXT_PUBLIC_DEMO_ROOM;
 
 export default function Home() {
   const router = useRouter();
@@ -15,8 +14,8 @@ export default function Home() {
   const resetChatStore = useChatStore((state) => state.reset);
 
   useEffect(() => {
-    if (DEMO_ROOM) {
-      router.replace(`/room/${DEMO_ROOM}`);
+    if (IS_DEMO_MODE) {
+      router.replace(`/room/${DEMO_ROOM_ID}`);
       return;
     }
     console.log("resetting stores");
@@ -26,7 +25,7 @@ export default function Home() {
     resetChatStore();
   }, [router, resetGlobalStore, resetRoomStore, resetChatStore]);
 
-  if (DEMO_ROOM) return null;
+  if (IS_DEMO_MODE) return null;
 
   return (
     <>

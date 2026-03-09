@@ -1,4 +1,4 @@
-import { IS_DEMO_MODE } from "@/config";
+import { IS_DEMO_MODE } from "@/demo";
 import { BackupManager } from "@/managers/BackupManager";
 import { getActiveRooms } from "@/routes/active";
 import { handleGetDefaultAudio } from "@/routes/default";

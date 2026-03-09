@@ -1,4 +1,4 @@
-import { IS_DEMO_MODE } from "@/config";
+import { IS_DEMO_MODE } from "@/demo";
 import { generateAudioFileName, uploadBytes } from "@/lib/r2";
 import { globalManager } from "@/managers";
 import { MUSIC_PROVIDER_MANAGER } from "@/managers/MusicProviderManager";

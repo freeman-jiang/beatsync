@@ -1,4 +1,4 @@
-import { IS_DEMO_MODE } from "@/config";
+import { IS_DEMO_MODE } from "@/demo";
 import { listObjectsWithPrefix } from "@/lib/r2";
 import { errorResponse, jsonResponse } from "@/utils/responses";
 import type { GetDefaultAudioType } from "@beatsync/shared";

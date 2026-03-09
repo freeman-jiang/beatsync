@@ -1,13 +1,13 @@
 import { resolve } from "path";
-import { DEMO_AUDIO_DIR } from "@/config";
+import { AUDIO_DIR_PATH } from "@/demo";
 import { corsHeaders, errorResponse } from "@/utils/responses";
 
 export async function handleServeAudio(pathname: string): Promise<Response> {
   const filename = decodeURIComponent(pathname.slice("/audio/".length));
 
   // Prevent directory traversal
-  const resolved = resolve(DEMO_AUDIO_DIR, filename);
-  if (!resolved.startsWith(DEMO_AUDIO_DIR + "/")) {
+  const resolved = resolve(AUDIO_DIR_PATH, filename);
+  if (!resolved.startsWith(AUDIO_DIR_PATH + "/")) {
     return errorResponse("Forbidden", 403);
   }
 

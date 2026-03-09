@@ -1,4 +1,4 @@
-import { DEMO_ADMIN_SECRET } from "@/config";
+import { IS_DEMO_MODE, isValidAdminSecret } from "@/demo";
 import { errorResponse } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
 
@@ -23,7 +23,7 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
   }
 
   // Check if client provided valid admin secret
-  const isAdmin = DEMO_ADMIN_SECRET !== "" && adminSecret === DEMO_ADMIN_SECRET;
+  const isAdmin = IS_DEMO_MODE && isValidAdminSecret(adminSecret);
 
   console.log(`User ${username} joined room ${roomId} with clientId ${clientId}${isAdmin ? " (admin)" : ""}`);
 

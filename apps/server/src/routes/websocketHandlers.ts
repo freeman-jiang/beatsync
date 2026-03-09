@@ -1,4 +1,4 @@
-import { IS_DEMO_MODE } from "@/config";
+import { IS_DEMO_MODE } from "@/demo";
 import { globalManager } from "@/managers";
 import { sendBroadcast, sendToClient, sendUnicast } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
@@ -21,7 +21,6 @@ const createClientUpdate = (roomId: string) => {
 
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   console.log(`WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`);
-  // Client already knows its ID from PostHog, no need to send SET_CLIENT_ID
 
   const { roomId } = ws.data;
   ws.subscribe(roomId);
@@ -29,16 +28,7 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   const room = globalManager.getOrCreateRoom(roomId);
   room.addClient(ws);
 
-  // In demo mode, skip most join messages to avoid O(n²) broadcasts.
-  // But send CLIENT_CHANGE as unicast so the client knows its own admin status.
-  // Audio sources are sent later on SYNC (after NTP + "Start System").
-  if (IS_DEMO_MODE) {
-    const message = createClientUpdate(roomId);
-    sendToClient({ ws, message });
-    return;
-  }
-
-  // Send audio sources to the newly joined client only (not broadcast)
+  // Send audio sources to the newly joined client
   const { audioSources } = room.getState();
   if (audioSources.length > 0) {
     console.log(`Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`);
@@ -108,8 +98,12 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     });
   }
 
-  const message = createClientUpdate(roomId);
-  sendBroadcast({ server, roomId, message });
+  // In demo mode, send CLIENT_CHANGE as unicast only (avoids O(n²) broadcasts)
+  if (IS_DEMO_MODE) {
+    sendToClient({ ws, message: createClientUpdate(roomId) });
+  } else {
+    sendBroadcast({ server, roomId, message: createClientUpdate(roomId) });
+  }
 };
 
 export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string | Buffer, server: BunServer) => {

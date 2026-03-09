@@ -2,6 +2,7 @@
 import { useClientId } from "@/hooks/useClientId";
 import { useNtpHeartbeat } from "@/hooks/useNtpHeartbeat";
 import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
+import { IS_DEMO_MODE } from "@/lib/demo";
 import { getUserLocation } from "@/lib/ip";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
@@ -110,7 +111,7 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
       startHeartbeat();
 
       // Skip IP geolocation in demo mode (no internet)
-      if (!process.env.NEXT_PUBLIC_DEMO_ROOM) {
+      if (!IS_DEMO_MODE) {
         try {
           const location = await getUserLocation();
 

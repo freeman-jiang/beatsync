@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:demo": "NEXT_PUBLIC_DEMO_ROOM=000000 next dev",
-    "build:demo": "NEXT_PUBLIC_DEMO_ROOM=000000 next build",
+    "dev:demo": "NEXT_PUBLIC_DEMO_MODE=1 next dev",
+    "build:demo": "NEXT_PUBLIC_DEMO_MODE=1 next build",
     "dev:log": "rm -f ../../logs/client.log && next dev 2>&1 | tee ../../logs/client.log",
     "build": "next build",
     "start": "next start",
