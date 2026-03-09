@@ -5,12 +5,9 @@ import { motion } from "motion/react";
 
 export const SpatialAudioBackground = () => {
   const { clientId } = useClientId();
-  const spatialConfig = useGlobalStore((state) => state.spatialConfig);
+  const gain = useGlobalStore((state) => (clientId ? (state.spatialConfig?.gains[clientId]?.gain ?? 0) : 0));
 
   if (!clientId) return null;
-
-  // Get the current user's gain value (0 to 1), default to 0 if not found
-  const gain = spatialConfig?.gains[clientId]?.gain || 0;
 
   // If gain is 0, don't render anything
   if (gain <= 0) return null;

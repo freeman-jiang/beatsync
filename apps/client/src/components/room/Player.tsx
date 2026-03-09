@@ -9,7 +9,7 @@ export const Player = () => {
   const canMutate = useCanMutate();
   const isPlaying = useGlobalStore((state) => state.isPlaying);
   const getCurrentTrackPosition = useGlobalStore((state) => state.getCurrentTrackPosition);
-  const audioSources = useGlobalStore((state) => state.audioSources);
+  const audioSourceCount = useGlobalStore((state) => state.audioSources.length);
   const currentTime = useGlobalStore((state) => state.currentTime);
   const skipToNextTrack = useGlobalStore((state) => state.skipToNextTrack);
   const skipToPreviousTrack = useGlobalStore((state) => state.skipToPreviousTrack);
@@ -172,7 +172,7 @@ export const Player = () => {
               !canMutate && "opacity-50 cursor-not-allowed"
             )}
             onClick={handleShuffle}
-            disabled={audioSources.length <= 1 || !canMutate}
+            disabled={audioSourceCount <= 1 || !canMutate}
           >
             <div className="relative">
               <Shuffle className={cn("size-4 relative", isShuffled ? "text-primary-400" : "text-current")} />
@@ -187,7 +187,7 @@ export const Player = () => {
               !canMutate && "opacity-50 cursor-not-allowed"
             )}
             onClick={handleSkipBack}
-            disabled={isShuffled || audioSources.length <= 1 || !canMutate}
+            disabled={isShuffled || audioSourceCount <= 1 || !canMutate}
           >
             <SkipBack className="w-7 h-7 md:w-5 md:h-5 fill-current" />
           </button>
@@ -211,7 +211,7 @@ export const Player = () => {
               !canMutate && "opacity-50 cursor-not-allowed"
             )}
             onClick={handleSkipForward}
-            disabled={audioSources.length <= 1 || !canMutate}
+            disabled={audioSourceCount <= 1 || !canMutate}
           >
             <SkipForward className="w-7 h-7 md:w-5 md:h-5 fill-current" />
           </button>
