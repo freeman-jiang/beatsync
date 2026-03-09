@@ -12,7 +12,7 @@ const WOODBLOCK_URL = "/woodblock.wav";
 
 /** Lazily fetch + decode the woodblock sample once, then cache it. Clears cache on failure so retries work. */
 let clickBufferPromise: Promise<AudioBuffer> | null = null;
-function getClickBuffer(ctx: AudioContext): Promise<AudioBuffer> {
+export function getClickBuffer(ctx: AudioContext): Promise<AudioBuffer> {
   if (!clickBufferPromise) {
     clickBufferPromise = fetch(WOODBLOCK_URL)
       .then((res) => res.arrayBuffer())

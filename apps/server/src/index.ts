@@ -27,7 +27,7 @@ const server = Bun.serve<WSData>({
     try {
       // Demo mode: serve local audio files
       if (IS_DEMO_MODE && url.pathname.startsWith("/audio/")) {
-        return await handleServeAudio(url.pathname);
+        return handleServeAudio(url.pathname);
       }
 
       switch (url.pathname) {
