@@ -2,6 +2,7 @@
 
 import { SOCIAL_LINKS } from "@/constants";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
+import { getProbeStats } from "@/utils/ntp";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -31,25 +32,32 @@ const PILL_COUNT = 8;
 const MEASUREMENTS_PER_PILL = MAX_NTP_MEASUREMENTS / PILL_COUNT;
 
 export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." }: SyncProgressProps) => {
+  // ALL hooks must be declared before any early returns
   const measurementCount = useGlobalStore((state) => state.syncMeasurements.length);
   const isSyncComplete = useGlobalStore((state) => state.isSynced);
   const setIsInitingSystem = useGlobalStore((state) => state.setIsInitingSystem);
   const hasUserStartedSystem = useGlobalStore((state) => state.hasUserStartedSystem);
   const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
   const offsetEstimate = useGlobalStore((state) => state.offsetEstimate);
+  const reconnectionInfo = useGlobalStore((state) => state.reconnectionInfo);
+  const audioLoadingCount = useGlobalStore((state) => state.audioSources.filter((s) => s.status === "loading").length);
+  const audioLoadedCount = useGlobalStore((state) => state.audioSources.filter((s) => s.status === "loaded").length);
+  const wsReadyState = useGlobalStore((state) => state.socket?.readyState ?? -1);
 
-  const message = isLoading ? loadingMessage : "Synchronizing time...";
-
-  // Number of lit pills: 0 during loading, then based on measurement count
-  const litPills = isLoading ? 0 : Math.min(PILL_COUNT, Math.floor(measurementCount / MEASUREMENTS_PER_PILL));
   const [showComplete, setShowComplete] = useState(false);
+
   useEffect(() => {
     if (!isSyncComplete) return;
     const timer = setTimeout(() => setShowComplete(true), 100);
     return () => clearTimeout(timer);
   }, [isSyncComplete]);
 
-  const reconnectionInfo = useGlobalStore((state) => state.reconnectionInfo);
+  // Probe stats are plain module variables — they update when measurementCount
+  // changes (which triggers a re-render via Zustand), so no polling needed
+  const probeStats = getProbeStats();
+
+  const message = isLoading ? loadingMessage : "Synchronizing time...";
+  const litPills = isLoading ? 0 : Math.min(PILL_COUNT, Math.floor(measurementCount / MEASUREMENTS_PER_PILL));
 
   // Check if max reconnection attempts have been reached
   const hasReconnectionFailed =
@@ -365,6 +373,46 @@ export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." 
               />
             );
           })}
+        </div>
+
+        {/* Debug stats */}
+        <div className="mt-3 w-full font-mono text-[10px] text-neutral-500 leading-relaxed">
+          <div className="flex justify-between">
+            <span>pairs sent</span>
+            <span className="text-neutral-400">{probeStats.totalSent}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>pure / impure</span>
+            <span className="text-neutral-400">
+              {probeStats.pureCount} / {probeStats.impureCount}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>measurements</span>
+            <span className="text-neutral-400">
+              {measurementCount} / {MAX_NTP_MEASUREMENTS}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>audio</span>
+            <span className="text-neutral-400">
+              {audioLoadedCount} loaded{audioLoadingCount > 0 ? `, ${audioLoadingCount} loading` : ""}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>ws</span>
+            <span className="text-neutral-400">
+              {wsReadyState === 0
+                ? "connecting"
+                : wsReadyState === 1
+                  ? "open"
+                  : wsReadyState === 2
+                    ? "closing"
+                    : wsReadyState === 3
+                      ? "closed"
+                      : "none"}
+            </span>
+          </div>
         </div>
       </motion.div>
     </OuterModal>

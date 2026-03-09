@@ -37,3 +37,8 @@ export const sendBroadcast = ({
 export const sendUnicast = ({ ws, message }: { ws: ServerWebSocket<WSData>; message: WSUnicastType }) => {
   ws.send(JSON.stringify(message));
 };
+
+// Send a broadcast-typed message to a single client (e.g., initial state on join)
+export const sendToClient = ({ ws, message }: { ws: ServerWebSocket<WSData>; message: WSBroadcastType }) => {
+  ws.send(JSON.stringify(message));
+};

@@ -4,6 +4,7 @@ import { resolve } from "path";
 // Demo mode — serve audio locally instead of R2
 export const DEMO = process.env.DEMO === "1";
 export const DEMO_AUDIO_DIR = resolve(process.env.DEMO_AUDIO_DIR ?? "./demo-audio");
+export const DEMO_ADMIN_SECRET = process.env.DEMO_ADMIN_SECRET ?? "beatsync";
 
 const AUDIO_EXTENSIONS = new Set([".mp3", ".wav", ".flac", ".ogg", ".m4a"]);
 

@@ -3,7 +3,7 @@ import { ClientActionEnum, epochNow, WSRequestSchema } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
 import { DEMO } from "@/config";
 import { globalManager } from "@/managers";
-import { sendBroadcast, sendUnicast } from "@/utils/responses";
+import { sendBroadcast, sendToClient, sendUnicast } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
 import { dispatchMessage } from "@/websocket/dispatch";
 
@@ -29,32 +29,35 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   const room = globalManager.getOrCreateRoom(roomId);
   room.addClient(ws);
 
-  // Send audio sources to the newly joined client if any exist
+  // In demo mode, skip most join messages to avoid O(n²) broadcasts.
+  // But send CLIENT_CHANGE as unicast so the client knows its own admin status.
+  // Audio sources are sent later on SYNC (after NTP + "Start System").
+  if (DEMO) {
+    const message = createClientUpdate(roomId);
+    sendToClient({ ws, message });
+    return;
+  }
+
+  // Send audio sources to the newly joined client only (not broadcast)
   const { audioSources } = room.getState();
   if (audioSources.length > 0) {
     console.log(`Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`);
 
-    // Send audio sources via broadcast (which will include the newly joined client)
-    // This ensures all clients stay in sync
-    sendBroadcast({
-      server,
-      roomId,
+    sendToClient({
+      ws,
       message: {
         type: "ROOM_EVENT",
         event: {
           type: "SET_AUDIO_SOURCES",
           sources: audioSources,
           currentAudioSource: room.getPlaybackState().audioSource || undefined,
-          eagerLoad: DEMO,
         },
       },
     });
   }
 
-  // Always send the current playback controls
-  sendBroadcast({
-    server,
-    roomId,
+  sendToClient({
+    ws,
     message: {
       type: "ROOM_EVENT",
       event: {
@@ -64,7 +67,6 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     },
   });
 
-  // Send current global volume state to the newly joined client only
   sendUnicast({
     ws,
     message: {
@@ -78,7 +80,6 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     },
   });
 
-  // Send current metronome state to the newly joined client only
   sendUnicast({
     ws,
     message: {
@@ -91,19 +92,16 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     },
   });
 
-  // Send chat history via broadcast (similar to audio sources)
-  // The isFullSync flag tells existing clients to ignore this update
   const messages = room.getFullChatHistory();
   if (messages.length > 0) {
-    sendBroadcast({
-      server,
-      roomId,
+    sendToClient({
+      ws,
       message: {
         type: "ROOM_EVENT",
         event: {
           type: "CHAT_UPDATE",
           messages: messages,
-          isFullSync: true, // Tells clients this is a full sync, not incremental
+          isFullSync: true,
           newestId: room.getNewestChatId(),
         },
       },
@@ -156,9 +154,13 @@ export const handleClose = (ws: ServerWebSocket<WSData>, server: BunServer) => {
       }
     }
 
-    const message = createClientUpdate(roomId);
     ws.unsubscribe(roomId);
-    server.publish(roomId, JSON.stringify(message));
+
+    // Skip CLIENT_CHANGE broadcast in demo mode to avoid O(n²) with thousands of clients
+    if (!DEMO) {
+      const message = createClientUpdate(roomId);
+      server.publish(roomId, JSON.stringify(message));
+    }
   } catch (error) {
     console.error(`Error handling WebSocket close for ${ws.data?.username}:`, error);
   }

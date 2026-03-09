@@ -21,6 +21,13 @@ void mock.module("@/utils/responses", () => ({
   errorResponse: mock(() => new Response()),
 }));
 
+/** Extract parsed messages sent directly via ws.send() */
+function getWsSentMessages(ws: ReturnType<typeof createMockWs>): WSBroadcastType[] {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- mock fn, no real `this`
+  const sendMock = ws.send as ReturnType<typeof mock>;
+  return sendMock.mock.calls.map((call: unknown[]) => JSON.parse(call[0] as string) as WSBroadcastType);
+}
+
 describe("WebSocket Handlers (Simplified Tests)", () => {
   beforeEach(() => {
     // Clear broadcast messages
@@ -42,18 +49,20 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       room.addAudioSource({ url: "https://example.com/song2.mp3" });
 
       const mockServer = createMockServer();
+      const ws = createMockWs({ clientId: "client-123", username: "returningUser", roomId });
 
-      handleOpen(createMockWs({ clientId: "client-123", username: "returningUser", roomId }), mockServer);
+      handleOpen(ws, mockServer);
 
-      // Verify SET_AUDIO_SOURCES was broadcast
-      const audioSourcesMessage = broadcastMessages.find((msg) => {
-        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
-      });
+      // Audio sources are now sent directly to the joining client via ws.send (not broadcast)
+      const sentMessages = getWsSentMessages(ws);
+      const audioSourcesMessage = sentMessages.find(
+        (msg) => msg.type === "ROOM_EVENT" && msg.event?.type === "SET_AUDIO_SOURCES"
+      );
 
       expect(audioSourcesMessage).toBeTruthy();
 
       // Verify the audio sources content
-      const msg = audioSourcesMessage!.message;
+      const msg = audioSourcesMessage!;
       if (msg.type !== "ROOM_EVENT" || msg.event.type !== "SET_AUDIO_SOURCES")
         throw new Error("Expected SET_AUDIO_SOURCES");
       expect(msg.event.sources).toHaveLength(2);
@@ -69,14 +78,16 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       globalManager.getOrCreateRoom(roomId);
 
       const mockServer = createMockServer();
+      const ws = createMockWs({ clientId: "client-456", username: "newUser", roomId });
       broadcastMessages = [];
 
-      handleOpen(createMockWs({ clientId: "client-456", username: "newUser", roomId }), mockServer);
+      handleOpen(ws, mockServer);
 
-      // Verify no SET_AUDIO_SOURCES was broadcast
-      const audioSourcesMessage = broadcastMessages.find((msg) => {
-        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
-      });
+      // Verify no SET_AUDIO_SOURCES was sent via ws.send
+      const sentMessages = getWsSentMessages(ws);
+      const audioSourcesMessage = sentMessages.find(
+        (msg) => msg.type === "ROOM_EVENT" && msg.event?.type === "SET_AUDIO_SOURCES"
+      );
 
       expect(audioSourcesMessage).toBeUndefined();
     });
@@ -88,27 +99,32 @@ describe("WebSocket Handlers (Simplified Tests)", () => {
       room.addAudioSource({ url: "https://example.com/shared.mp3" });
 
       const mockServer = createMockServer();
-      broadcastMessages = [];
+      const ws1 = createMockWs({ clientId: "client-001", username: "user1", roomId });
+      const ws2 = createMockWs({ clientId: "client-002", username: "user2", roomId });
 
-      handleOpen(createMockWs({ clientId: "client-001", username: "user1", roomId }), mockServer);
-      handleOpen(createMockWs({ clientId: "client-002", username: "user2", roomId }), mockServer);
+      handleOpen(ws1, mockServer);
+      handleOpen(ws2, mockServer);
 
-      // Count how many SET_AUDIO_SOURCES broadcasts were sent
-      const audioSourcesMessages = broadcastMessages.filter((msg) => {
-        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
-      });
+      // Each client should receive audio sources via their own ws.send (not broadcast)
+      for (const ws of [ws1, ws2]) {
+        const sentMessages = getWsSentMessages(ws);
+        const audioSourcesMessage = sentMessages.find(
+          (msg) => msg.type === "ROOM_EVENT" && msg.event?.type === "SET_AUDIO_SOURCES"
+        );
 
-      // Should have broadcast audio sources twice (once for each client joining)
-      expect(audioSourcesMessages).toHaveLength(2);
-
-      // Verify the content of audio sources
-      for (const entry of audioSourcesMessages) {
-        const m = entry.message;
+        expect(audioSourcesMessage).toBeTruthy();
+        const m = audioSourcesMessage!;
         if (m.type !== "ROOM_EVENT" || m.event.type !== "SET_AUDIO_SOURCES")
           throw new Error("Expected SET_AUDIO_SOURCES");
         expect(m.event.sources).toHaveLength(1);
         expect(m.event.sources[0].url).toBe("https://example.com/shared.mp3");
       }
+
+      // Verify SET_AUDIO_SOURCES was NOT broadcast (which would spam all existing clients)
+      const audioSourcesBroadcasts = broadcastMessages.filter((msg) => {
+        return msg.message.type === "ROOM_EVENT" && msg.message.event?.type === "SET_AUDIO_SOURCES";
+      });
+      expect(audioSourcesBroadcasts).toHaveLength(0);
     });
   });
 

@@ -110,6 +110,8 @@ export class RoomManager {
 
   // Audio loading state for synchronized playback
   private pendingPlay?: PendingPlayState;
+  // Clients that have already received SET_AUDIO_SOURCES via SYNC (demo mode)
+  private clientsReceivedAudioSources = new Set<string>();
   constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
@@ -264,6 +266,14 @@ export class RoomManager {
     return this.audioSources;
   }
 
+  hasReceivedAudioSources(clientId: string): boolean {
+    return this.clientsReceivedAudioSources.has(clientId);
+  }
+
+  markReceivedAudioSources(clientId: string): void {
+    this.clientsReceivedAudioSources.add(clientId);
+  }
+
   getPlaybackControlsPermissions(): PlaybackControlsPermissionsType {
     return this.playbackControlsPermissions;
   }
@@ -280,6 +290,9 @@ export class RoomManager {
     this.cancelCleanup();
 
     const { username, clientId } = ws.data;
+
+    // Reset audio sources flag so reconnecting clients get sources on next SYNC
+    this.clientsReceivedAudioSources.delete(clientId);
 
     // Check if this client has cached data from a previous connection
     const clientData: ClientDataType = {
@@ -307,6 +320,11 @@ export class RoomManager {
 
     // Always ensure that the first client to join an empty room becomes admin regardless
     if (this.wsConnections.size === 0) {
+      clientData.isAdmin = true;
+    }
+
+    // If the client authenticated with the admin secret, always grant admin
+    if (ws.data.isAdmin) {
       clientData.isAdmin = true;
     }
 
@@ -595,6 +613,13 @@ export class RoomManager {
     const client = this.clientData.get(clientId);
     if (!client) return;
     client.lastNtpResponse = Date.now();
+
+    // Log first NTP probe per client (confirms probes are flowing)
+    if (client.rtt === 0 && clientRTT !== undefined && clientRTT > 0) {
+      console.log(
+        `[NTP] First probe from ${client.username} (${clientId}) in room ${this.roomId} | RTT=${clientRTT.toFixed(1)}ms`
+      );
+    }
 
     // Update RTT if provided (using exponential moving average for smoothing)
     if (clientRTT !== undefined && clientRTT > 0) {

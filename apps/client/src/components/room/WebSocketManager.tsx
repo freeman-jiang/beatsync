@@ -78,8 +78,12 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
     createConnection: () => createConnection(),
   });
 
+  // Cache admin secret from page URL (doesn't change across reconnections)
+  const adminSecret = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("admin") : null;
+  const adminParam = adminSecret ? `&admin=${encodeURIComponent(adminSecret)}` : "";
+
   const createConnection = () => {
-    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}&clientId=${clientId}`;
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}`;
     console.log("Creating new WS connection to", SOCKET_URL);
 
     // Clear previous connection if it exists
@@ -105,19 +109,21 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
       // Start NTP heartbeat
       startHeartbeat();
 
-      try {
-        const location = await getUserLocation();
+      // Skip IP geolocation in demo mode (no internet)
+      if (!process.env.NEXT_PUBLIC_DEMO_ROOM) {
+        try {
+          const location = await getUserLocation();
 
-        // IP Sync
-        sendWSRequest({
-          ws,
-          request: {
-            type: ClientActionEnum.enum.SEND_IP,
-            location,
-          },
-        });
-      } catch (e) {
-        console.error("Failed to geolocate IP", e);
+          sendWSRequest({
+            ws,
+            request: {
+              type: ClientActionEnum.enum.SEND_IP,
+              location,
+            },
+          });
+        } catch (e) {
+          console.error("Failed to geolocate IP", e);
+        }
       }
     };
 

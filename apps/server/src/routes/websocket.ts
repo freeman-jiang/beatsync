@@ -1,3 +1,4 @@
+import { DEMO_ADMIN_SECRET } from "@/config";
 import { errorResponse } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
 
@@ -6,6 +7,7 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
   const roomId = url.searchParams.get("roomId");
   const username = url.searchParams.get("username");
   const clientId = url.searchParams.get("clientId");
+  const adminSecret = url.searchParams.get("admin");
 
   if (!roomId || !username || !clientId) {
     // Check which parameters are missing and log them
@@ -20,12 +22,16 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
     return errorResponse("roomId, username and clientId are required");
   }
 
-  console.log(`User ${username} joined room ${roomId} with clientId ${clientId}`);
+  // Check if client provided valid admin secret
+  const isAdmin = DEMO_ADMIN_SECRET !== "" && adminSecret === DEMO_ADMIN_SECRET;
+
+  console.log(`User ${username} joined room ${roomId} with clientId ${clientId}${isAdmin ? " (admin)" : ""}`);
 
   const data: WSData = {
     roomId,
     username,
     clientId,
+    isAdmin,
   };
 
   // Upgrade the connection with the WSData context

@@ -263,7 +263,7 @@ const initialState: GlobalStateValues = {
   },
 
   // Playback controls
-  playbackControlsPermissions: PlaybackControlsPermissionsEnum.enum.EVERYONE,
+  playbackControlsPermissions: PlaybackControlsPermissionsEnum.enum.ADMIN_ONLY,
 
   // Search results
   searchResults: null,
@@ -574,7 +574,6 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setIsInitingSystem: async (isIniting) => {
       // When initialization is complete (isIniting = false), check if we need to resume audio
       if (!isIniting) {
-        const state = get();
         // Mark that user has started the system
         set({ hasUserStartedSystem: true });
 
@@ -585,9 +584,10 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           console.warn("Failed to resume AudioContext", err);
         }
 
-        const { socket } = getSocket(state);
+        const { socket } = getSocket(get());
 
-        // Request sync with room if conditions are met
+        // Request sync with room — in demo mode this also triggers
+        // the server to send SET_AUDIO_SOURCES for the first time
         sendWSRequest({
           ws: socket,
           request: { type: ClientActionEnum.enum.SYNC },

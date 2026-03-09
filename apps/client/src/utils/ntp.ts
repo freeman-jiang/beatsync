@@ -29,6 +29,14 @@ export const resetProbeState = () => {
   impureCount = 0;
 };
 
+/** Get probe pair stats for debugging */
+export const getProbeStats = () => ({
+  totalPairs: pureCount + impureCount,
+  pureCount,
+  impureCount,
+  totalSent: probeGroupCounter,
+});
+
 /**
  * Send a coded probe pair (Huygens). Two NTP requests sent with a known
  * inter-departure gap. The client later validates that the server-side
