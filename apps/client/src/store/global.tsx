@@ -303,13 +303,13 @@ const getSocket = (state: GlobalState) => {
   };
 };
 
-const MAX_TRUSTWORTHY_OUTPUT_LATENCY_MS = 100;
+export const MAX_TRUSTWORTHY_OUTPUT_LATENCY_MS = 100;
 
 /**
  * Read the browser's outputLatency, filtering out garbage values (e.g. Bluetooth reporting 648ms).
  * Wired speakers (~24ms) are trustworthy. Bluetooth users should use manual nudge.
  */
-const getFilteredOutputLatencyMs = (): number => {
+export const getFilteredOutputLatencyMs = (): number => {
   const rawMs = (audioContextManager.getContext().outputLatency ?? 0) * 1000;
   if (rawMs > MAX_TRUSTWORTHY_OUTPUT_LATENCY_MS) {
     console.warn(`[OutputLatency] ignoring ${rawMs.toFixed(0)}ms (likely Bluetooth garbage — use nudge)`);

@@ -2,13 +2,28 @@
 
 import { audioContextManager } from "@/lib/audioContextManager";
 import { cn } from "@/lib/utils";
-import { useGlobalStore } from "@/store/global";
+import { getFilteredOutputLatencyMs, useGlobalStore } from "@/store/global";
 import { epochNow } from "@beatsync/shared";
 import { Metronome as MetronomeIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 const BEAT_INTERVAL_MS = 1000;
-const NOISE_DURATION_S = 0.004;
+const WOODBLOCK_URL = "/woodblock.wav";
+
+/** Lazily fetch + decode the woodblock sample once, then cache it. Clears cache on failure so retries work. */
+let clickBufferPromise: Promise<AudioBuffer> | null = null;
+function getClickBuffer(ctx: AudioContext): Promise<AudioBuffer> {
+  if (!clickBufferPromise) {
+    clickBufferPromise = fetch(WOODBLOCK_URL)
+      .then((res) => res.arrayBuffer())
+      .then((buf) => ctx.decodeAudioData(buf))
+      .catch((err) => {
+        clickBufferPromise = null;
+        throw err;
+      });
+  }
+  return clickBufferPromise;
+}
 
 export const MetronomeButton = () => {
   const isMetronomeActive = useGlobalStore((state) => state.isMetronomeActive);
@@ -20,80 +35,46 @@ export const MetronomeButton = () => {
     if (!isMetronomeActive || !isSynced) return;
 
     const ctx = audioContextManager.getContext();
-    const sampleRate = ctx.sampleRate;
+    let cancelled = false;
+    let cleanupRef: (() => void) | null = null;
 
-    // Pre-compute noise buffer — white noise is statistically identical every beat
-    const noiseSamples = Math.ceil(sampleRate * NOISE_DURATION_S);
-    const noiseBuf = ctx.createBuffer(1, noiseSamples, sampleRate);
-    const noiseData = noiseBuf.getChannelData(0);
-    for (let i = 0; i < noiseSamples; i++) {
-      noiseData[i] = Math.random() * 2 - 1;
-    }
+    getClickBuffer(ctx).then((clickBuffer) => {
+      if (cancelled) return;
 
-    // Seed with current beat so we don't fire immediately on start
-    const { offsetEstimate, nudgeOffsetMs } = useGlobalStore.getState();
-    const seedOffset = offsetEstimate + nudgeOffsetMs;
-    lastBeatRef.current = Math.floor((epochNow() + seedOffset) / BEAT_INTERVAL_MS);
-
-    const interval = setInterval(() => {
-      // Read offset + nudge fresh each tick (avoids effect teardown on nudge change)
+      // Seed with current beat so we don't fire immediately on start
       const { offsetEstimate, nudgeOffsetMs } = useGlobalStore.getState();
-      const effectiveOffset = offsetEstimate + nudgeOffsetMs;
-      const serverTimeMs = epochNow() + effectiveOffset;
-      const beatIndex = Math.floor(serverTimeMs / BEAT_INTERVAL_MS);
+      const seedOffset = offsetEstimate + nudgeOffsetMs;
+      lastBeatRef.current = Math.floor((epochNow() + seedOffset) / BEAT_INTERVAL_MS);
 
-      if (beatIndex === lastBeatRef.current) return;
-      lastBeatRef.current = beatIndex;
+      const interval = setInterval(() => {
+        const { offsetEstimate, nudgeOffsetMs } = useGlobalStore.getState();
+        const effectiveOffset = offsetEstimate + nudgeOffsetMs;
+        const now = epochNow();
+        const serverTimeMs = now + effectiveOffset;
+        const beatIndex = Math.floor(serverTimeMs / BEAT_INTERVAL_MS);
 
-      // Schedule click at the exact beat boundary using Web Audio
-      const beatTimeMs = beatIndex * BEAT_INTERVAL_MS;
-      const localBeatTimeMs = beatTimeMs - effectiveOffset;
-      const delayS = Math.max(0, (localBeatTimeMs - epochNow()) / 1000);
-      const startTime = ctx.currentTime + delayS;
+        if (beatIndex === lastBeatRef.current) return;
+        lastBeatRef.current = beatIndex;
 
-      // Layer 1: Pitched body — lower fundamental, longer decay for more body
-      const osc = ctx.createOscillator();
-      osc.frequency.setValueAtTime(1200, startTime);
-      osc.frequency.exponentialRampToValueAtTime(400, startTime + 0.04);
-      const oscGain = ctx.createGain();
-      oscGain.gain.setValueAtTime(1, startTime);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06);
-      osc.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.start(startTime);
-      osc.stop(startTime + 0.065);
+        // Schedule click at the exact beat boundary — same path as real track playback
+        const beatTimeMs = beatIndex * BEAT_INTERVAL_MS;
+        const localBeatTimeMs = beatTimeMs - effectiveOffset;
+        const outputLatencyMs = getFilteredOutputLatencyMs();
+        const delayS = Math.max(0, (localBeatTimeMs - now - outputLatencyMs) / 1000);
+        const startTime = ctx.currentTime + delayS;
 
-      // Layer 1b: Sub thump for weight
-      const sub = ctx.createOscillator();
-      sub.frequency.setValueAtTime(300, startTime);
-      sub.frequency.exponentialRampToValueAtTime(80, startTime + 0.03);
-      const subGain = ctx.createGain();
-      subGain.gain.setValueAtTime(0.5, startTime);
-      subGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
-      sub.connect(subGain);
-      subGain.connect(ctx.destination);
-      sub.start(startTime);
-      sub.stop(startTime + 0.055);
+        const source = ctx.createBufferSource();
+        source.buffer = clickBuffer;
+        source.connect(ctx.destination);
+        source.start(startTime);
+      }, 10);
 
-      // Layer 2: Noise transient for attack (bandpass-filtered burst)
-      const noiseSrc = ctx.createBufferSource();
-      noiseSrc.buffer = noiseBuf;
-      const bpf = ctx.createBiquadFilter();
-      bpf.type = "bandpass";
-      bpf.frequency.value = 3500;
-      bpf.Q.value = 2;
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.6, startTime);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.003);
-      noiseSrc.connect(bpf);
-      bpf.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      noiseSrc.start(startTime);
-      noiseSrc.stop(startTime + NOISE_DURATION_S);
-    }, 10);
+      cleanupRef = () => clearInterval(interval);
+    });
 
     return () => {
-      clearInterval(interval);
+      cancelled = true;
+      cleanupRef?.();
     };
   }, [isMetronomeActive, isSynced]);
 
