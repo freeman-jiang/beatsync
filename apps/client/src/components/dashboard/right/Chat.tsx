@@ -215,7 +215,7 @@ export const Chat = () => {
                   )}
 
                   {/* Message group */}
-                  <div className={cn("flex flex-col", isOwnMessage ? "items-end" : "items-start")}>
+                  <div className={cn("flex flex-col min-w-0 w-full", isOwnMessage ? "items-end" : "items-start")}>
                     {/* Sender name (only for others' messages and first message in group) */}
                     {!isOwnMessage && (
                       <span className="text-[10px] text-neutral-500 ml-1 mb-0.5">
@@ -237,7 +237,9 @@ export const Chat = () => {
                     )}
 
                     {/* Messages */}
-                    <div className={cn("flex flex-col gap-[1px]", isOwnMessage ? "items-end" : "items-start")}>
+                    <div
+                      className={cn("flex flex-col gap-[1px] max-w-[85%]", isOwnMessage ? "items-end" : "items-start")}
+                    >
                       <AnimatePresence mode="popLayout">
                         {group.map((msg, msgIndex) => {
                           const isFirst = msgIndex === 0;
@@ -248,7 +250,7 @@ export const Chat = () => {
                             <motion.div
                               key={msg.id}
                               className={cn(
-                                "px-3 py-1.5 text-sm break-words",
+                                "px-3 py-1.5 text-sm break-words max-w-full",
                                 isOwnMessage ? "bg-green-700 text-white" : "bg-neutral-800 text-neutral-200",
                                 // Corner rounding for message bubbles
                                 isSingle
@@ -273,7 +275,9 @@ export const Chat = () => {
                               }}
                               layout
                             >
-                              <p className="whitespace-pre-wrap">{msg.text}</p>
+                              <p className="whitespace-pre-wrap" style={{ overflowWrap: "anywhere" }}>
+                                {msg.text}
+                              </p>
                             </motion.div>
                           );
                         })}
