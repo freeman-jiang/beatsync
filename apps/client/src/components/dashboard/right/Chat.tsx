@@ -332,7 +332,7 @@ export const Chat = () => {
                 "border border-neutral-700/50",
                 "focus:outline-none",
                 `min-h-[${TEXTAREA_MIN_HEIGHT_PX}px] max-h-[${TEXTAREA_MAX_HEIGHT_PX}px]`,
-                "scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-transparent"
+                "scrollbar-none"
               )}
               rows={1}
             />
