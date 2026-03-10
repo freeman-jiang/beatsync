@@ -250,7 +250,7 @@ export const Chat = () => {
                             <motion.div
                               key={msg.id}
                               className={cn(
-                                "px-3 py-1.5 text-sm break-words max-w-full",
+                                "px-3 py-1.5 text-sm",
                                 isOwnMessage ? "bg-green-700 text-white" : "bg-neutral-800 text-neutral-200",
                                 // Corner rounding for message bubbles
                                 isSingle
@@ -275,9 +275,7 @@ export const Chat = () => {
                               }}
                               layout
                             >
-                              <p className="whitespace-pre-wrap" style={{ overflowWrap: "anywhere" }}>
-                                {msg.text}
-                              </p>
+                              <p className="whitespace-pre-wrap wrap-anywhere">{msg.text}</p>
                             </motion.div>
                           );
                         })}
