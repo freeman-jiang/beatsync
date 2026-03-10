@@ -306,13 +306,13 @@ export class RoomManager {
     if (cachedClient) {
       clientData.username = cachedClient.username;
       clientData.location = cachedClient.location;
-      clientData.isAdmin = cachedClient.isAdmin;
+      if (!IS_DEMO_MODE) clientData.isAdmin = cachedClient.isAdmin;
       clientData.joinedAt = cachedClient.joinedAt;
       clientData.nudgeMs = cachedClient.nudgeMs;
     }
 
-    // Always ensure that the first client to join an empty room becomes admin regardless
-    if (this.wsConnections.size === 0) {
+    // In demo mode, only the admin secret grants admin. Otherwise, first client gets admin.
+    if (!IS_DEMO_MODE && this.wsConnections.size === 0) {
       clientData.isAdmin = true;
     }
 
@@ -347,19 +347,21 @@ export class RoomManager {
       positionClientsInCircle(activeClients);
 
       // Check if any admins remain after removing this client
-      const remainingAdmins = activeClients.filter((client) => client.isAdmin);
+      // In demo mode, skip auto-promotion — only the admin secret grants admin
+      if (!IS_DEMO_MODE) {
+        const remainingAdmins = activeClients.filter((client) => client.isAdmin);
 
-      // If no admins remain, randomly select a new admin
-      if (remainingAdmins.length === 0) {
-        const randomIndex = Math.floor(Math.random() * activeClients.length);
-        const newAdmin = activeClients[randomIndex];
+        if (remainingAdmins.length === 0) {
+          const randomIndex = Math.floor(Math.random() * activeClients.length);
+          const newAdmin = activeClients[randomIndex];
 
-        if (newAdmin) {
-          newAdmin.isAdmin = true;
-          this.clientData.set(newAdmin.clientId, newAdmin);
-          console.log(
-            `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
-          );
+          if (newAdmin) {
+            newAdmin.isAdmin = true;
+            this.clientData.set(newAdmin.clientId, newAdmin);
+            console.log(
+              `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
+            );
+          }
         }
       }
     } else {
