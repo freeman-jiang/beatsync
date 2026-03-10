@@ -1,3 +1,5 @@
+import iosunmute from "iosunmute";
+
 /**
  * Singleton AudioContext Manager
  *
@@ -34,7 +36,9 @@ class AudioContextManager {
   getContext(): AudioContext {
     if (!this.audioContext || this.audioContext.state === "closed") {
       console.log("[AudioContextManager] Creating new AudioContext");
+      this.iosUnmuteDispose?.();
       this.audioContext = new AudioContext();
+      this.iosUnmuteDispose = iosunmute(this.audioContext).dispose;
       this.setupStateChangeListener();
       this.setupMasterGain();
     }
@@ -71,6 +75,8 @@ class AudioContextManager {
     // Request wake lock to prevent device sleep and WiFi power-save mode
     await this.requestWakeLock();
   }
+
+  private iosUnmuteDispose: (() => void) | null = null;
 
   /**
    * Request a screen wake lock to prevent WiFi Power Save Mode (PSM).

@@ -38,6 +38,8 @@ export const MetronomeButton = () => {
     let cancelled = false;
     let cleanupRef: (() => void) | null = null;
 
+    const masterGain = audioContextManager.getMasterGain();
+
     getKickBuffer(ctx).then((kickBuffer) => {
       if (cancelled) return;
 
@@ -65,7 +67,7 @@ export const MetronomeButton = () => {
 
         const source = ctx.createBufferSource();
         source.buffer = kickBuffer;
-        source.connect(ctx.destination);
+        source.connect(masterGain);
         source.start(startTime);
       }, 10);
 
