@@ -1,3 +1,4 @@
+import { IS_DEMO_MODE } from "@/lib/demo";
 import iosunmute from "iosunmute";
 
 /**
@@ -38,7 +39,7 @@ class AudioContextManager {
       console.log("[AudioContextManager] Creating new AudioContext");
       this.iosUnmuteDispose?.();
       this.audioContext = new AudioContext();
-      this.iosUnmuteDispose = iosunmute(this.audioContext).dispose;
+      this.iosUnmuteDispose = iosunmute(this.audioContext, !IS_DEMO_MODE).dispose;
       this.setupStateChangeListener();
       this.setupMasterGain();
     }
