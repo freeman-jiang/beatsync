@@ -14,8 +14,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Constants
 const MESSAGE_GROUP_TIME_WINDOW_MS = 1 * 60 * 1000; // 1 minute
 const TIMESTAMP_GAP_THRESHOLD_MS = 1 * 60 * 1000; // 1 minute
-const TEXTAREA_MAX_HEIGHT_PX = 120;
-const TEXTAREA_MIN_HEIGHT_PX = 36;
 
 export const Chat = () => {
   const [message, setMessage] = useState("");
@@ -107,27 +105,22 @@ export const Chat = () => {
     return () => scrollContainer.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-resize textarea and update input area height
+  // Track input area height for dynamic scroll padding
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, TEXTAREA_MAX_HEIGHT_PX) + "px";
-    }
-    // Update input area height for dynamic padding
-    if (inputAreaRef.current) {
-      setInputAreaHeight(inputAreaRef.current.offsetHeight);
-    }
-  }, [message]);
+    const el = inputAreaRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      setInputAreaHeight(el.offsetHeight);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleSend = () => {
     if (message.trim() && !isComposing) {
       sendChatMessage(message.trim());
       setMessage("");
-      // Scroll to bottom instantly when sending a message
       scrollToBottom("auto");
-      if (inputRef.current) {
-        inputRef.current.style.height = "auto";
-      }
     }
   };
 
@@ -331,8 +324,8 @@ export const Chat = () => {
                 "placeholder:text-neutral-500 text-neutral-100",
                 "border border-neutral-700/50",
                 "focus:outline-none",
-                `min-h-[${TEXTAREA_MIN_HEIGHT_PX}px] max-h-[${TEXTAREA_MAX_HEIGHT_PX}px]`,
-                "scrollbar-none"
+                "field-sizing-content max-h-[120px] overflow-auto",
+                "scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-transparent"
               )}
               rows={1}
             />
