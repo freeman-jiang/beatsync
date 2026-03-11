@@ -251,9 +251,21 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
 
     const ws = createConnection();
 
+    // Handle bfcache restoration (iOS Safari) — WebSocket is killed on freeze
+    // but the page is restored without re-running effects
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        console.log("Page restored from bfcache, reconnecting WebSocket");
+        createConnection();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
     return () => {
       // Runs on unmount and dependency change
       console.log("Running cleanup for WebSocket connection");
+
+      window.removeEventListener("pageshow", handlePageShow);
 
       // Clean up reconnection state
       cleanupReconnection();

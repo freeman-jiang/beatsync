@@ -1,15 +1,12 @@
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { getClientId } from "@/lib/clientId";
 
-export function useClientId() {
-  const [clientId] = useState<string | null>(() => {
-    // Use lazy initializer to read from localStorage on first render
-    try {
-      return getClientId();
-    } catch {
-      return null;
-    }
-  });
+// Returns null on the server, resolved clientId on the client — no hydration mismatch
+const getClientSnapshot = () => getClientId();
+const getServerSnapshot = () => null;
+const subscribe = () => () => {}; // clientId never changes after init
 
+export function useClientId() {
+  const clientId = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
   return { clientId };
 }

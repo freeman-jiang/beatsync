@@ -3,6 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
@@ -15,6 +16,7 @@
     },
     "build:demo": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "demo": {
