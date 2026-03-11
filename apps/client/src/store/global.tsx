@@ -19,9 +19,11 @@ import {
   ClientActionEnum,
   ClientDataType,
   GlobalVolumeConfigType,
+  LowPassConfigType,
   MetronomeConfigType,
   GRID,
   LoadAudioSourceType,
+  LOW_PASS_CONSTANTS,
   NTP_CONSTANTS,
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
@@ -145,6 +147,9 @@ interface GlobalStateValues {
   // Metronome
   isMetronomeActive: boolean;
 
+  // Low-pass filter
+  lowPassFreq: number; // 20-20000 Hz (20000 = bypassed)
+
   // Whether nudge has been restored from server this connection (prevents re-restore on subsequent CLIENT_CHANGE)
   didRestoreNudge: boolean;
 }
@@ -213,6 +218,10 @@ interface GlobalState extends GlobalStateValues {
   // Metronome methods
   toggleMetronome: () => void;
   processMetronomeConfig: (config: MetronomeConfigType) => void;
+
+  // Low-pass filter methods
+  sendLowPassFreqUpdate: (freq: number) => void;
+  processLowPassConfig: (config: LowPassConfigType) => void;
 
   // Audio source methods
   handleLoadAudioSource: (sources: LoadAudioSourceType) => void;
@@ -284,6 +293,9 @@ const initialState: GlobalStateValues = {
 
   // Metronome
   isMetronomeActive: false,
+
+  // Low-pass filter
+  lowPassFreq: LOW_PASS_CONSTANTS.MAX_FREQ,
 
   didRestoreNudge: false,
 };
@@ -1004,7 +1016,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     playAudio: async (data: { offset: number; when: number; audioIndex?: number }) => {
       const state = get();
-      const { sourceNode, audioContext, gainNode } = getAudioPlayer(state);
+      const { sourceNode, audioContext } = getAudioPlayer(state);
 
       // Before any audio playback, ensure the context is running
       if (audioContext.state !== "running") {
@@ -1061,7 +1073,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Create a new source node using singleton
       const newSourceNode = audioContextManager.createBufferSource();
       newSourceNode.buffer = audioBuffer;
-      newSourceNode.connect(gainNode);
+      newSourceNode.connect(audioContextManager.getInputNode());
 
       // Autoplay: Handle track ending naturally
       newSourceNode.onended = () => {
@@ -1421,6 +1433,9 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // DON'T close the AudioContext - keep singleton alive!
       // The AudioContext persists for the app lifetime
 
+      // Reset low-pass filter to bypassed
+      audioContextManager.setLowPassFreq(LOW_PASS_CONSTANTS.MAX_FREQ);
+
       // Reset state to initial values
       set({
         ...initialState,
@@ -1522,6 +1537,26 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     processMetronomeConfig: (config: MetronomeConfigType) => {
       set({ isMetronomeActive: config.enabled });
+    },
+
+    sendLowPassFreqUpdate: (freq: number) => {
+      const state = get();
+      const { socket } = getSocket(state);
+
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.SET_LOW_PASS_FREQ,
+          freq,
+        },
+      });
+    },
+
+    processLowPassConfig: (config: LowPassConfigType) => {
+      const { freq, rampTime } = config;
+      if (get().lowPassFreq === freq) return;
+      set({ lowPassFreq: freq });
+      audioContextManager.setLowPassFreq(freq, rampTime);
     },
 
     // Audio source methods

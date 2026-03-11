@@ -19,6 +19,7 @@ import { handleStartSpatialAudio } from "@/websocket/handlers/startSpatialAudio"
 import { handleStopSpatialAudio } from "@/websocket/handlers/stopSpatialAudio";
 import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAudioSources";
 import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
+import { handleSetLowPassFreq } from "@/websocket/handlers/setLowPassFreq";
 import { handleSync } from "@/websocket/handlers/sync";
 import type { WebsocketRegistry } from "@/websocket/types";
 
@@ -122,5 +123,9 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_METRONOME]: {
     handle: handleSetMetronome,
     description: "Toggle metronome on/off for all clients in the room",
+  },
+  [ClientActionEnum.enum.SET_LOW_PASS_FREQ]: {
+    handle: handleSetLowPassFreq,
+    description: "Set low-pass filter cutoff frequency for all clients",
   },
 };

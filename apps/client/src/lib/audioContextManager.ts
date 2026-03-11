@@ -1,4 +1,5 @@
 import { IS_DEMO_MODE } from "@/lib/demo";
+import { LOW_PASS_CONSTANTS } from "@beatsync/shared";
 import iosunmute from "iosunmute";
 
 /**
@@ -12,6 +13,7 @@ class AudioContextManager {
   private static instance: AudioContextManager | null = null;
   private audioContext: AudioContext | null = null;
   private masterGainNode: GainNode | null = null;
+  private lowPassFilterNode: BiquadFilterNode | null = null;
   private stateChangeCallback: ((state: AudioContextState) => void) | null = null;
   private wakeLock: WakeLockSentinel | null = null;
   private hasVisibilityListener = false;
@@ -159,16 +161,22 @@ class AudioContextManager {
   }
 
   /**
-   * Setup the master gain node and Bluetooth keepalive
+   * Setup the audio graph: lowPassFilter → masterGain → destination
    */
   private setupMasterGain(): void {
     if (!this.audioContext) return;
 
-    this.masterGainNode = this.audioContext.createGain();
-    this.masterGainNode.connect(this.audioContext.destination);
+    // Chain: source → lowPassFilter → masterGain → destination
+    this.lowPassFilterNode = this.audioContext.createBiquadFilter();
+    this.lowPassFilterNode.type = "lowpass";
+    this.lowPassFilterNode.frequency.value = LOW_PASS_CONSTANTS.MAX_FREQ; // Bypassed by default
+    this.lowPassFilterNode.Q.value = 0.707; // Butterworth (no resonance peak)
 
-    // Default to full volume
+    this.masterGainNode = this.audioContext.createGain();
     this.masterGainNode.gain.value = 1.0;
+
+    this.lowPassFilterNode.connect(this.masterGainNode);
+    this.masterGainNode.connect(this.audioContext.destination);
 
     // Bluetooth keepalive: prevents A2DP buffer from resettling between pause/play
     // cycles. Uses inaudibly quiet signal (-80dB) instead of gain=0, because browsers
@@ -178,8 +186,39 @@ class AudioContextManager {
     const keepaliveGain = this.audioContext.createGain();
     keepaliveGain.gain.value = 0.0001; // -80dB, inaudible but not optimized away
     keepalive.connect(keepaliveGain);
-    keepaliveGain.connect(this.masterGainNode);
+    keepaliveGain.connect(this.lowPassFilterNode);
     keepalive.start();
+  }
+
+  /**
+   * Get the input node that audio sources should connect to.
+   * This is the entry point of the effect chain (currently: lowPassFilter → masterGain → destination).
+   */
+  getInputNode(): AudioNode {
+    if (!this.lowPassFilterNode) {
+      // Ensure context and nodes are initialized
+      this.getContext();
+    }
+    return this.lowPassFilterNode!;
+  }
+
+  /**
+   * Update the low-pass filter cutoff frequency
+   */
+  setLowPassFreq(freq: number, rampTime?: number): void {
+    if (!this.lowPassFilterNode || !this.audioContext) return;
+
+    const clampedFreq = Math.max(LOW_PASS_CONSTANTS.MIN_FREQ, Math.min(LOW_PASS_CONSTANTS.MAX_FREQ, freq));
+
+    if (rampTime && rampTime > 0) {
+      const now = this.audioContext.currentTime;
+      this.lowPassFilterNode.frequency.cancelScheduledValues(now);
+      this.lowPassFilterNode.frequency.setValueAtTime(this.lowPassFilterNode.frequency.value, now);
+      // Use exponential ramp for frequency — perceptually linear
+      this.lowPassFilterNode.frequency.exponentialRampToValueAtTime(clampedFreq, now + rampTime);
+    } else {
+      this.lowPassFilterNode.frequency.value = clampedFreq;
+    }
   }
 
   /**

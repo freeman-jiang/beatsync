@@ -19,7 +19,7 @@ import type {
   RoomType,
   WSBroadcastType,
 } from "@beatsync/shared";
-import { ChatMessageSchema, ClientDataSchema, epochNow, NTP_CONSTANTS } from "@beatsync/shared";
+import { ChatMessageSchema, ClientDataSchema, epochNow, LOW_PASS_CONSTANTS, NTP_CONSTANTS } from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
@@ -33,6 +33,7 @@ interface RoomData {
   listeningSource: PositionType;
   playbackControlsPermissions: PlaybackControlsPermissionsType;
   globalVolume: number; // Master volume multiplier (0-1)
+  lowPassFreq: number; // Low-pass filter cutoff frequency (20-20000 Hz)
 }
 
 export const ClientCacheBackupSchema = z.record(z.string(), z.object({ isAdmin: z.boolean() }));
@@ -49,6 +50,11 @@ const RoomBackupSchema = z.object({
   clientDatas: z.array(ClientDataSchema),
   audioSources: z.array(AudioSourceSchema),
   globalVolume: z.number().min(0).max(1).default(1.0),
+  lowPassFreq: z
+    .number()
+    .min(LOW_PASS_CONSTANTS.MIN_FREQ)
+    .max(LOW_PASS_CONSTANTS.MAX_FREQ)
+    .default(LOW_PASS_CONSTANTS.MAX_FREQ),
   playbackState: RoomPlaybackStateSchema,
   chat: z
     .object({
@@ -105,6 +111,7 @@ export class RoomManager {
   private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
   private playbackControlsPermissions: PlaybackControlsPermissionsType = "ADMIN_ONLY";
   private globalVolume = 1.0; // Default 100% volume
+  private lowPassFreq: number = LOW_PASS_CONSTANTS.MAX_FREQ; // Default bypassed (full spectrum)
   private isMetronomeEnabled = false;
   // Map of trackId to job status
   private activeStreamJobs = new Map<string, { status: string }>();
@@ -482,6 +489,7 @@ export class RoomManager {
       listeningSource: this.listeningSource,
       playbackControlsPermissions: this.playbackControlsPermissions,
       globalVolume: this.globalVolume,
+      lowPassFreq: this.lowPassFreq,
     };
   }
 
@@ -709,6 +717,24 @@ export class RoomManager {
     });
   }
 
+  setLowPassFreq(freq: number, server: BunServer): void {
+    this.lowPassFreq = Math.max(LOW_PASS_CONSTANTS.MIN_FREQ, Math.min(LOW_PASS_CONSTANTS.MAX_FREQ, freq));
+
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "SCHEDULED_ACTION",
+        serverTimeToExecute: epochNow(),
+        scheduledAction: {
+          type: "LOW_PASS_CONFIG",
+          freq: this.lowPassFreq,
+          rampTime: 0.05,
+        },
+      },
+    });
+  }
+
   setMetronome(enabled: boolean, server: BunServer): void {
     this.isMetronomeEnabled = enabled;
 
@@ -926,6 +952,7 @@ export class RoomManager {
       clientDatas: Array.from(this.clientData.values()),
       audioSources: this.audioSources,
       globalVolume: this.globalVolume,
+      lowPassFreq: this.lowPassFreq,
       playbackState: this.playbackState,
       chat: {
         messages: this.chatManager.getFullHistory(),

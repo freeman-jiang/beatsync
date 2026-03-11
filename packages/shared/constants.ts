@@ -18,6 +18,11 @@ export const NTP_CONSTANTS = {
   PROBE_GAP_TOLERANCE_MS: 2,
 } as const;
 
+export const LOW_PASS_CONSTANTS = {
+  MIN_FREQ: 20,
+  MAX_FREQ: 20000,
+} as const;
+
 export const CHAT_CONSTANTS = {
   MAX_MESSAGE_LENGTH: 20_000,
 } as const;

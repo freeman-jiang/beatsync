@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOW_PASS_CONSTANTS } from "../constants";
 import {
   LocationSchema,
   PauseActionSchema,
@@ -91,6 +92,13 @@ const MetronomeConfigSchema = z.object({
 });
 export type MetronomeConfigType = z.infer<typeof MetronomeConfigSchema>;
 
+const LowPassConfigSchema = z.object({
+  type: z.literal("LOW_PASS_CONFIG"),
+  freq: z.number().min(LOW_PASS_CONSTANTS.MIN_FREQ).max(LOW_PASS_CONSTANTS.MAX_FREQ),
+  rampTime: z.number(),
+});
+export type LowPassConfigType = z.infer<typeof LowPassConfigSchema>;
+
 const StreamJobUpdateSchema = z.object({
   type: z.literal("STREAM_JOB_UPDATE"),
   activeJobCount: z.number().nonnegative(),
@@ -107,6 +115,7 @@ export const ScheduledActionSchema = z.object({
     StopSpatialAudioSchema,
     GlobalVolumeConfigSchema,
     MetronomeConfigSchema,
+    LowPassConfigSchema,
   ]),
 });
 

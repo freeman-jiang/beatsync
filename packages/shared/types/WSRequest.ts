@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CHAT_CONSTANTS } from "../constants";
+import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS } from "../constants";
 import { AudioSourceSchema, PositionSchema } from "./basic";
 
 // ROOM EVENTS
@@ -34,6 +34,7 @@ export const ClientActionEnum = z.enum([
   "AUDIO_SOURCE_LOADED", // Audio source loaded in response to a LOAD_AUDIO_SOURCE request
   "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
   "SET_METRONOME", // Toggle metronome on/off for all clients
+  "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -155,6 +156,11 @@ export const SetMetronomeSchema = z.object({
   enabled: z.boolean(),
 });
 
+export const SetLowPassFreqSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_LOW_PASS_FREQ),
+  freq: z.number().min(LOW_PASS_CONSTANTS.MIN_FREQ).max(LOW_PASS_CONSTANTS.MAX_FREQ),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -177,6 +183,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   AudioSourceLoadedSchema,
   ReorderAudioSourcesSchema,
   SetMetronomeSchema,
+  SetLowPassFreqSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

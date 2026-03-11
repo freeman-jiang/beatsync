@@ -36,8 +36,10 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   const room = globalManager.getOrCreateRoom(roomId);
   room.addClient(ws);
 
+  const { audioSources, globalVolume, lowPassFreq } = room.getState();
+  const now = epochNow();
+
   // Send audio sources to the newly joined client
-  const { audioSources } = room.getState();
   if (audioSources.length > 0) {
     console.log(`Sending ${audioSources.length} audio source(s) to newly joined client ${ws.data.username}`);
 
@@ -69,10 +71,10 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     ws,
     message: {
       type: "SCHEDULED_ACTION",
-      serverTimeToExecute: epochNow(),
+      serverTimeToExecute: now,
       scheduledAction: {
         type: "GLOBAL_VOLUME_CONFIG",
-        volume: room.getState().globalVolume,
+        volume: globalVolume,
         rampTime: 0.1,
       },
     },
@@ -82,10 +84,23 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     ws,
     message: {
       type: "SCHEDULED_ACTION",
-      serverTimeToExecute: epochNow(),
+      serverTimeToExecute: now,
       scheduledAction: {
         type: "METRONOME_CONFIG",
         enabled: room.getIsMetronomeEnabled(),
+      },
+    },
+  });
+
+  sendUnicast({
+    ws,
+    message: {
+      type: "SCHEDULED_ACTION",
+      serverTimeToExecute: now,
+      scheduledAction: {
+        type: "LOW_PASS_CONFIG",
+        freq: lowPassFreq,
+        rampTime: 0.05,
       },
     },
   });
