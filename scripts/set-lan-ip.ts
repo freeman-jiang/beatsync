@@ -12,3 +12,5 @@ const ip = lanIp ?? "localhost";
 
 await Bun.write(envLocalPath, `NETWORK=${ip}\n`);
 console.log(`LAN IP detected: ${ip}`);
+console.log(`🔗 Production site: http://${ip}:2026`);
+console.log(`🔑 Admin site:      http://${ip}:2026?admin=beatsync`);
