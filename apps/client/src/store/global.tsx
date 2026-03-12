@@ -495,6 +495,19 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     });
   };
 
+  /** Stop playback and reset to "Start System" if audio is actively playing. */
+  const stopAndResetIfPlaying = (reason: string) => {
+    const currentState = get();
+    if (!currentState.isPlaying || !currentState.audioPlayer) return;
+    try {
+      currentState.audioPlayer.sourceNode.stop();
+    } catch {
+      // Ignore if already stopped
+    }
+    console.log(reason);
+    set({ isInitingSystem: true, hasUserStartedSystem: false });
+  };
+
   const _initializeAudio = async () => {
     console.log("initializeAudio()");
 
@@ -507,25 +520,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       console.log(`AudioContext state changed to: ${state}`);
 
       if (isAudioContextPaused(state)) {
-        const currentState = get();
-
         // Only reset the init UI if audio was actively playing.
         // iOS frequently toggles AudioContext between running/suspended due to the
         // Bluetooth keepalive oscillator — this is harmless when idle and should NOT
         // force users back to the calibration screen.
-        if (currentState.isPlaying && currentState.audioPlayer) {
-          try {
-            currentState.audioPlayer.sourceNode.stop();
-          } catch {
-            // Ignore errors if already stopped
-          }
-
-          console.log(`AudioContext ${state} by iOS during playback`);
-          set({
-            isInitingSystem: true,
-            hasUserStartedSystem: false,
-          });
-        }
+        stopAndResetIfPlaying(`AudioContext ${state} by iOS during playback`);
       }
     });
 
@@ -557,6 +556,17 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     console.log("Detected that no audio sources were loaded, initializing");
     initializeAudioExclusively();
+
+    // In demo mode, stop audio when the app is backgrounded (camera, swipe down, etc.)
+    // iOS 26 with audioSession "playback" keeps audio alive in background, which causes
+    // desync glitches. Force stop and let the user resync when they return.
+    if (IS_DEMO_MODE) {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          stopAndResetIfPlaying("Demo mode: stopped audio on background");
+        }
+      });
+    }
   }
 
   return {
