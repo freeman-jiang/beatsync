@@ -1,5 +1,17 @@
 import { LOW_PASS_CONSTANTS } from "@beatsync/shared";
 
+/** iOS 18+ uses a non-standard "interrupted" state (e.g. phone call, Siri) */
+export function isAudioContextPaused(state: AudioContextState | string | undefined | null): boolean {
+  return state === "suspended" || state === "interrupted";
+}
+
+// Minimal silent WAV (1 sample, 44.1kHz, 16-bit mono, 46 bytes).
+// Used on iOS < 16.4 to force WebAudio onto the media channel so audio
+// plays through speakers even when the hardware mute switch is on.
+// WAV is used instead of MP3 because some older iOS versions reject
+// MP3 data URLs with NotSupportedError.
+const SILENCE_DATA_URL = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAAAA==";
+
 /**
  * Singleton AudioContext Manager
  *
@@ -15,6 +27,8 @@ class AudioContextManager {
   private stateChangeCallback: ((state: AudioContextState) => void) | null = null;
   private wakeLock: WakeLockSentinel | null = null;
   private hasVisibilityListener = false;
+  private silentAudioElement: HTMLAudioElement | null = null;
+  private hasRegisteredGestureListeners = false;
 
   private constructor() {
     // Private constructor to enforce singleton pattern
@@ -30,6 +44,17 @@ class AudioContextManager {
     return AudioContextManager.instance;
   }
 
+  private isIOS(): boolean {
+    const ua = navigator.userAgent.toLowerCase();
+    return (
+      ua.includes("iphone") ||
+      ua.includes("ipad") ||
+      ua.includes("ipod") ||
+      // Newer iPads report as Mac but have touch
+      (ua.includes("mac os x") && navigator.maxTouchPoints > 0)
+    );
+  }
+
   /**
    * Get or create the AudioContext
    * Will reuse existing context unless it's closed
@@ -40,6 +65,7 @@ class AudioContextManager {
       this.audioContext = new AudioContext();
       this.setupStateChangeListener();
       this.setupMasterGain();
+      this.registerSilentAudioBypass();
     }
     return this.audioContext;
   }
@@ -57,14 +83,18 @@ class AudioContextManager {
   }
 
   /**
-   * Resume the AudioContext if it's suspended
-   * Required for iOS and some browsers after user interaction
+   * Resume the AudioContext if it's suspended or interrupted.
+   * iOS 18+ can put contexts into a non-standard "interrupted" state
+   * (e.g. phone call, Siri). We handle both.
+   * Also starts the silent <audio> fallback for iOS < 16.4 mute-switch bypass.
    */
   async resume(): Promise<void> {
-    if (this.audioContext?.state === "suspended") {
+    const state = this.audioContext?.state;
+    // Handle both "suspended" and the non-standard iOS "interrupted" state
+    if (isAudioContextPaused(state)) {
       try {
-        await this.audioContext.resume();
-        console.log("[AudioContextManager] AudioContext resumed");
+        await this.audioContext!.resume();
+        console.log(`[AudioContextManager] AudioContext resumed from ${state}`);
       } catch (error) {
         console.error("[AudioContextManager] Failed to resume AudioContext:", error);
         throw error;
@@ -73,6 +103,76 @@ class AudioContextManager {
 
     // Request wake lock to prevent device sleep and WiFi power-save mode
     await this.requestWakeLock();
+  }
+
+  /**
+   * iOS silent-mode bypass via a looping silent <audio> element.
+   *
+   * On iOS < 16.4, WebAudio routes through the ringer channel and is muted
+   * by the hardware switch. Playing any <audio> element forces the system to
+   * allocate the media channel, which WebAudio then piggy-backs on.
+   *
+   * On iOS 16.4+, navigator.audioSession.type = "playback" handles this
+   * natively, so the silent element is unnecessary.
+   *
+   * iOS requires audio.play() to be called directly from a raw DOM event
+   * handler (touchend, click, etc.). React's synthetic events and async
+   * boundaries break the gesture chain. So we register capture-phase
+   * listeners on window and attempt play on every user interaction until
+   * it succeeds.
+   */
+  private registerSilentAudioBypass(): void {
+    if (this.hasRegisteredGestureListeners) return;
+    // audioSession API (iOS 16.4+) handles mute-switch natively — no hack needed
+    // @ts-expect-error audioSession only exists on iOS Safari 16.4+
+    if (navigator.audioSession) return;
+    // Only needed on iOS — Android/desktop don't have the ringer/media channel split
+    if (!this.isIOS()) return;
+    this.hasRegisteredGestureListeners = true;
+
+    // Create the element once — reuse across gesture attempts
+    const audio = document.createElement("audio");
+    audio.setAttribute("x-webkit-airplay", "deny");
+    audio.controls = false;
+    audio.disableRemotePlayback = true;
+    audio.preload = "auto";
+    audio.loop = true;
+    audio.src = SILENCE_DATA_URL;
+    audio.load();
+
+    const gestureEvents = ["click", "touchend", "keydown"];
+
+    const tryPlay = () => {
+      if (this.silentAudioElement) return; // Already playing
+
+      const p = audio.play();
+      if (p) {
+        p.then(() => {
+          this.silentAudioElement = audio;
+          console.log("[AudioContextManager] Silent audio playing — mute-switch bypass active");
+          // Stop listening once successful
+          for (const evt of gestureEvents) {
+            window.removeEventListener(evt, tryPlay, true);
+          }
+        }).catch(() => {
+          // Will retry on next gesture
+        });
+      }
+    };
+
+    // Listen in capture phase (like iosunmute) — fires before React's synthetic events
+    for (const evt of gestureEvents) {
+      window.addEventListener(evt, tryPlay, { capture: true, passive: true });
+    }
+
+    console.log("[AudioContextManager] Registered silent audio bypass gesture listeners (legacy iOS)");
+  }
+
+  private destroySilentAudioBypass(): void {
+    if (!this.silentAudioElement) return;
+    this.silentAudioElement.pause();
+    this.silentAudioElement.src = "";
+    this.silentAudioElement = null;
   }
 
   /**
@@ -147,9 +247,9 @@ class AudioContextManager {
         this.stateChangeCallback(state);
       }
 
-      // Handle iOS suspension
-      if (state === "suspended") {
-        console.warn("[AudioContextManager] AudioContext suspended - user interaction required to resume");
+      // Handle iOS suspension and the non-standard "interrupted" state (iOS 18+)
+      if (isAudioContextPaused(state)) {
+        console.warn(`[AudioContextManager] AudioContext ${state} - user interaction required to resume`);
       }
     };
   }

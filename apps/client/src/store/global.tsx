@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { audioContextManager } from "@/lib/audioContextManager";
+import { audioContextManager, isAudioContextPaused } from "@/lib/audioContextManager";
 import { getClientId } from "@/lib/clientId";
 import { getKickBuffer } from "@/components/dashboard/Metronome";
 import { IS_DEMO_MODE } from "@/lib/demo";
@@ -506,7 +506,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     audioContextManager.setStateChangeCallback((state) => {
       console.log(`AudioContext state changed to: ${state}`);
 
-      if (state === "suspended") {
+      if (isAudioContextPaused(state)) {
         const currentState = get();
 
         // Only reset the init UI if audio was actively playing.
@@ -516,11 +516,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         if (currentState.isPlaying && currentState.audioPlayer) {
           try {
             currentState.audioPlayer.sourceNode.stop();
-          } catch (e) {
+          } catch {
             // Ignore errors if already stopped
           }
 
-          console.log("AudioContext suspended by iOS during playback");
+          console.log(`AudioContext ${state} by iOS during playback`);
           set({
             isInitingSystem: true,
             hasUserStartedSystem: false,
