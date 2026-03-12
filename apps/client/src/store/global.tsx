@@ -509,21 +509,23 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       if (state === "suspended") {
         const currentState = get();
 
-        // Stop playback cleanly if playing
+        // Only reset the init UI if audio was actively playing.
+        // iOS frequently toggles AudioContext between running/suspended due to the
+        // Bluetooth keepalive oscillator — this is harmless when idle and should NOT
+        // force users back to the calibration screen.
         if (currentState.isPlaying && currentState.audioPlayer) {
           try {
             currentState.audioPlayer.sourceNode.stop();
           } catch (e) {
             // Ignore errors if already stopped
           }
-        }
 
-        // Reuse the init system UI - user will need to click "Start System" again
-        console.log("AudioContext suspended by iOS");
-        set({
-          isInitingSystem: true,
-          hasUserStartedSystem: false, // Reset user start system state
-        });
+          console.log("AudioContext suspended by iOS during playback");
+          set({
+            isInitingSystem: true,
+            hasUserStartedSystem: false,
+          });
+        }
       }
     });
 
