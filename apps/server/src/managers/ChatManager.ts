@@ -31,6 +31,7 @@ export class ChatManager {
       text: text,
       timestamp: epochNow(),
       countryCode: client.location?.countryCode,
+      isCreator: client.isCreator,
     };
 
     this.chatMessages.push(message);

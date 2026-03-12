@@ -5,6 +5,7 @@ export interface WSData {
   clientId: string;
   username: string;
   isAdmin: boolean;
+  isCreator: boolean;
 }
 
 export type BunServer = Server<WSData>;

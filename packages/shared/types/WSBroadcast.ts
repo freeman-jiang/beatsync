@@ -18,6 +18,7 @@ export const ClientDataSchema = z.object({
   position: PositionSchema,
   lastNtpResponse: z.number().default(0), // Last NTP response timestamp
   isAdmin: z.boolean().default(false), // Admin status
+  isCreator: z.boolean().default(false), // Site creator badge
   location: LocationSchema.optional(),
   joinedAt: z.number(), // Timestamp when the client joined the room
 });

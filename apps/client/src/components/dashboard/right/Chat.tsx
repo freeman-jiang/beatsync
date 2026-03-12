@@ -215,16 +215,19 @@ export const Chat = () => {
                         {(() => {
                           const username = getUserName(group[0].clientId, group[0].username);
                           const countryCode = group[0].countryCode;
+                          const senderIsCreator = group[0].isCreator;
 
-                          if (countryCode) {
-                            const flagEmoji = countryCodeEmoji(countryCode);
-                            return (
-                              <span title={`Country: ${countryCode}`}>
-                                {flagEmoji} {username}
-                              </span>
-                            );
-                          }
-                          return username;
+                          return (
+                            <span title={countryCode ? `Country: ${countryCode}` : undefined}>
+                              {countryCode && `${countryCodeEmoji(countryCode)} `}
+                              {username}
+                              {senderIsCreator && (
+                                <span className="text-sky-400 bg-sky-500/15 px-0.5 rounded ml-0.5 font-semibold">
+                                  Creator
+                                </span>
+                              )}
+                            </span>
+                          );
                         })()}
                       </span>
                     )}
@@ -244,7 +247,11 @@ export const Chat = () => {
                               key={msg.id}
                               className={cn(
                                 "px-3 py-1.5 text-sm",
-                                isOwnMessage ? "bg-green-700 text-white" : "bg-neutral-800 text-neutral-200",
+                                msg.isCreator
+                                  ? "bg-sky-700 text-white"
+                                  : isOwnMessage
+                                    ? "bg-green-700 text-white"
+                                    : "bg-neutral-800 text-neutral-200",
                                 // Corner rounding for message bubbles
                                 isSingle
                                   ? "rounded-2xl"

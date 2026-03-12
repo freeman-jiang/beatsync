@@ -300,6 +300,7 @@ export class RoomManager {
       username,
       clientId,
       isAdmin: false,
+      isCreator: ws.data.isCreator,
       rtt: 0,
       compensationMs: 0,
       nudgeMs: 0,
@@ -311,7 +312,8 @@ export class RoomManager {
 
     // Restore some specific fields.
     if (cachedClient) {
-      clientData.username = cachedClient.username;
+      // Don't overwrite creator's username — it was set by the server
+      if (!ws.data.isCreator) clientData.username = cachedClient.username;
       clientData.location = cachedClient.location;
       if (!IS_DEMO_MODE) clientData.isAdmin = cachedClient.isAdmin;
       clientData.joinedAt = cachedClient.joinedAt;
@@ -323,8 +325,8 @@ export class RoomManager {
       clientData.isAdmin = true;
     }
 
-    // If the client authenticated with the admin secret, always grant admin
-    if (ws.data.isAdmin) {
+    // If the client authenticated with the admin secret or is the creator, always grant admin
+    if (ws.data.isAdmin || ws.data.isCreator) {
       clientData.isAdmin = true;
     }
 

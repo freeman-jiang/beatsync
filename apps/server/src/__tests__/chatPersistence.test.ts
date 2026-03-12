@@ -16,6 +16,7 @@ describe("Chat Persistence", () => {
       position: { x: 50, y: 50 },
       isActive: true,
       isAdmin: false,
+      isCreator: false,
       joinedAt: Date.now(),
       rtt: 50,
       compensationMs: 0,
@@ -116,6 +117,7 @@ describe("Chat Persistence", () => {
         username: "TestUser",
         text: `Message ${i}`,
         timestamp: Date.now() + i,
+        isCreator: false,
       });
     }
 

@@ -2,12 +2,15 @@ import { IS_DEMO_MODE, isValidAdminSecret } from "@/demo";
 import { errorResponse } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
 
+const CREATOR_SECRET = process.env.CREATOR_SECRET;
+
 export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
   const url = new URL(req.url);
   const roomId = url.searchParams.get("roomId");
   const username = url.searchParams.get("username");
   const clientId = url.searchParams.get("clientId");
   const adminSecret = url.searchParams.get("admin");
+  const creatorSecret = url.searchParams.get("creator");
 
   if (!roomId || !username || !clientId) {
     // Check which parameters are missing and log them
@@ -25,13 +28,17 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
   // Check if client provided valid admin secret
   const isAdmin = IS_DEMO_MODE && isValidAdminSecret(adminSecret);
 
-  console.log(`User ${username} joined room ${roomId} with clientId ${clientId}${isAdmin ? " (admin)" : ""}`);
+  const isCreator = !IS_DEMO_MODE && !!CREATOR_SECRET && creatorSecret === CREATOR_SECRET;
+
+  const tags = [isAdmin && "admin", isCreator && "creator"].filter(Boolean).join(", ");
+  console.log(`User ${username} joined room ${roomId} with clientId ${clientId}${tags ? ` (${tags})` : ""}`);
 
   const data: WSData = {
     roomId,
-    username,
+    username: isCreator ? "Freeman Jiang" : username,
     clientId,
     isAdmin,
+    isCreator,
   };
 
   // Upgrade the connection with the WSData context

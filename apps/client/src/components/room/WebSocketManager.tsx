@@ -80,12 +80,17 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
     createConnection: () => createConnection(),
   });
 
-  // Cache admin secret from page URL (doesn't change across reconnections)
-  const adminSecret = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("admin") : null;
+  // Cache secrets from page URL (don't change across reconnections)
+  const isClient = typeof window !== "undefined";
+  const searchParams = isClient ? new URLSearchParams(window.location.search) : null;
+  const adminSecret = searchParams?.get("admin") ?? null;
+  // Check URL param first, then localStorage (set once via: localStorage.setItem("creatorSecret", "..."))
+  const creatorSecret = searchParams?.get("creator") ?? (isClient ? localStorage.getItem("creatorSecret") : null);
   const adminParam = adminSecret ? `&admin=${encodeURIComponent(adminSecret)}` : "";
+  const creatorParam = creatorSecret ? `&creator=${encodeURIComponent(creatorSecret)}` : "";
 
   const createConnection = () => {
-    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}`;
+    const SOCKET_URL = `${process.env.NEXT_PUBLIC_WS_URL}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}${creatorParam}`;
     console.log("Creating new WS connection to", SOCKET_URL);
 
     // Clear previous connection if it exists

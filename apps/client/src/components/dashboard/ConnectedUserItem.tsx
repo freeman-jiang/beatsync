@@ -85,7 +85,7 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(({ client, isCurre
     <motion.div
       className={cn(
         "flex items-center gap-2 p-1.5 rounded-md transition-all duration-300 text-sm",
-        isCurrentUser ? "bg-primary-400/10" : "bg-transparent"
+        client.isCreator ? "bg-sky-500/10" : isCurrentUser ? "bg-primary-400/10" : "bg-transparent"
       )}
       initial={{ opacity: 0.8 }}
       animate={{
@@ -131,13 +131,13 @@ export const ConnectedUserItem = memo<ConnectedUserItemProps>(({ client, isCurre
         </div>
       </div>
       <Badge
-        variant={isCurrentUser ? "default" : "outline"}
+        variant={client.isCreator ? "default" : isCurrentUser ? "default" : "outline"}
         className={cn(
           "ml-auto text-xs shrink-0 min-w-[60px] text-center py-0 h-5",
-          isCurrentUser ? "bg-primary-600 text-primary-50" : ""
+          client.isCreator ? "bg-sky-600 text-sky-50" : isCurrentUser ? "bg-primary-600 text-primary-50" : ""
         )}
       >
-        {isCurrentUser ? "You" : "Connected"}
+        {client.isCreator ? "Creator" : isCurrentUser ? "You" : "Connected"}
       </Badge>
       {/* Admin controls dropdown - only show if current user is admin and not targeting self */}
       {isAdmin && !isCurrentUser && (
