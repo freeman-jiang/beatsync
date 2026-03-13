@@ -5,6 +5,40 @@ import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
+const WS_STATUS_COLORS = {
+  connected: "34,197,94",
+  connecting: "234,179,8",
+  closed: "239,68,68",
+} as const;
+
+const WsStatusDot = ({ wsReadyState }: { wsReadyState: number }) => {
+  const rgb =
+    wsReadyState === 1
+      ? WS_STATUS_COLORS.connected
+      : wsReadyState === 0
+        ? WS_STATUS_COLORS.connecting
+        : WS_STATUS_COLORS.closed;
+
+  return (
+    <span className="absolute top-1/2 -translate-y-1/2 -left-5 flex size-2">
+      {wsReadyState <= 1 && (
+        <span
+          className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+          style={{ backgroundColor: `rgb(${rgb})` }}
+        />
+      )}
+      <span
+        className="relative inline-flex size-2 rounded-full"
+        style={{
+          backgroundColor: `rgb(${rgb})`,
+          boxShadow: `0 0 6px 1px rgba(${rgb},0.5)`,
+          transition: "background-color 0.4s ease, box-shadow 0.4s ease",
+        }}
+      />
+    </span>
+  );
+};
+
 interface SyncProgressProps {
   // Loading state flags
   isLoading?: boolean; // Initial loading phase (room/socket/audio)
@@ -335,11 +369,12 @@ export const SyncProgress = ({ isLoading = false, loadingMessage = "Loading..." 
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
         <motion.h2
-          className="text-base font-medium tracking-tight mb-1 text-white"
+          className="text-base font-medium tracking-tight mb-1 text-white relative"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
+          <WsStatusDot wsReadyState={wsReadyState} />
           Beatsync calibrating
         </motion.h2>
 
