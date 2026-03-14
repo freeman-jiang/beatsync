@@ -1,5 +1,6 @@
 "use client";
 
+import { IS_DEMO_MODE } from "@/lib/demo";
 import { getClientId } from "@/lib/clientId";
 import { usePathname, useSearchParams } from "next/navigation";
 import posthog from "posthog-js";
@@ -8,6 +9,7 @@ import { Suspense, useEffect } from "react";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    if (IS_DEMO_MODE) return;
     if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
       posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
         api_host: "/relay-OsR8",

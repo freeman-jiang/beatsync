@@ -5,7 +5,7 @@ import { resolve } from "path";
 export const IS_DEMO_MODE = process.env.DEMO === "1";
 
 const AUDIO_DIR = resolve(process.env.DEMO_AUDIO_DIR ?? "./demo-audio");
-const ADMIN_SECRET = process.env.DEMO_ADMIN_SECRET ?? "beatsync";
+export const ADMIN_SECRET = process.env.DEMO_ADMIN_SECRET ?? "beatsync";
 const AUDIO_EXTENSIONS = new Set([".mp3", ".wav", ".flac", ".ogg", ".m4a"]);
 
 // ── Audio filenames (scanned once at startup) ──────────────────

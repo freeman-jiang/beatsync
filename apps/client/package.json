@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "start:log": "rm -f ../../logs/client.log && next start 2>&1 | tee ../../logs/client.log",
-    "demo": "next start",
+    "demo": "bun ../../scripts/set-lan-ip.ts && next start",
     "demo:log": "rm -f ../../logs/client.log && NEXT_PUBLIC_DEMO_MODE=1 next start 2>&1 | tee ../../logs/client.log",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

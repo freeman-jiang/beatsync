@@ -17,6 +17,7 @@
     "pm2:restart": "pm2 restart beatsync-server",
     "pm2:logs": "pm2 logs beatsync-server",
     "demo:dev": "turbo run dev:demo",
+    "demo:build": "turbo run build:demo",
     "demo": "turbo run demo",
     "demo:log": "turbo run demo:log",
     "dev:log": "turbo run dev:log",

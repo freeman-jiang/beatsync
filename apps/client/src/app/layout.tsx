@@ -1,6 +1,7 @@
 import { PostHogProvider } from "@/components/PostHogProvider";
 import TQProvider from "@/components/TQProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { IS_DEMO_MODE } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
@@ -50,7 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <TQProvider>
             {children}
             <Toaster />
-            <Analytics />
+            {!IS_DEMO_MODE && <Analytics />}
           </TQProvider>
         </PostHogProvider>
       </body>

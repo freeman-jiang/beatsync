@@ -1,4 +1,4 @@
-import { IS_DEMO_MODE } from "@/demo";
+import { ADMIN_SECRET, IS_DEMO_MODE } from "@/demo";
 import { BackupManager } from "@/managers/BackupManager";
 import { getActiveRooms } from "@/routes/active";
 import { handleGetDefaultAudio } from "@/routes/default";
@@ -81,6 +81,10 @@ const server = Bun.serve<WSData>({
 });
 
 console.log(`HTTP listening on http://${server.hostname}:${server.port}`);
+
+if (IS_DEMO_MODE) {
+  console.log(`🔑 Admin secret: ${ADMIN_SECRET}`);
+}
 
 if (!IS_DEMO_MODE) {
   // Restore state from backup on startup

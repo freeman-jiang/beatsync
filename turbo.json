@@ -20,7 +20,6 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "demo": {
-      "dependsOn": ["build:demo"],
       "persistent": true,
       "cache": false
     },
