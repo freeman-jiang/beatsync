@@ -4,6 +4,7 @@ import { Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress, WS_STATUS_COLORS } from "../ui/SyncProgress";
+import { BeatFlash } from "./BeatFlash";
 import { Bottom } from "./Bottom";
 import { RoomQRCode } from "./CopyRoom";
 import { LowPassControl } from "./LowPassControl";
@@ -41,6 +42,7 @@ export const DemoDashboard = ({ roomId }: DemoDashboardProps) => {
 
   return (
     <div className="w-full h-dvh flex flex-col text-white bg-neutral-950">
+      <BeatFlash />
       <TopBar roomId={roomId} />
 
       {!isSynced && hasUserStartedSystem && !isLoadingAudio && <SyncProgress />}

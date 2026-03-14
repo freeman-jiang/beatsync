@@ -4,6 +4,7 @@ import { Library, ListMusic, PartyPopper } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress } from "../ui/SyncProgress";
+import { BeatFlash } from "./BeatFlash";
 import { Bottom } from "./Bottom";
 import { Left } from "./Left";
 import { Main } from "./Main";
@@ -33,6 +34,7 @@ export const Dashboard = ({ roomId }: DashboardProps) => {
 
   return (
     <div className="w-full h-dvh flex flex-col text-white bg-neutral-950">
+      <BeatFlash />
       {/* Top bar: Fixed height */}
       <TopBar roomId={roomId} />
 
