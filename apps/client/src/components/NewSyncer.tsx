@@ -4,7 +4,9 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useRoomStore } from "@/store/room";
 import { motion } from "motion/react";
 import { useEffect } from "react";
+import { IS_DEMO_MODE } from "@/lib/demo";
 import { Dashboard } from "./dashboard/Dashboard";
+import { DemoDashboard } from "./dashboard/DemoDashboard";
 import { WebSocketManager } from "./room/WebSocketManager";
 
 interface NewSyncerProps {
@@ -36,7 +38,7 @@ export const NewSyncer = ({ roomId }: NewSyncerProps) => {
       {/* Spatial audio background effects */}
       {/* <SpatialAudioBackground /> */}
 
-      <Dashboard roomId={roomId} />
+      {IS_DEMO_MODE ? <DemoDashboard roomId={roomId} /> : <Dashboard roomId={roomId} />}
     </motion.div>
   );
 };

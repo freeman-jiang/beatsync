@@ -120,10 +120,17 @@ export const ScheduledActionSchema = z.object({
   ]),
 });
 
+const DemoUserCountSchema = z.object({
+  type: z.literal("DEMO_USER_COUNT"),
+  count: z.number().nonnegative(),
+});
+export type DemoUserCountType = z.infer<typeof DemoUserCountSchema>;
+
 // Export both broadcast types
 export const WSBroadcastSchema = z.discriminatedUnion("type", [
   ScheduledActionSchema,
   RoomEventSchema,
   StreamJobUpdateSchema,
+  DemoUserCountSchema,
 ]);
 export type WSBroadcastType = z.infer<typeof WSBroadcastSchema>;

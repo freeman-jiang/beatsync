@@ -236,6 +236,10 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
       } else if (response.type === "STREAM_JOB_UPDATE") {
         console.log("Received stream job update:", response.activeJobCount);
         setActiveStreamJobs(response.activeJobCount);
+      } else if (response.type === "DEMO_USER_COUNT") {
+        if (useGlobalStore.getState().demoUserCount !== response.count) {
+          useGlobalStore.setState({ demoUserCount: response.count });
+        }
       } else {
         console.log("Unknown response type:", response);
       }

@@ -5,7 +5,7 @@ import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
-const WS_STATUS_COLORS = {
+export const WS_STATUS_COLORS = {
   connected: "34,197,94",
   connecting: "234,179,8",
   closed: "239,68,68",

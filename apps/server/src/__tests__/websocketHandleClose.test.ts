@@ -51,15 +51,17 @@ describe("handleClose", () => {
   });
 
   it("should remove client from room and broadcast CLIENT_CHANGE after debounce", () => {
-    const ws = createMockWs({ clientId: "client-1", roomId: ROOM_ID });
+    const ws1 = createMockWs({ clientId: "client-1", roomId: ROOM_ID });
+    const ws2 = createMockWs({ clientId: "client-2", roomId: ROOM_ID });
 
-    handleOpen(ws, server);
+    handleOpen(ws1, server);
+    handleOpen(ws2, server);
     broadcastMessages = [];
 
-    handleClose(ws, server);
+    handleClose(ws1, server);
 
     const room = globalManager.getRoom(ROOM_ID)!;
-    expect(room.getClients()).toHaveLength(0);
+    expect(room.getClients()).toHaveLength(1);
 
     // Broadcast hasn't fired yet (debounced)
     expect(broadcastMessages).toHaveLength(0);
@@ -72,6 +74,24 @@ describe("handleClose", () => {
       (m) => m.message.type === "ROOM_EVENT" && m.message.event.type === "CLIENT_CHANGE"
     );
     expect(clientChangeMsg).toBeDefined();
+  });
+
+  it("should skip broadcast when last client disconnects", () => {
+    const ws = createMockWs({ clientId: "client-1", roomId: ROOM_ID });
+
+    handleOpen(ws, server);
+    broadcastMessages = [];
+
+    handleClose(ws, server);
+
+    // Advance past the 500ms debounce window
+    clock.tick(501);
+
+    // No broadcast since there are no remaining clients
+    const clientChangeMsg = broadcastMessages.find(
+      (m) => m.message.type === "ROOM_EVENT" && m.message.event.type === "CLIENT_CHANGE"
+    );
+    expect(clientChangeMsg).toBeUndefined();
   });
 
   it("should coalesce rapid joins/leaves into a single broadcast", () => {

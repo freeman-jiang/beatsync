@@ -16,6 +16,7 @@
     "load-test:demo": "bun run scripts/load-test-demo.ts",
     "load-test:demo:small": "bun run scripts/load-test-demo.ts --clients 100 --duration 15",
     "test": "bun test",
+    "test:demo": "bun test src/__tests__/isolated/demoMode.test.ts",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
     "type-check": "tsc --noEmit",

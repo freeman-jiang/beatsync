@@ -27,6 +27,18 @@ function debouncedClientChangeBroadcast(server: BunServer, roomId: string): void
   });
 }
 
+function debouncedDemoUserCountBroadcast(server: BunServer, roomId: string): void {
+  const room = globalManager.getRoom(roomId);
+  if (!room) return;
+  room.scheduleClientChangeBroadcast(() => {
+    sendBroadcast({
+      server,
+      roomId,
+      message: { type: "DEMO_USER_COUNT", count: room.getNumClients() },
+    });
+  });
+}
+
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   console.log(`WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`);
 
@@ -134,6 +146,8 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
         },
       },
     });
+    // Broadcast updated user count to all clients
+    debouncedDemoUserCountBroadcast(server, roomId);
   } else {
     // Unicast full client list to the joining client immediately
     sendToClient({ ws, message: createClientUpdate(roomId) });
@@ -180,15 +194,20 @@ export const handleClose = (ws: ServerWebSocket<WSData>, server: BunServer) => {
       // Schedule cleanup for rooms with no active connections
       if (!room.hasActiveConnections()) {
         room.stopSpatialAudio();
+        room.clearClientChangeBroadcast();
         globalManager.scheduleRoomCleanup(roomId);
       }
     }
 
     ws.unsubscribe(roomId);
 
-    // Debounced broadcast in prod, skipped in demo mode
-    if (!IS_DEMO_MODE) {
-      debouncedClientChangeBroadcast(server, roomId);
+    // Only broadcast if there are still clients to receive it
+    if (room?.hasActiveConnections()) {
+      if (IS_DEMO_MODE) {
+        debouncedDemoUserCountBroadcast(server, roomId);
+      } else {
+        debouncedClientChangeBroadcast(server, roomId);
+      }
     }
   } catch (error) {
     console.error(`Error handling WebSocket close for ${ws.data?.username}:`, error);
