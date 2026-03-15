@@ -3,6 +3,7 @@ import { cn, extractFileNameFromUrl } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress, WS_STATUS_COLORS } from "../ui/SyncProgress";
 import { BeatPill, DemoBeatFlash } from "./BeatFlash";
@@ -62,6 +63,50 @@ const DemoTrackSelector = () => {
   );
 };
 
+const STEP_OPTIONS = [10, 50, 100] as const;
+
+const DemoNudgeControl = () => {
+  const nudge = useGlobalStore((state) => state.nudge);
+  const nudgeOffsetMs = useGlobalStore((state) => state.nudgeOffsetMs);
+  const [stepIndex, setStepIndex] = useState(1);
+
+  const step = STEP_OPTIONS[stepIndex];
+
+  return (
+    <div className="flex flex-col items-center gap-3 mt-6">
+      <div className="flex items-center gap-6">
+        <button
+          className="text-neutral-400 hover:text-white active:text-white transition-colors text-lg px-4 py-2"
+          onClick={() => nudge({ amountMs: step })}
+        >
+          Earlier
+        </button>
+        <span
+          className={cn(
+            "text-sm font-mono min-w-[5rem] text-center tabular-nums",
+            nudgeOffsetMs < 0 ? "text-green-500/60" : nudgeOffsetMs > 0 ? "text-red-500/60" : "text-neutral-600"
+          )}
+        >
+          {-nudgeOffsetMs >= 0 ? "+" : ""}
+          {-nudgeOffsetMs}ms
+        </span>
+        <button
+          className="text-neutral-400 hover:text-white active:text-white transition-colors text-lg px-4 py-2"
+          onClick={() => nudge({ amountMs: -step })}
+        >
+          Later
+        </button>
+      </div>
+      <button
+        className="text-[9px] font-mono text-neutral-600 hover:text-neutral-400 transition-colors select-none"
+        onClick={() => setStepIndex((i) => (i + 1) % STEP_OPTIONS.length)}
+      >
+        {step}ms
+      </button>
+    </div>
+  );
+};
+
 interface DemoDashboardProps {
   roomId: string;
 }
@@ -111,6 +156,7 @@ export const DemoDashboard = ({ roomId }: DemoDashboardProps) => {
               </AnimatePresence>
               <RoomQRCode />
               <BeatPill />
+              <DemoNudgeControl />
             </div>
           </div>
 

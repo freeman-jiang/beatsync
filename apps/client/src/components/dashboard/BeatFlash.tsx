@@ -23,6 +23,7 @@ const useBeatKey = () => {
         pendingTimeouts.current.add(id);
       }
     }, []),
+    includeNudge: false,
   });
 
   useEffect(() => {

@@ -13,8 +13,8 @@ const POLL_INTERVAL_MS = 10;
  *
  * Only fires when metronome is active and NTP is synced.
  */
-export function useBeatTiming(data: { onBeat: (delayMs: number) => void }) {
-  const { onBeat } = data;
+export function useBeatTiming(data: { onBeat: (delayMs: number) => void; includeNudge?: boolean }) {
+  const { onBeat, includeNudge = true } = data;
   const lastBeatRef = useRef(-1);
   const onBeatRef = useRef(onBeat);
 
@@ -31,16 +31,18 @@ export function useBeatTiming(data: { onBeat: (delayMs: number) => void }) {
       return;
     }
 
+    const getEffectiveOffset = () => {
+      const { offsetEstimate, nudgeOffsetMs } = useGlobalStore.getState();
+      return includeNudge ? offsetEstimate + nudgeOffsetMs : offsetEstimate;
+    };
+
     // Seed with current beat so we don't fire immediately on start
-    const { offsetEstimate, nudgeOffsetMs } = useGlobalStore.getState();
-    const seedOffset = offsetEstimate + nudgeOffsetMs;
-    lastBeatRef.current = Math.floor((epochNow() + seedOffset) / BEAT_INTERVAL_MS);
+    lastBeatRef.current = Math.floor((epochNow() + getEffectiveOffset()) / BEAT_INTERVAL_MS);
 
     const interval = setInterval(() => {
       if (document.hidden) return;
 
-      const { offsetEstimate, nudgeOffsetMs } = useGlobalStore.getState();
-      const effectiveOffset = offsetEstimate + nudgeOffsetMs;
+      const effectiveOffset = getEffectiveOffset();
       const now = epochNow();
       const serverTimeMs = now + effectiveOffset;
       const beatIndex = Math.floor(serverTimeMs / BEAT_INTERVAL_MS);
@@ -57,7 +59,7 @@ export function useBeatTiming(data: { onBeat: (delayMs: number) => void }) {
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [isMetronomeActive, isSynced]);
+  }, [isMetronomeActive, isSynced, includeNudge]);
 
   return { isMetronomeActive, isSynced };
 }
