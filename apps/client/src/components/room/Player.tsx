@@ -24,6 +24,9 @@ export const Player = () => {
   // Refs for smooth animation without re-renders
   const currentPositionRef = useRef(0);
   const animationFrameRef = useRef<number>(0);
+  // Track the last value from onValueChange so we can use it as a fallback
+  // when onValueCommit gets swallowed by React batching (quick clicks)
+  const pendingSeekRef = useRef<number | null>(null);
 
   // Sync with currentTime when paused or changed externally
   useEffect(() => {
@@ -83,30 +86,43 @@ export const Player = () => {
       const position = value[0];
       setIsDragging(true);
       setSliderPosition(position);
+      pendingSeekRef.current = position;
     },
     [canMutate]
   );
 
-  // Handle slider release - seek to that position
-  const handleSliderCommit = (value: number[]) => {
-    if (!canMutate) return;
-    const newPosition = value[0];
+  // Commit the seek — called by onValueCommit or onPointerUp fallback.
+  // Guarded by pendingSeekRef to prevent double-fire when both handlers run.
+  const commitSeek = useCallback(() => {
+    const position = pendingSeekRef.current;
+    if (position === null) return;
+
+    pendingSeekRef.current = null;
     setIsDragging(false);
+    setSliderPosition(position);
+    currentPositionRef.current = position;
 
-    // Update refs to match the committed position
-    currentPositionRef.current = newPosition;
-
-    // Read fresh state to avoid stale closures with React Compiler
     const { isPlaying: currentlyPlaying, broadcastPlay: play } = useGlobalStore.getState();
 
-    // If currently playing, broadcast play at new position
-    // If paused, just update position without playing
     if (currentlyPlaying) {
-      play(newPosition);
+      play(position);
     } else {
-      setSliderPosition(newPosition);
+      useGlobalStore.setState({ currentTime: position });
     }
+  }, []);
+
+  // Handle slider release - seek to that position
+  const handleSliderCommit = () => {
+    if (!canMutate) return;
+    commitSeek();
   };
+
+  // Fallback for when onValueCommit gets swallowed by React batching.
+  // Radix compares the controlled `values` prop (stale due to batching) against
+  // the value captured at pointerDown — if they match, onValueCommit never fires.
+  const handlePointerUp = useCallback(() => {
+    commitSeek();
+  }, [commitSeek]);
 
   const handlePlay = () => {
     if (!canMutate) return;
@@ -114,8 +130,7 @@ export const Player = () => {
     if (state.isPlaying) {
       state.broadcastPause();
     } else {
-      const position = currentPositionRef.current || sliderPosition;
-      state.broadcastPlay(position);
+      state.broadcastPlay();
     }
   };
 
@@ -231,6 +246,7 @@ export const Player = () => {
             step={0.01}
             onValueChange={handleSliderChange}
             onValueCommit={handleSliderCommit}
+            onPointerUp={handlePointerUp}
             disabled={!canMutate || trackDuration <= 0}
             className={cn(!canMutate && "opacity-50")}
           />
