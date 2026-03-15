@@ -4,8 +4,8 @@ const STEADY_STATE_INTERVAL_MS = 2500;
 
 // NTP Heartbeat Constants
 export const NTP_CONSTANTS = {
-  // Initial interval for rapid measurement collection
-  INITIAL_INTERVAL_MS: 30,
+  // Initial interval for rapid measurement collection (must be > PROBE_GAP_MS to avoid overlapping pairs)
+  INITIAL_INTERVAL_MS: 50,
   // Steady state interval after initial measurements
   STEADY_STATE_INTERVAL_MS: STEADY_STATE_INTERVAL_MS,
   // Timeout before considering connection stale
@@ -13,9 +13,10 @@ export const NTP_CONSTANTS = {
   // Maximum number of NTP measurements to collect initially
   MAX_MEASUREMENTS: 16,
   // Coded probes (Huygens) — inter-departure gap between probe pairs
-  PROBE_GAP_MS: 5,
+  // 50ms avoids TCP coalescing where mobile browsers batch small writes into one segment
+  PROBE_GAP_MS: 25,
   // Coded probes — client accepts server gap within ±this tolerance
-  PROBE_GAP_TOLERANCE_MS: 2,
+  PROBE_GAP_TOLERANCE_MS: 5,
 } as const;
 
 export const LOW_PASS_CONSTANTS = {
