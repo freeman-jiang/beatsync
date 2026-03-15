@@ -5,7 +5,6 @@ import { Check, Copy, Link, QrCode } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import QRCodeLib from "qrcode";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Separator } from "../ui/separator";
 
