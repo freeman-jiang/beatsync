@@ -25,6 +25,11 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
     return errorResponse("roomId, username and clientId are required");
   }
 
+  if (IS_DEMO_MODE && roomId !== "000000") {
+    console.log(`Demo mode: rejected room ${roomId} (only 000000 allowed)`);
+    return errorResponse("Only room 000000 is available in demo mode");
+  }
+
   // Check if client provided valid admin secret
   const isAdmin = IS_DEMO_MODE && isValidAdminSecret(adminSecret);
 
