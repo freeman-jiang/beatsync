@@ -1,10 +1,11 @@
 "use client";
+import { cn, extractFileNameFromUrl } from "@/lib/utils";
 import { useGlobalStore } from "@/store/global";
 import { Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress, WS_STATUS_COLORS } from "../ui/SyncProgress";
-import { BeatFlash, BeatPill } from "./BeatFlash";
+import { BeatPill, DemoBeatFlash } from "./BeatFlash";
 import { Bottom } from "./Bottom";
 import { RoomQRCode } from "./CopyRoom";
 import { LowPassControl } from "./LowPassControl";
@@ -27,6 +28,40 @@ const PulsingDot = () => (
   </span>
 );
 
+const DemoTrackSelector = () => {
+  const audioSources = useGlobalStore((state) => state.audioSources);
+  const selectedAudioUrl = useGlobalStore((state) => state.selectedAudioUrl);
+
+  if (audioSources.length <= 1) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 justify-center">
+      {audioSources.map((source) => {
+        const isSelected = source.source.url === selectedAudioUrl;
+        return (
+          <button
+            key={source.source.url}
+            onClick={() => {
+              if (isSelected) return;
+              const { changeAudioSource, broadcastPlay, isPlaying } = useGlobalStore.getState();
+              changeAudioSource(source.source.url);
+              if (isPlaying) broadcastPlay(0);
+            }}
+            className={cn(
+              "text-xs font-mono px-3 py-1.5 rounded-full transition-colors cursor-pointer truncate max-w-48",
+              isSelected
+                ? "bg-white text-black"
+                : "text-neutral-400 bg-neutral-800 hover:bg-neutral-700 hover:text-neutral-200"
+            )}
+          >
+            {extractFileNameFromUrl(source.source.url)}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 interface DemoDashboardProps {
   roomId: string;
 }
@@ -42,7 +77,7 @@ export const DemoDashboard = ({ roomId }: DemoDashboardProps) => {
 
   return (
     <div className="w-full h-dvh flex flex-col text-white bg-neutral-950">
-      <BeatFlash />
+      <DemoBeatFlash />
       <TopBar roomId={roomId} />
 
       {!isSynced && hasUserStartedSystem && !isLoadingAudio && <SyncProgress />}
@@ -80,9 +115,14 @@ export const DemoDashboard = ({ roomId }: DemoDashboardProps) => {
           </div>
 
           {isAdmin && (
-            <div className="hidden lg:block absolute bottom-28 right-6 w-64">
-              <LowPassControl />
-            </div>
+            <>
+              <div className="absolute bottom-28 left-6 right-6 lg:right-auto">
+                <DemoTrackSelector />
+              </div>
+              <div className="hidden lg:block absolute bottom-28 right-6 w-64">
+                <LowPassControl />
+              </div>
+            </>
           )}
 
           <Bottom />
