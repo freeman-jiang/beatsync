@@ -7,7 +7,7 @@ import { getUserLocation } from "@/lib/ip";
 import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { validateProbePair, NTPMeasurement } from "@/utils/ntp";
+import { validateProbePair, getProbeStats, NTPMeasurement } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
 import { ClientActionEnum, epochNow, NTPResponseMessageType, WSResponseSchema } from "@beatsync/shared";
 import { useEffect } from "react";
@@ -162,6 +162,8 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
         if (pairResult) {
           addProbePairResult(pairResult);
         }
+        // Always refresh probe stats so UI shows sent/pure/impure counts in real time
+        useGlobalStore.setState({ probeStats: getProbeStats() });
 
         // Mark that we received an NTP response (for staleness detection)
         markNTPResponseReceived();
