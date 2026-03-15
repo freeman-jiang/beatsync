@@ -3,6 +3,7 @@ import { resolve } from "path";
 
 // ── Flag & Config ──────────────────────────────────────────────
 export const IS_DEMO_MODE = process.env.DEMO === "1";
+export const DEMO_ROOM_ID = "000000";
 
 const AUDIO_DIR = resolve(process.env.DEMO_AUDIO_DIR ?? "./demo-audio");
 export const ADMIN_SECRET = process.env.DEMO_ADMIN_SECRET ?? "beatsync";
