@@ -4,45 +4,8 @@ import { useBeatTiming } from "@/hooks/useBeatTiming";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const HORIZONTAL_GRADIENT = "linear-gradient(90deg, transparent 0%, rgba(255,255,255,1) 50%, transparent 100%)";
-const VERTICAL_GRADIENT = "linear-gradient(180deg, transparent 0%, rgba(255,255,255,1) 50%, transparent 100%)";
-const GLOW = "0 0 20px 4px rgba(255,255,255,0.4), 0 0 50px 10px rgba(255,255,255,0.15)";
-
-type Edge = "top" | "bottom" | "left" | "right";
-
-const EDGES: readonly {
-  edge: Edge;
-  className: string;
-  background: string;
-  scaleAxis: "scaleX" | "scaleY";
-}[] = [
-  {
-    edge: "top",
-    className: "absolute top-0 left-0 right-0 h-[2px]",
-    background: HORIZONTAL_GRADIENT,
-    scaleAxis: "scaleX",
-  },
-  {
-    edge: "bottom",
-    className: "absolute bottom-0 left-0 right-0 h-[2px]",
-    background: HORIZONTAL_GRADIENT,
-    scaleAxis: "scaleX",
-  },
-  {
-    edge: "left",
-    className: "absolute top-0 bottom-0 left-0 w-[2px]",
-    background: VERTICAL_GRADIENT,
-    scaleAxis: "scaleY",
-  },
-  {
-    edge: "right",
-    className: "absolute top-0 bottom-0 right-0 w-[2px]",
-    background: VERTICAL_GRADIENT,
-    scaleAxis: "scaleY",
-  },
-];
-
-export const BeatFlash = () => {
+/** Shared hook: subscribes to beat timing and returns a key that increments on each beat. */
+const useBeatKey = () => {
   const [beatKey, setBeatKey] = useState(0);
   const pendingTimeouts = useRef(new Set<ReturnType<typeof setTimeout>>());
 
@@ -62,7 +25,6 @@ export const BeatFlash = () => {
     }, []),
   });
 
-  // Clean up pending timeouts when deactivated
   useEffect(() => {
     if (!isMetronomeActive || !isSynced) {
       const timeouts = pendingTimeouts.current;
@@ -71,18 +33,51 @@ export const BeatFlash = () => {
     }
   }, [isMetronomeActive, isSynced]);
 
-  if (!isMetronomeActive || !isSynced) return null;
+  const isActive = isMetronomeActive && isSynced;
+  return { beatKey, isActive };
+};
+
+export const BeatFlash = () => {
+  const { beatKey, isActive } = useBeatKey();
+
+  if (!isActive) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
-      {EDGES.map(({ edge, className, background, scaleAxis }) => (
+      <motion.div
+        key={`${beatKey}-bg`}
+        className="absolute inset-0 bg-white/5"
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      />
+    </div>
+  );
+};
+
+const PILL_COUNT = 4;
+
+/** A row of pills that flash on each beat — place inline in the layout. */
+export const BeatPill = () => {
+  const { beatKey, isActive } = useBeatKey();
+
+  if (!isActive) return null;
+
+  return (
+    <div className="flex gap-1.5 mt-4 w-32">
+      {Array.from({ length: PILL_COUNT }, (_, i) => (
         <motion.div
-          key={`${beatKey}-${edge}`}
-          className={className}
-          style={{ background, boxShadow: GLOW }}
-          initial={{ opacity: 1, [scaleAxis]: 0.3 }}
-          animate={{ opacity: 0, [scaleAxis]: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          key={`${beatKey}-pill-${i}`}
+          className="h-[3px] flex-1 rounded-full bg-white"
+          initial={{
+            opacity: 1,
+            boxShadow: "0 0 8px 2px rgba(255,255,255,0.7), 0 0 20px 4px rgba(255,255,255,0.25)",
+          }}
+          animate={{
+            opacity: 0.15,
+            boxShadow: "0 0 0px 0px rgba(255,255,255,0), 0 0 0px 0px rgba(255,255,255,0)",
+          }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
         />
       ))}
     </div>

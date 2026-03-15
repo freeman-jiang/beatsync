@@ -4,7 +4,7 @@ import { Users } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { TopBar } from "../room/TopBar";
 import { SyncProgress, WS_STATUS_COLORS } from "../ui/SyncProgress";
-import { BeatFlash } from "./BeatFlash";
+import { BeatFlash, BeatPill } from "./BeatFlash";
 import { Bottom } from "./Bottom";
 import { RoomQRCode } from "./CopyRoom";
 import { LowPassControl } from "./LowPassControl";
@@ -75,6 +75,7 @@ export const DemoDashboard = ({ roomId }: DemoDashboardProps) => {
                 </motion.span>
               </AnimatePresence>
               <RoomQRCode />
+              <BeatPill />
             </div>
           </div>
 
