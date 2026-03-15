@@ -1,6 +1,8 @@
 import { useCallback, useRef } from "react";
 import { useGlobalStore } from "@/store/global";
 
+const CONNECTION_TIMEOUT_MS = 5000;
+
 interface UseWebSocketReconnectionProps {
   maxAttempts?: number;
   initialInterval?: number;
@@ -18,6 +20,14 @@ export const useWebSocketReconnection = ({
 }: UseWebSocketReconnectionProps) => {
   const reconnectAttempts = useRef(0);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearConnectionTimeout = useCallback(() => {
+    if (connectionTimeout.current) {
+      clearTimeout(connectionTimeout.current);
+      connectionTimeout.current = null;
+    }
+  }, []);
 
   // Clear any pending reconnection timeout
   const clearReconnectionTimeout = useCallback(() => {
@@ -31,6 +41,7 @@ export const useWebSocketReconnection = ({
   const onConnectionOpen = () => {
     reconnectAttempts.current = 0;
     clearReconnectionTimeout();
+    clearConnectionTimeout();
 
     // Clear reconnection state
     useGlobalStore.getState().setReconnectionInfo({
@@ -42,9 +53,10 @@ export const useWebSocketReconnection = ({
 
   // Schedule a reconnection attempt with exponential backoff
   const scheduleReconnection = () => {
+    clearConnectionTimeout();
     reconnectAttempts.current++;
     useGlobalStore.getState().setReconnectionInfo({
-      isReconnecting: true, // Keep
+      isReconnecting: true,
       currentAttempt: reconnectAttempts.current,
       maxAttempts,
     });
@@ -57,7 +69,8 @@ export const useWebSocketReconnection = ({
 
     // Calculate backoff delay (exponential backoff with jitter)
     const baseDelay = Math.min(initialInterval * Math.pow(1.1, reconnectAttempts.current - 1), maxInterval);
-    const jitter = Math.random() * 0.15 * baseDelay; // 15% jitter
+    // eslint-disable-next-line react-hooks/purity -- only called from event handlers/timeouts, never during render
+    const jitter = Math.random() * 0.15 * baseDelay;
     const delay = baseDelay + jitter;
 
     console.log(`Scheduling reconnection attempt ${reconnectAttempts.current} in ${delay}ms`);
@@ -65,13 +78,27 @@ export const useWebSocketReconnection = ({
     // Schedule reconnection with delay
     reconnectTimeout.current = setTimeout(() => {
       createConnection();
+
+      // Safari/iOS can silently drop WebSocket connections without firing
+      // onclose when the server is unreachable. Set a timeout to detect this
+      // and retry instead of hanging forever.
+      connectionTimeout.current = setTimeout(() => {
+        const socket = useGlobalStore.getState().socket;
+        if (socket && socket.readyState !== WebSocket.OPEN) {
+          console.log("Connection timeout — server unreachable, retrying");
+          socket.onclose = () => {};
+          socket.close();
+          scheduleReconnection();
+        }
+      }, CONNECTION_TIMEOUT_MS);
     }, delay);
   };
 
   // Cleanup function to be called on unmount
   const cleanup = useCallback(() => {
     clearReconnectionTimeout();
-  }, [clearReconnectionTimeout]);
+    clearConnectionTimeout();
+  }, [clearReconnectionTimeout, clearConnectionTimeout]);
 
   return {
     onConnectionOpen,

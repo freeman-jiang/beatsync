@@ -15,7 +15,7 @@
  * Options:
  *   --clients <n>     Number of clients to simulate (default: 2500)
  *   --room <id>       Room ID to join (default: 000000)
- *   --host <url>      Server WebSocket URL (default: ws://localhost:2026)
+ *   --host <url>      Server WebSocket URL (default: ws://localhost)
  *   --ramp <ms>       Time to ramp up all connections (default: 15000)
  *   --duration <s>    How long to run after all connected (default: 10)
  *   --admin <secret>  Admin secret for demo mode
@@ -37,7 +37,7 @@ function hasFlag(name: string): boolean {
 
 const TOTAL_CLIENTS = parseInt(getArg("clients", "2500"));
 const ROOM_ID = getArg("room", "000000");
-const WS_HOST = getArg("host", "ws://localhost:2026");
+const WS_HOST = getArg("host", "ws://localhost");
 const RAMP_MS = parseInt(getArg("ramp", "15000"));
 const DURATION_S = parseInt(getArg("duration", "10"));
 const ADMIN_SECRET = getArg("admin", "");

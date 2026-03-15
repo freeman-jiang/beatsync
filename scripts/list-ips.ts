@@ -5,7 +5,6 @@ import { resolve } from "path";
 config({ path: resolve(import.meta.dirname, "../apps/server/.env") });
 
 const adminSecret = process.env.DEMO_ADMIN_SECRET ?? "beatsync";
-const DEMO_PORT = 2026;
 
 const ifaces = networkInterfaces();
 
@@ -18,8 +17,8 @@ for (const [name, addrs] of Object.entries(ifaces)) {
     const label = addr.internal ? "loopback" : "LAN";
     console.log(`  ${name} (${label}): ${addr.address}`);
     if (!addr.internal) {
-      console.log(`    🔗 Site:  http://${addr.address}:${DEMO_PORT}`);
-      console.log(`    🔑 Admin: http://${addr.address}:${DEMO_PORT}?admin=${encodeURIComponent(adminSecret)}`);
+      console.log(`    🔗 Site:  http://${addr.address}`);
+      console.log(`    🔑 Admin: http://${addr.address}?admin=${encodeURIComponent(adminSecret)}`);
     }
   }
 }
