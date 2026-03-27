@@ -39,3 +39,13 @@ bun dev              # starts both client (:3000) and server (:8080)
 | `apps/server`     | Bun HTTP + WebSocket server                                    |
 | `apps/client`     | Next.js frontend with Tailwind & Shadcn/ui                     |
 | `packages/shared` | Type-safe schemas and functions shared between client & server |
+
+## How to Contribute
+
+1. Fork this repository  
+2. Clone your fork  
+3. Install dependencies using `bun install`  
+4. Run development server using `bun dev`  
+5. Create a new branch for every change  
+6. Commit and push  
+7. Open a Pull Request  
