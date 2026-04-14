@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS } from "../constants";
 import { AudioSourceSchema, PositionSchema } from "./basic";
+import { ShapeSchema } from "./shape";
 
 // ROOM EVENTS
 export const LocationSchema = z.object({
@@ -35,6 +36,17 @@ export const ClientActionEnum = z.enum([
   "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
+  // Shape management
+  "ADD_SHAPE", // Add a new map zone
+  "UPDATE_SHAPE", // Update zone geometry
+  "DELETE_SHAPE", // Remove a zone
+  "CLEAR_SHAPES", // Remove all zones
+  // Per-shape audio sources
+  "ADD_SHAPE_AUDIO_SOURCE", // Add an audio source to a shape's playlist
+  "REMOVE_SHAPE_AUDIO_SOURCES", // Remove audio sources from a shape's playlist
+  // Client presence
+  "SET_GEO_POSITION", // Update client GPS lat/lng
+  "SET_VISIBILITY", // Tab hidden/visible state
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -50,12 +62,14 @@ export const NTPRequestPacketSchema = z.object({
 
 export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
+  shapeId: z.string(), // Which shape's playlist to play
   trackTimeSeconds: z.number(),
   audioSource: z.string(),
 });
 
 export const PauseActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PAUSE),
+  shapeId: z.string(), // Which shape's playlist to pause
   audioSource: z.string(),
   trackTimeSeconds: z.number(),
 });
@@ -144,6 +158,7 @@ export const SendChatMessageSchema = z.object({
 export const AudioSourceLoadedSchema = z.object({
   type: z.literal(ClientActionEnum.enum.AUDIO_SOURCE_LOADED),
   source: AudioSourceSchema,
+  shapeId: z.string(), // Which shape's loading gate to advance
 });
 
 export const ReorderAudioSourcesSchema = z.object({
@@ -160,6 +175,63 @@ export const SetLowPassFreqSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_LOW_PASS_FREQ),
   freq: z.number().min(LOW_PASS_CONSTANTS.MIN_FREQ).max(LOW_PASS_CONSTANTS.MAX_FREQ),
 });
+
+// ── Shape management ────────────────────────────────────────────────
+
+export const AddShapeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.ADD_SHAPE),
+  shape: ShapeSchema,
+});
+export type AddShapeType = z.infer<typeof AddShapeSchema>;
+
+export const UpdateShapeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.UPDATE_SHAPE),
+  shapeId: z.string(),
+  coordinates: z.unknown(), // Updated Leaflet geometry
+});
+export type UpdateShapeType = z.infer<typeof UpdateShapeSchema>;
+
+export const DeleteShapeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DELETE_SHAPE),
+  shapeId: z.string(),
+});
+export type DeleteShapeType = z.infer<typeof DeleteShapeSchema>;
+
+export const ClearShapesSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.CLEAR_SHAPES),
+});
+export type ClearShapesType = z.infer<typeof ClearShapesSchema>;
+
+// ── Per-shape audio sources ─────────────────────────────────────────
+
+export const AddShapeAudioSourceSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.ADD_SHAPE_AUDIO_SOURCE),
+  shapeId: z.string(),
+  source: AudioSourceSchema,
+});
+export type AddShapeAudioSourceType = z.infer<typeof AddShapeAudioSourceSchema>;
+
+export const RemoveShapeAudioSourcesSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REMOVE_SHAPE_AUDIO_SOURCES),
+  shapeId: z.string(),
+  urls: z.array(z.string()).min(1),
+});
+export type RemoveShapeAudioSourcesType = z.infer<typeof RemoveShapeAudioSourcesSchema>;
+
+// ── Client presence ─────────────────────────────────────────────────
+
+export const SetGeoPositionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_GEO_POSITION),
+  lat: z.number(),
+  lng: z.number(),
+});
+export type SetGeoPositionType = z.infer<typeof SetGeoPositionSchema>;
+
+export const SetVisibilitySchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_VISIBILITY),
+  isHidden: z.boolean(),
+});
+export type SetVisibilityType = z.infer<typeof SetVisibilitySchema>;
 
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
@@ -184,6 +256,16 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ReorderAudioSourcesSchema,
   SetMetronomeSchema,
   SetLowPassFreqSchema,
+  // Shape management
+  AddShapeSchema,
+  UpdateShapeSchema,
+  DeleteShapeSchema,
+  ClearShapesSchema,
+  AddShapeAudioSourceSchema,
+  RemoveShapeAudioSourcesSchema,
+  // Client presence
+  SetGeoPositionSchema,
+  SetVisibilitySchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;
