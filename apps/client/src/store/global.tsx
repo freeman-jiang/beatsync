@@ -51,6 +51,8 @@ interface AudioPlayerState {
   gainNode: GainNode;
 }
 
+type VolumeControlScope = "local" | "global";
+
 enum AudioPlayerError {
   NotInitialized = "NOT_INITIALIZED",
 }
@@ -123,7 +125,9 @@ interface GlobalStateValues {
   currentTime: number;
   duration: number;
   volume: number;
+  localVolume: number; // Per-device volume (0-1)
   globalVolume: number; // Master volume (0-1)
+  volumeControlScope: VolumeControlScope;
 
   // Tracking properties
   playbackStartTime: number;
@@ -201,8 +205,10 @@ interface GlobalState extends GlobalStateValues {
   skipToPreviousTrack: () => void;
   getCurrentGainValue: () => number;
   getCurrentSpatialGainValue: () => number;
+  setLocalVolume: (volume: number) => void;
   setGlobalVolume: (volume: number) => void;
   sendGlobalVolumeUpdate: (volume: number) => void;
+  setVolumeControlScope: (scope: VolumeControlScope) => void;
   processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => void;
   applyFinalGain: (rampTime?: number) => void;
   resetStore: () => void;
@@ -279,7 +285,9 @@ const initialState: GlobalStateValues = {
   audioPlayer: null,
   duration: 0,
   volume: 0.5,
+  localVolume: 1.0,
   globalVolume: 1.0, // Default 100%
+  volumeControlScope: "global",
   reconnectionInfo: {
     isReconnecting: false,
     currentAttempt: 0,
@@ -578,7 +586,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
     // Set initial volume
     const state = get();
-    audioContextManager.setMasterGain(state.globalVolume);
+    audioContextManager.setMasterGain(state.volumeControlScope === "global" ? state.globalVolume : state.localVolume);
 
     // Create initial source node (will be replaced on play)
     const sourceNode = audioContextManager.createBufferSource();
@@ -1233,7 +1241,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         set({ listeningSourcePosition: listeningSource });
       }
 
-      // Use the shared applyFinalGain method which handles global volume multiplication
+      // Use the shared applyFinalGain method which handles the active volume scope.
       const clientId = getClientId();
       const user = config.gains[clientId];
       if (!user) {
@@ -1374,6 +1382,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       return state.spatialConfig.gains[clientId].gain;
     },
 
+    setLocalVolume: (volume) => {
+      set({ localVolume: Math.max(0, Math.min(1, volume)) });
+      get().applyFinalGain();
+    },
+
     setGlobalVolume: (volume) => {
       set({ globalVolume: Math.max(0, Math.min(1, volume)) });
       get().applyFinalGain();
@@ -1392,6 +1405,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       });
     },
 
+    setVolumeControlScope: (scope) => {
+      set({ volumeControlScope: scope });
+      get().applyFinalGain();
+    },
+
     processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => {
       const { volume, rampTime } = config;
       set({ globalVolume: volume });
@@ -1401,14 +1419,14 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     applyFinalGain: (rampTime = 0.1) => {
       const state = get();
 
-      // Calculate final gain
-      let finalGain = state.globalVolume;
+      // Calculate final gain from the selected volume scope.
+      let finalGain = state.volumeControlScope === "global" ? state.globalVolume : state.localVolume;
 
       // If spatial audio is enabled, get the spatial gain for this client
       if (state.isSpatialAudioEnabled && state.spatialConfig) {
         const clientId = getClientId();
         const spatialGain = state.spatialConfig.gains[clientId]?.gain || 1;
-        finalGain = state.globalVolume * spatialGain;
+        finalGain *= spatialGain;
       }
 
       // Use singleton's setMasterGain with ramping

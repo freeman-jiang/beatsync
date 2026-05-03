@@ -1,10 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useCanMutate, useGlobalStore } from "@/store/global";
+import { useGlobalStore } from "@/store/global";
 import { Volume1, Volume2, VolumeX } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { throttle } from "throttle-debounce";
 import { Slider } from "../ui/slider";
 
@@ -14,61 +14,29 @@ interface GlobalVolumeControlProps {
 }
 
 export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolumeControlProps) => {
-  const canMutate = useCanMutate();
+  const currentUser = useGlobalStore((state) => state.currentUser);
+  const isAdmin = !!currentUser?.isAdmin;
+  const localVolume = useGlobalStore((state) => state.localVolume);
   const globalVolume = useGlobalStore((state) => state.globalVolume);
+  const volumeControlScope = useGlobalStore((state) => state.volumeControlScope);
+  const setLocalVolume = useGlobalStore((state) => state.setLocalVolume);
+  const setGlobalVolume = useGlobalStore((state) => state.setGlobalVolume);
+  const setVolumeControlScope = useGlobalStore((state) => state.setVolumeControlScope);
   const sendGlobalVolumeUpdate = useGlobalStore((state) => state.sendGlobalVolumeUpdate);
+  const activeScope = volumeControlScope;
+  const activeVolume = activeScope === "global" ? globalVolume : localVolume;
+  const canControlActiveVolume = activeScope === "local" || isAdmin;
+  const activeScopeLabel = activeScope === "global" ? "room" : "local";
+  const volumeControlTitle = canControlActiveVolume
+    ? `Adjust ${activeScopeLabel} volume`
+    : "Room volume is controlled by admins";
 
-  // Local state for optimistic UI updates
-  const [displayVolume, setDisplayVolume] = useState(globalVolume);
   const [isDragging, setIsDragging] = useState(false);
-
-  // Refs for smooth interpolation
-  const targetVolumeRef = useRef(globalVolume);
-  const currentVolumeRef = useRef(globalVolume);
-  const animationFrameRef = useRef<number>(0);
-
-  // Smooth interpolation for remote volume changes
-  useEffect(() => {
-    // Update target when globalVolume changes
-    targetVolumeRef.current = globalVolume;
-
-    // Don't interpolate if user is dragging
-    if (isDragging) {
-      return;
-    }
-
-    const animate = () => {
-      // Calculate difference between target and current
-      const diff = targetVolumeRef.current - currentVolumeRef.current;
-
-      // If difference is very small, snap to target
-      if (Math.abs(diff) < 0.001) {
-        currentVolumeRef.current = targetVolumeRef.current;
-        setDisplayVolume(currentVolumeRef.current);
-        return;
-      }
-
-      // Move 30% of the way to target each frame (exponential ease-out)
-      currentVolumeRef.current += diff * 0.25;
-      setDisplayVolume(currentVolumeRef.current);
-
-      // Continue animation
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    // Start animation
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    // Cleanup
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [globalVolume, isDragging]);
+  const [draftVolume, setDraftVolume] = useState(activeVolume);
+  const displayVolume = isDragging ? draftVolume : activeVolume;
 
   // Create throttled version of sendGlobalVolumeUpdate
-  const throttledSendUpdate = useMemo(
+  const throttledSendGlobalUpdate = useMemo(
     () =>
       throttle(50, (volume: number) => {
         sendGlobalVolumeUpdate(volume);
@@ -87,42 +55,94 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
   // Handle slider change (while dragging) - send updates continuously
   const handleSliderChange = useCallback(
     (value: number[]) => {
-      if (!canMutate) {
-        console.error("Cannot mutate global volume");
-        return;
-      }
+      if (!canControlActiveVolume) return;
+
       const volume = value[0] / 100;
 
-      // Mark as dragging
       setIsDragging(true);
+      setDraftVolume(volume);
 
-      // Update local state and refs immediately for smooth UI
-      setDisplayVolume(volume);
-      currentVolumeRef.current = volume;
-      targetVolumeRef.current = volume;
-
-      // Send throttled update to server
-      throttledSendUpdate(volume);
+      if (activeScope === "global") {
+        setGlobalVolume(volume);
+        throttledSendGlobalUpdate(volume);
+      } else {
+        setLocalVolume(volume);
+      }
     },
-    [canMutate, throttledSendUpdate]
+    [activeScope, canControlActiveVolume, setGlobalVolume, setLocalVolume, throttledSendGlobalUpdate]
   );
 
   // Handle slider release
   const handleSliderCommit = useCallback(
     (value: number[]) => {
-      if (!canMutate) return;
+      if (!canControlActiveVolume) return;
 
       // Send final value to ensure it's accurate
       const finalVolume = value[0] / 100;
-      setDisplayVolume(finalVolume);
-      currentVolumeRef.current = finalVolume;
-      targetVolumeRef.current = finalVolume;
-      sendGlobalVolumeUpdate(finalVolume);
+      setDraftVolume(finalVolume);
+
+      if (activeScope === "global") {
+        setGlobalVolume(finalVolume);
+        sendGlobalVolumeUpdate(finalVolume);
+      } else {
+        setLocalVolume(finalVolume);
+      }
 
       // Mark as no longer dragging
       setIsDragging(false);
     },
-    [canMutate, sendGlobalVolumeUpdate]
+    [activeScope, canControlActiveVolume, sendGlobalVolumeUpdate, setGlobalVolume, setLocalVolume]
+  );
+
+  const handleMuteToggle = useCallback(() => {
+    if (!canControlActiveVolume) return;
+
+    const newVolume = displayVolume > 0 ? 0 : 0.5;
+    setDraftVolume(newVolume);
+
+    if (activeScope === "global") {
+      setGlobalVolume(newVolume);
+      sendGlobalVolumeUpdate(newVolume);
+    } else {
+      setLocalVolume(newVolume);
+    }
+  }, [activeScope, canControlActiveVolume, displayVolume, sendGlobalVolumeUpdate, setGlobalVolume, setLocalVolume]);
+
+  const handleScopeChange = useCallback(
+    (scope: "local" | "global") => {
+      const nextVolume = scope === "global" ? globalVolume : localVolume;
+      setIsDragging(false);
+      setDraftVolume(nextVolume);
+      setVolumeControlScope(scope);
+    },
+    [globalVolume, localVolume, setVolumeControlScope]
+  );
+
+  const scopeToggle = (
+    <div className={cn("inline-flex items-center rounded-md bg-neutral-800/70 p-0.5", isMobile ? "ml-2" : "")}>
+      {(["local", "global"] as const).map((scope) => (
+        <button
+          key={scope}
+          type="button"
+          onClick={() => handleScopeChange(scope)}
+          aria-pressed={activeScope === scope}
+          aria-label={scope === "local" ? "Use local volume control" : "Use room volume control"}
+          title={
+            scope === "local"
+              ? "Control volume on this device"
+              : isAdmin
+                ? "Control room volume for everyone"
+                : "View room volume set by admins"
+          }
+          className={cn(
+            "rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
+            activeScope === scope ? "bg-neutral-200 text-neutral-950" : "text-neutral-400 hover:text-white"
+          )}
+        >
+          {scope === "local" ? "Local" : "Room"}
+        </button>
+      ))}
+    </div>
   );
 
   // Mobile layout (vertical, like PlaybackPermissions)
@@ -132,15 +152,22 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
         <div className="flex items-center justify-between px-4 pt-3">
           <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 flex items-center gap-2">
             <Volume2 className="h-3.5 w-3.5" />
-            <span>Global Volume</span>
+            <span>{activeScope === "global" ? "Room Volume" : "Local Volume"}</span>
           </h2>
+          {scopeToggle}
         </div>
 
         <div className="px-4 pb-3">
           <div className="flex items-center gap-3 mt-2.5">
             <button
-              className={cn("text-neutral-400 transition-colors", canMutate ? "hover:text-white" : "opacity-50")}
-              disabled={!canMutate}
+              className={cn(
+                "text-neutral-400 transition-colors",
+                canControlActiveVolume ? "hover:text-white" : "opacity-50"
+              )}
+              onClick={handleMuteToggle}
+              disabled={!canControlActiveVolume}
+              aria-label={`${displayVolume > 0 ? "Mute" : "Unmute"} ${activeScopeLabel} volume`}
+              title={volumeControlTitle}
             >
               {volumeIcon}
             </button>
@@ -151,8 +178,10 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
               step={1}
               onValueChange={handleSliderChange}
               onValueCommit={handleSliderCommit}
-              disabled={!canMutate}
-              className={cn("flex-1", !canMutate && "opacity-50")}
+              disabled={!canControlActiveVolume}
+              aria-label={`${activeScope === "global" ? "Room" : "Local"} volume`}
+              title={volumeControlTitle}
+              className={cn("flex-1", !canControlActiveVolume && "opacity-50")}
             />
             <div className="text-xs text-neutral-400 min-w-[3rem] text-right">{Math.round(displayVolume * 100)}%</div>
           </div>
@@ -169,18 +198,13 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
       animate={{ opacity: 1 }}
       transition={{ delay: 0.2 }}
     >
+      {scopeToggle}
       <button
-        className={cn("text-neutral-400 transition-colors", canMutate ? "hover:text-white" : "opacity-50")}
-        disabled={!canMutate}
-        onClick={() => {
-          if (!canMutate) return;
-          // Toggle mute
-          const newVolume = displayVolume > 0 ? 0 : 0.5;
-          setDisplayVolume(newVolume);
-          currentVolumeRef.current = newVolume;
-          targetVolumeRef.current = newVolume;
-          sendGlobalVolumeUpdate(newVolume);
-        }}
+        className={cn("text-neutral-400 transition-colors", canControlActiveVolume ? "hover:text-white" : "opacity-50")}
+        onClick={handleMuteToggle}
+        disabled={!canControlActiveVolume}
+        aria-label={`${displayVolume > 0 ? "Mute" : "Unmute"} ${activeScopeLabel} volume`}
+        title={volumeControlTitle}
       >
         {volumeIcon}
       </button>
@@ -192,13 +216,12 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
           step={1}
           onValueChange={handleSliderChange}
           onValueCommit={handleSliderCommit}
-          disabled={!canMutate}
-          className={cn("w-full", !canMutate && "opacity-50")}
+          disabled={!canControlActiveVolume}
+          aria-label={`${activeScope === "global" ? "Room" : "Local"} volume`}
+          title={volumeControlTitle}
+          className={cn("w-full", !canControlActiveVolume && "opacity-50")}
         />
       </div>
-      {/* <div className="text-xs text-neutral-400 min-w-[2.5rem]">
-        {Math.round(isDragging ? localVolume : globalVolume * 100)}%
-      </div> */}
     </motion.div>
   );
 };
