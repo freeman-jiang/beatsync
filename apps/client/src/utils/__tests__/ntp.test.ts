@@ -2,7 +2,12 @@
 // wait time calculation, and measurement filtering behavior.
 
 import { describe, expect, it, mock } from "bun:test";
-import { calculateOffsetEstimate, calculateWaitTimeMilliseconds, type NTPMeasurement } from "@/utils/ntp";
+import {
+  calculateOffsetEstimate,
+  calculateWaitTimeMilliseconds,
+  filterOutliersByIQR,
+  type NTPMeasurement,
+} from "@/utils/ntp";
 import * as shared from "@beatsync/shared";
 
 const FROZEN_TIME = 10000;
@@ -24,8 +29,48 @@ function createMeasurement(data: { roundTripDelay: number; clockOffset: number }
   };
 }
 
+describe("filterOutliersByIQR", () => {
+  it("should return all measurements when fewer than 4", () => {
+    const measurements: NTPMeasurement[] = [
+      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
+      createMeasurement({ roundTripDelay: 500, clockOffset: 300 }),
+    ];
+    expect(filterOutliersByIQR(measurements)).toHaveLength(2);
+  });
+
+  it("should remove extreme RTT outliers", () => {
+    const measurements: NTPMeasurement[] = [
+      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
+      createMeasurement({ roundTripDelay: 12, clockOffset: 101 }),
+      createMeasurement({ roundTripDelay: 14, clockOffset: 102 }),
+      createMeasurement({ roundTripDelay: 11, clockOffset: 100 }),
+      createMeasurement({ roundTripDelay: 13, clockOffset: 101 }),
+      createMeasurement({ roundTripDelay: 15, clockOffset: 103 }),
+      createMeasurement({ roundTripDelay: 200, clockOffset: 500 }),
+      createMeasurement({ roundTripDelay: 800, clockOffset: -50 }),
+    ];
+    const filtered = filterOutliersByIQR(measurements);
+    // Q3=200, IQR=188, upper fence=482 → RTT 800 rejected, RTT 200 passes
+    expect(filtered.every((m) => m.roundTripDelay <= 482)).toBe(true);
+    expect(filtered.some((m) => m.roundTripDelay === 800)).toBe(false);
+    expect(filtered.length).toBe(7);
+  });
+
+  it("should always keep at least the min-RTT sample", () => {
+    // All "outliers" — IQR is 0 so upperFence = Q3 + 0 = Q3
+    const measurements: NTPMeasurement[] = [
+      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
+      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
+      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
+      createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
+    ];
+    const filtered = filterOutliersByIQR(measurements);
+    expect(filtered.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe("calculateOffsetEstimate", () => {
-  it("should select the offset from the minimum-RTT measurement", () => {
+  it("should average offsets from bottom-quartile RTT cluster", () => {
     const measurements: NTPMeasurement[] = [
       createMeasurement({ roundTripDelay: 10, clockOffset: 100 }),
       createMeasurement({ roundTripDelay: 20, clockOffset: 110 }),
@@ -35,14 +80,14 @@ describe("calculateOffsetEstimate", () => {
 
     const result = calculateOffsetEstimate(measurements);
 
-    // Min RTT is 10, its offset is 100
-    expect(result.averageOffset).toBe(100);
+    // Bottom-quartile cluster = 2 lowest-RTT samples: offsets [100, 110] → avg = 105
+    expect(result.averageOffset).toBe(105);
 
-    // Average round trip uses ALL measurements: (10 + 20 + 200 + 300) / 4 = 132.5
+    // Average round trip over clean set (all pass IQR): (10 + 20 + 200 + 300) / 4 = 132.5
     expect(result.averageRoundTrip).toBe(132.5);
   });
 
-  it("should ignore high-RTT spikes entirely", () => {
+  it("should ignore high-RTT spikes via clustering", () => {
     const measurements: NTPMeasurement[] = [
       createMeasurement({ roundTripDelay: 18, clockOffset: 149 }),
       createMeasurement({ roundTripDelay: 22, clockOffset: 151 }),
@@ -53,8 +98,8 @@ describe("calculateOffsetEstimate", () => {
 
     const result = calculateOffsetEstimate(measurements);
 
-    // Min RTT is 18, its offset is 149 — spikes have zero influence
-    expect(result.averageOffset).toBe(149);
+    // Cluster = 2 lowest-RTT samples: RTT [18, 20] → offsets [149, 150] → avg = 149.5
+    expect(result.averageOffset).toBe(149.5);
   });
 
   it("should handle negative clock offsets (client ahead of server)", () => {
@@ -67,8 +112,8 @@ describe("calculateOffsetEstimate", () => {
 
     const result = calculateOffsetEstimate(measurements);
 
-    // Min RTT is 10, its offset is -50
-    expect(result.averageOffset).toBe(-50);
+    // Cluster = 2 lowest-RTT: RTT [10, 12] → offsets [-50, -48] → avg = -49
+    expect(result.averageOffset).toBe(-49);
   });
 
   it("should handle a single measurement", () => {
@@ -78,6 +123,41 @@ describe("calculateOffsetEstimate", () => {
 
     expect(result.averageOffset).toBe(200);
     expect(result.averageRoundTrip).toBe(50);
+  });
+
+  it("should handle empty measurements", () => {
+    const result = calculateOffsetEstimate([]);
+    expect(result.averageOffset).toBe(0);
+    expect(result.averageRoundTrip).toBe(0);
+  });
+
+  it("should produce tighter estimates with many similar measurements", () => {
+    // Simulate realistic LAN scenario: 16 measurements, RTTs 8-25ms, one spike
+    const measurements: NTPMeasurement[] = [
+      createMeasurement({ roundTripDelay: 10, clockOffset: 150 }),
+      createMeasurement({ roundTripDelay: 12, clockOffset: 151 }),
+      createMeasurement({ roundTripDelay: 8, clockOffset: 149 }),
+      createMeasurement({ roundTripDelay: 11, clockOffset: 150 }),
+      createMeasurement({ roundTripDelay: 14, clockOffset: 152 }),
+      createMeasurement({ roundTripDelay: 9, clockOffset: 149 }),
+      createMeasurement({ roundTripDelay: 13, clockOffset: 151 }),
+      createMeasurement({ roundTripDelay: 15, clockOffset: 152 }),
+      createMeasurement({ roundTripDelay: 10, clockOffset: 150 }),
+      createMeasurement({ roundTripDelay: 11, clockOffset: 150 }),
+      createMeasurement({ roundTripDelay: 16, clockOffset: 153 }),
+      createMeasurement({ roundTripDelay: 12, clockOffset: 151 }),
+      createMeasurement({ roundTripDelay: 20, clockOffset: 155 }),
+      createMeasurement({ roundTripDelay: 25, clockOffset: 158 }),
+      createMeasurement({ roundTripDelay: 9, clockOffset: 149 }),
+      createMeasurement({ roundTripDelay: 300, clockOffset: 280 }),
+    ];
+
+    const result = calculateOffsetEstimate(measurements);
+
+    // With IQR + bottom-quartile clustering, the result should be very close to the
+    // true offset (149-150ms) — the 300ms spike should not corrupt the estimate
+    expect(result.averageOffset).toBeGreaterThanOrEqual(148);
+    expect(result.averageOffset).toBeLessThanOrEqual(152);
   });
 });
 
