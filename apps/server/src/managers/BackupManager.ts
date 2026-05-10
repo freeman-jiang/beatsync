@@ -67,6 +67,19 @@ export class BackupManager {
         console.log(`Room ${roomId}: Restored ${roomData.chat.messages.length} chat messages`);
       }
 
+      // Map-room state (roomType / mapMetadata / shapes). Optional for back-compat
+      // with backups taken before the map-room feature shipped.
+      if (roomData.roomType || roomData.mapMetadata || roomData.shapes) {
+        room.restoreMapState({
+          roomType: roomData.roomType,
+          mapMetadata: roomData.mapMetadata,
+          shapes: roomData.shapes,
+        });
+        if (roomData.shapes && roomData.shapes.length > 0) {
+          console.log(`Room ${roomId}: Restored ${roomData.shapes.length} shapes`);
+        }
+      }
+
       // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
       globalManager.scheduleRoomCleanup(roomId);
       return {

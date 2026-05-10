@@ -42,14 +42,41 @@ function debouncedDemoUserCountBroadcast(server: BunServer, roomId: string): voi
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   console.log(`WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`);
 
-  const { roomId } = ws.data;
+  const { roomId, requestedRoomType } = ws.data;
   ws.subscribe(roomId);
 
   const room = globalManager.getOrCreateRoom(roomId);
+
+  // First-connection wins: if the room has no clients yet AND the client requested a
+  // specific roomType, lock the room to that type. Otherwise the room's existing type
+  // (default "audio") is preserved and subsequent requests with a different type are
+  // ignored — the client will see ROOM_TYPE_INFO and can decide how to render.
+  if (requestedRoomType && room.getClients().length === 0) {
+    try {
+      room.setRoomType(requestedRoomType);
+    } catch (err) {
+      // Defensive — getClients() race or restore-time mismatch. Log and continue.
+      console.warn(`Could not set room ${roomId} type to ${requestedRoomType}: ${(err as Error).message}`);
+    }
+  }
+
   room.addClient(ws);
 
   const { audioSources, globalVolume, lowPassFreq } = room.getState();
   const now = epochNow();
+
+  // Always tell the client what kind of room they joined so it can mount the right UI.
+  sendToClient({
+    ws,
+    message: {
+      type: "ROOM_EVENT",
+      event: {
+        type: "ROOM_TYPE_INFO",
+        roomType: room.getRoomType(),
+        ...(room.getMapMetadata() && { mapMetadata: room.getMapMetadata() }),
+      },
+    },
+  });
 
   // Send audio sources to the newly joined client
   if (audioSources.length > 0) {
@@ -158,6 +185,45 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     sendToClient({ ws, message: createClientUpdate(roomId) });
     // Broadcast to others: debounced
     debouncedClientChangeBroadcast(server, roomId);
+  }
+
+  // Map-room-specific initial state: shape snapshot + resume PLAY for any shape that's
+  // already playing so late joiners can seek into the loop.
+  if (room.isMapRoom()) {
+    const shapeStates = room.getShapeStates();
+    if (shapeStates.length > 0) {
+      sendToClient({
+        ws,
+        message: {
+          type: "ROOM_EVENT",
+          event: { type: "SHAPES_UPDATE", shapes: shapeStates },
+        },
+      });
+
+      // Resume playing shapes: send a unicast SCHEDULED_ACTION that tells the client where
+      // to seek into the track. The same dynamic-schedule + extra-offset logic used by
+      // syncClient applies — we add a buffer so the client has time to load the buffer.
+      for (const state of shapeStates) {
+        if (state.playbackState.type !== "playing") continue;
+        const serverTimeWhenStarted = state.playbackState.serverTimeToExecute;
+        const trackPosWhenStarted = state.playbackState.trackPositionSeconds;
+        const serverTimeToExecute = room.getScheduledExecutionTime({ extraOffsetMs: 1500 });
+        const resumeTrackSeconds = trackPosWhenStarted + (serverTimeToExecute - serverTimeWhenStarted) / 1000;
+        sendUnicast({
+          ws,
+          message: {
+            type: "SCHEDULED_ACTION",
+            serverTimeToExecute,
+            scheduledAction: {
+              type: "PLAY",
+              shapeId: state.shape.id,
+              audioSource: state.playbackState.audioSource,
+              trackTimeSeconds: resumeTrackSeconds,
+            },
+          },
+        });
+      }
+    }
   }
 };
 

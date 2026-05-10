@@ -1,6 +1,7 @@
 import { DEMO_ROOM_ID, IS_DEMO_MODE, isValidAdminSecret } from "@/demo";
 import { errorResponse } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
+import { RoomTypeEnum } from "@beatsync/shared";
 
 const CREATOR_SECRET = process.env.CREATOR_SECRET;
 
@@ -11,6 +12,10 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
   const clientId = url.searchParams.get("clientId");
   const adminSecret = url.searchParams.get("admin");
   const creatorSecret = url.searchParams.get("creator");
+  const roomTypeParam = url.searchParams.get("roomType");
+  // Map rooms are opt-in via ?roomType=map. Unrecognized values are ignored so the
+  // first client falls back to the default "audio" type.
+  const requestedRoomType = RoomTypeEnum.safeParse(roomTypeParam).data;
 
   if (!roomId || !username || !clientId) {
     // Check which parameters are missing and log them
@@ -44,6 +49,7 @@ export const handleWebSocketUpgrade = (req: Request, server: BunServer) => {
     clientId,
     isAdmin,
     isCreator,
+    requestedRoomType,
   };
 
   // Upgrade the connection with the WSData context

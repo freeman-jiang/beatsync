@@ -6,7 +6,15 @@ import {
   PlayActionSchema,
   SetPlaybackControlsSchema,
 } from "./WSRequest";
-import { AudioSourceSchema, ChatMessageSchema, PositionSchema } from "./basic";
+import {
+  AudioSourceSchema,
+  ChatMessageSchema,
+  GeoPositionSchema,
+  MapMetadataSchema,
+  PositionSchema,
+  RoomTypeEnum,
+} from "./basic";
+import { ShapeStateSchema } from "./shape";
 
 // Client change
 export const ClientDataSchema = z.object({
@@ -21,6 +29,9 @@ export const ClientDataSchema = z.object({
   isCreator: z.boolean().default(false), // Site creator badge
   location: LocationSchema.optional(),
   joinedAt: z.number(), // Timestamp when the client joined the room
+  // Map-room presence (only meaningful when roomType === "map")
+  geoPosition: GeoPositionSchema.optional(),
+  isHidden: z.boolean().optional(), // Tab visibility — hidden clients are still connected
 });
 export type ClientDataType = z.infer<typeof ClientDataSchema>;
 const ClientChangeMessageSchema = z.object({
@@ -49,8 +60,37 @@ export type ChatUpdateType = z.infer<typeof ChatUpdateSchema>;
 const LoadAudioSourceSchema = z.object({
   type: z.literal("LOAD_AUDIO_SOURCE"),
   audioSourceToPlay: AudioSourceSchema,
+  // Map rooms scope LOAD_AUDIO_SOURCE to a particular shape so the client knows
+  // which audio chain is targeted. Audio rooms omit this field.
+  shapeId: z.string().optional(),
 });
 export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
+
+// Full re-broadcast of every shape's state. Sent on initial join, on shape mutation,
+// and (for now) on every shape playback change. A future optimization could split
+// geometry vs. playback into separate deltas.
+const ShapesUpdateSchema = z.object({
+  type: z.literal("SHAPES_UPDATE"),
+  shapes: z.array(ShapeStateSchema),
+});
+export type ShapesUpdateType = z.infer<typeof ShapesUpdateSchema>;
+
+// Curator changed the default Leaflet view (center/zoom). New visitors get this in
+// their initial-state burst; existing clients receive this event live.
+const MapMetadataUpdateSchema = z.object({
+  type: z.literal("MAP_METADATA_UPDATE"),
+  metadata: MapMetadataSchema,
+});
+export type MapMetadataUpdateType = z.infer<typeof MapMetadataUpdateSchema>;
+
+// One-shot event sent at WebSocket open so the client knows whether to render the
+// audio-room dashboard or the map-room shell. Carries map-room defaults if applicable.
+const RoomTypeInfoSchema = z.object({
+  type: z.literal("ROOM_TYPE_INFO"),
+  roomType: RoomTypeEnum,
+  mapMetadata: MapMetadataSchema.optional(),
+});
+export type RoomTypeInfoType = z.infer<typeof RoomTypeInfoSchema>;
 
 const RoomEventSchema = z.object({
   type: z.literal("ROOM_EVENT"),
@@ -60,6 +100,9 @@ const RoomEventSchema = z.object({
     SetPlaybackControlsSchema,
     ChatUpdateSchema,
     LoadAudioSourceSchema,
+    ShapesUpdateSchema,
+    MapMetadataUpdateSchema,
+    RoomTypeInfoSchema,
   ]),
 });
 

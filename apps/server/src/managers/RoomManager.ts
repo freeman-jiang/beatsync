@@ -12,15 +12,32 @@ import type {
   ChatMessageType,
   ClientDataType,
   DiscoveryRoomType,
+  GeoPositionType,
+  MapMetadataType,
   PauseActionType,
   PlayActionType,
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
   PositionType,
   RoomType,
+  RoomTypeValue,
+  ShapeStateType,
+  ShapeType,
+  ShapePlaybackStateType,
   WSBroadcastType,
 } from "@beatsync/shared";
-import { ChatMessageSchema, ClientDataSchema, epochNow, LOW_PASS_CONSTANTS, NTP_CONSTANTS } from "@beatsync/shared";
+import {
+  ChatMessageSchema,
+  ClientDataSchema,
+  epochNow,
+  INITIAL_SHAPE_PLAYBACK_STATE,
+  LOW_PASS_CONSTANTS,
+  MapMetadataSchema,
+  NTP_CONSTANTS,
+  RoomTypeEnum,
+  ShapeSchema,
+  ShapePlaybackStateSchema,
+} from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
@@ -47,6 +64,13 @@ const RoomPlaybackStateSchema = z.object({
 });
 type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
 
+// Map-room shape persistence (only present for roomType === "map").
+const ShapeBackupSchema = z.object({
+  shape: ShapeSchema,
+  playlist: z.array(AudioSourceSchema),
+  playbackState: ShapePlaybackStateSchema,
+});
+
 const RoomBackupSchema = z.object({
   clientDatas: z.array(ClientDataSchema),
   audioSources: z.array(AudioSourceSchema),
@@ -63,6 +87,10 @@ const RoomBackupSchema = z.object({
       nextMessageId: z.number(),
     })
     .optional(),
+  // Map-room fields — optional so existing backups keep deserializing.
+  roomType: RoomTypeEnum.optional(),
+  mapMetadata: MapMetadataSchema.optional(),
+  shapes: z.array(ShapeBackupSchema).optional(),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -88,6 +116,14 @@ interface PendingPlayState {
   playAction: PlayActionType;
   initiatorClientId: string;
   server: BunServer;
+}
+
+// Map-room state for a single shape: geometry + ordered audio playlist + current playback.
+// Lives on the server as the authoritative copy; clients receive snapshots via SHAPES_UPDATE.
+interface ShapeRuntime {
+  shape: ShapeType;
+  playlist: AudioSourceType[];
+  playback: ShapePlaybackStateType;
 }
 
 /**
@@ -126,6 +162,16 @@ export class RoomManager {
   // Audio loading state for synchronized playback
   private pendingPlay?: PendingPlayState;
   private demoAudioReadyClients = new Set<string>();
+
+  // Map-room state. roomType is fixed for the room's lifetime (set by the first connecting
+  // client). When 'audio', all shape methods refuse to mutate. When 'map', shapes/mapMetadata
+  // are the authoritative state for the geospatial experience.
+  private roomType: RoomTypeValue = "audio";
+  private mapMetadata?: MapMetadataType;
+  private shapes = new Map<string, ShapeRuntime>();
+  // Per-shape audio-load coordination, parallel to `pendingPlay` for audio rooms.
+  private pendingShapePlays = new Map<string, PendingPlayState>();
+
   constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
@@ -306,6 +352,335 @@ export class RoomManager {
     return this.playbackState;
   }
 
+  // ── Map-room state ─────────────────────────────────────────────────
+
+  getRoomType(): RoomTypeValue {
+    return this.roomType;
+  }
+
+  // Set the room type. Idempotent for matching values; throws if the room already has
+  // clients and a different type is requested (the first connection's type is authoritative).
+  setRoomType(roomType: RoomTypeValue): void {
+    if (this.roomType === roomType) return;
+    if (this.wsConnections.size > 0) {
+      throw new Error(
+        `Cannot change room ${this.roomId} from ${this.roomType} to ${roomType}: room already has clients`
+      );
+    }
+    this.roomType = roomType;
+  }
+
+  isMapRoom(): boolean {
+    return this.roomType === "map";
+  }
+
+  getMapMetadata(): MapMetadataType | undefined {
+    return this.mapMetadata;
+  }
+
+  setMapMetadata(metadata: MapMetadataType): void {
+    this.mapMetadata = metadata;
+  }
+
+  /** Get all shape states as broadcast to clients (geometry + playlist + playback). */
+  getShapeStates(): ShapeStateType[] {
+    return Array.from(this.shapes.values()).map((s) => ({
+      shape: s.shape,
+      playlist: s.playlist,
+      playbackState: s.playback,
+    }));
+  }
+
+  getShape(shapeId: string): ShapeRuntime | undefined {
+    return this.shapes.get(shapeId);
+  }
+
+  /** Returns true if the shape was added, false if a shape with this id already exists. */
+  addShape(shape: ShapeType): boolean {
+    if (this.shapes.has(shape.id)) return false;
+    this.shapes.set(shape.id, {
+      shape,
+      playlist: [],
+      playback: { ...INITIAL_SHAPE_PLAYBACK_STATE },
+    });
+    return true;
+  }
+
+  /** Update a shape's geometry. Returns true if the shape existed. */
+  updateShapeCoordinates(shapeId: string, coordinates: unknown): boolean {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return false;
+    runtime.shape = { ...runtime.shape, coordinates };
+    return true;
+  }
+
+  deleteShape(shapeId: string): boolean {
+    const existed = this.shapes.delete(shapeId);
+    if (existed) {
+      this.clearShapePendingPlay(shapeId);
+    }
+    return existed;
+  }
+
+  clearShapes(): void {
+    for (const shapeId of this.shapes.keys()) {
+      this.clearShapePendingPlay(shapeId);
+    }
+    this.shapes.clear();
+  }
+
+  /** Append a source to a shape's playlist. Returns the new playlist, or undefined if the shape is missing. */
+  addShapeAudioSource(shapeId: string, source: AudioSourceType): AudioSourceType[] | undefined {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return undefined;
+    runtime.playlist = [...runtime.playlist, source];
+    return runtime.playlist;
+  }
+
+  /**
+   * Remove one or more URLs from a shape's playlist. If the currently-playing source is
+   * removed, the shape's playback resets to paused.
+   * Returns { playlist, removedCurrent } or undefined if the shape doesn't exist.
+   */
+  removeShapeAudioSources(
+    shapeId: string,
+    urls: string[]
+  ): { playlist: AudioSourceType[]; removedCurrent: boolean } | undefined {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return undefined;
+    const urlSet = new Set(urls);
+    const removingCurrent = runtime.playback.type === "playing" && urlSet.has(runtime.playback.audioSource);
+    runtime.playlist = runtime.playlist.filter((s) => !urlSet.has(s.url));
+    if (removingCurrent) {
+      runtime.playback = { ...INITIAL_SHAPE_PLAYBACK_STATE };
+    }
+    return { playlist: runtime.playlist, removedCurrent: removingCurrent };
+  }
+
+  /**
+   * Replace a shape's playlist with a new ordered set. Lengths must match.
+   * Returns the new playlist or Error if the shape is missing or lengths mismatch.
+   */
+  reorderShapePlaylist(shapeId: string, newOrder: AudioSourceType[]): AudioSourceType[] | Error {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return new Error(`Shape ${shapeId} not found`);
+    if (newOrder.length !== runtime.playlist.length) {
+      return new Error("Mismatched playlist length");
+    }
+    runtime.playlist = newOrder;
+    return runtime.playlist;
+  }
+
+  setShapeLoop(shapeId: string, loop: boolean): boolean {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return false;
+    runtime.shape = { ...runtime.shape, loop };
+    return true;
+  }
+
+  setShapeGroup(shapeId: string, groupId: string | null): boolean {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return false;
+    runtime.shape = { ...runtime.shape, groupId };
+    return true;
+  }
+
+  setShapeAudibleRadius(shapeId: string, audibleRadiusMeters: number): boolean {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return false;
+    runtime.shape = { ...runtime.shape, audibleRadiusMeters };
+    return true;
+  }
+
+  /** Returns true if the playback record was updated, false if the shape or audio source is missing. */
+  updateShapePlaybackPlay(shapeId: string, playAction: PlayActionType, serverTimeToExecute: number): boolean {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return false;
+    const trackIndex = runtime.playlist.findIndex((s) => s.url === playAction.audioSource);
+    if (trackIndex === -1) return false;
+    runtime.playback = {
+      type: "playing",
+      audioSource: playAction.audioSource,
+      trackIndex,
+      trackPositionSeconds: playAction.trackTimeSeconds,
+      serverTimeToExecute,
+    };
+    return true;
+  }
+
+  updateShapePlaybackPause(shapeId: string, pauseAction: PauseActionType, serverTimeToExecute: number): boolean {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return false;
+    const trackIndex = pauseAction.audioSource
+      ? runtime.playlist.findIndex((s) => s.url === pauseAction.audioSource)
+      : runtime.playback.trackIndex;
+    runtime.playback = {
+      type: "paused",
+      audioSource: pauseAction.audioSource,
+      trackIndex: trackIndex === -1 ? runtime.playback.trackIndex : trackIndex,
+      trackPositionSeconds: pauseAction.trackTimeSeconds,
+      serverTimeToExecute,
+    };
+    return true;
+  }
+
+  /** Returns all shape ids that share the given groupId (or just [shapeId] when groupId is null). */
+  getShapeIdsInSameGroup(shapeId: string): string[] {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) return [];
+    const groupId = runtime.shape.groupId;
+    if (!groupId) return [shapeId];
+    return Array.from(this.shapes.values())
+      .filter((s) => s.shape.groupId === groupId)
+      .map((s) => s.shape.id);
+  }
+
+  // ── Client presence (map-room) ─────────────────────────────────────
+
+  setClientGeoPosition(clientId: string, geoPosition: GeoPositionType): boolean {
+    const client = this.clientData.get(clientId);
+    if (!client) return false;
+    client.geoPosition = geoPosition;
+    this.clientData.set(clientId, client);
+    return true;
+  }
+
+  setClientVisibility(clientId: string, isHidden: boolean): boolean {
+    const client = this.clientData.get(clientId);
+    if (!client) return false;
+    client.isHidden = isHidden;
+    this.clientData.set(clientId, client);
+    return true;
+  }
+
+  // ── Shape audio-load coordination ──────────────────────────────────
+
+  private clearShapePendingPlay(shapeId: string): void {
+    const pending = this.pendingShapePlays.get(shapeId);
+    if (!pending) return;
+    clearTimeout(pending.timeout);
+    this.pendingShapePlays.delete(shapeId);
+  }
+
+  /**
+   * Begin loading an audio source for a particular shape across all clients. Mirrors
+   * `initiateAudioSourceLoad` for audio rooms but scoped to a single shape — multiple
+   * shapes can be loading concurrently without interfering.
+   */
+  initiateShapeAudioLoad(
+    shapeId: string,
+    playAction: PlayActionType,
+    initiatorClientId: string,
+    server: BunServer
+  ): void {
+    const runtime = this.shapes.get(shapeId);
+    if (!runtime) {
+      console.warn(`Cannot load audio for unknown shape ${shapeId}`);
+      return;
+    }
+    const audioSource = runtime.playlist.find((s) => s.url === playAction.audioSource);
+    if (!audioSource) {
+      console.warn(`Cannot load non-existent audio source on shape ${shapeId}: ${playAction.audioSource}`);
+      return;
+    }
+
+    this.clearShapePendingPlay(shapeId);
+
+    const timeout = setTimeout(() => {
+      console.log(
+        `Shape ${shapeId} audio loading timeout reached after ${RoomManager.AUDIO_LOAD_TIMEOUT_MS}ms. Proceeding with play.`
+      );
+      this.executeScheduledShapePlay(shapeId, server);
+    }, RoomManager.AUDIO_LOAD_TIMEOUT_MS);
+
+    // NOTE: deliberately do NOT pre-count the initiator. Unlike beatsync's audio room
+    // (which eagerly preloads tracks via eagerLoadIdleSources so the initiator's buffer
+    // is typically already decoded), map rooms decode on demand. If we pre-count the
+    // admin, the server fires SCHEDULED_ACTION as soon as the OTHER clients are
+    // loaded — even if the admin's decode is still in flight. The admin then enters
+    // the late-replay path while everyone else enters the on-time path, and the two
+    // paths drift by ~outputLatency. By starting clientsLoaded empty, the admin must
+    // also send AUDIO_SOURCE_LOADED (which the client does as soon as decode finishes),
+    // so all clients hit the on-time path together.
+    this.pendingShapePlays.set(shapeId, {
+      clientsLoaded: new Set(),
+      timeout,
+      playAction,
+      initiatorClientId,
+      server,
+    });
+
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: {
+          type: "LOAD_AUDIO_SOURCE",
+          audioSourceToPlay: audioSource,
+          shapeId,
+        },
+      },
+    });
+
+    console.log(`Initiated shape audio loading for ${audioSource.url} on shape ${shapeId} in room ${this.roomId}`);
+  }
+
+  processClientLoadedShapeAudio(shapeId: string, clientId: string, server: BunServer): void {
+    const pending = this.pendingShapePlays.get(shapeId);
+    if (!pending) {
+      console.warn(
+        `Room ${this.roomId}: Client ${clientId} reported shape ${shapeId} audio loaded, but no pending play state found`
+      );
+      return;
+    }
+    pending.clientsLoaded.add(clientId);
+    if (pending.clientsLoaded.size >= this.getClients().length) {
+      this.executeScheduledShapePlay(shapeId, server);
+    }
+  }
+
+  private executeScheduledShapePlay(shapeId: string, server: BunServer): void {
+    const pending = this.pendingShapePlays.get(shapeId);
+    if (!pending) return;
+    const { playAction } = pending;
+    this.clearShapePendingPlay(shapeId);
+
+    const serverTimeToExecute = this.getScheduledExecutionTime();
+    const updated = this.updateShapePlaybackPlay(shapeId, playAction, serverTimeToExecute);
+    if (!updated) {
+      console.warn(`Failed to schedule shape play — shape/source missing: ${shapeId}/${playAction.audioSource}`);
+      return;
+    }
+
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "SCHEDULED_ACTION",
+        scheduledAction: { ...playAction, shapeId },
+        serverTimeToExecute,
+      },
+    });
+    console.log(`Scheduled shape play for ${playAction.audioSource} on shape ${shapeId} in room ${this.roomId}`);
+  }
+
+  /** Broadcast a pause for a shape immediately (no audio-load coordination required). */
+  broadcastShapePause(shapeId: string, pauseAction: PauseActionType, server: BunServer): void {
+    const serverTimeToExecute = this.getScheduledExecutionTime();
+    const updated = this.updateShapePlaybackPause(shapeId, pauseAction, serverTimeToExecute);
+    if (!updated) return;
+    sendBroadcast({
+      server,
+      roomId: this.roomId,
+      message: {
+        type: "SCHEDULED_ACTION",
+        scheduledAction: { ...pauseAction, shapeId },
+        serverTimeToExecute,
+      },
+    });
+  }
+
   /**
    * Add a client to the room
    */
@@ -412,6 +787,16 @@ export class RoomManager {
         console.log(`Client left during loading. All remaining clients loaded. Starting playback.`);
         // Use the stored server reference
         this.executeScheduledPlay(this.pendingPlay.server);
+      }
+    }
+
+    // Same for any in-flight shape audio loads — release this client and fire if everyone else is loaded.
+    for (const [shapeId, pending] of this.pendingShapePlays) {
+      pending.clientsLoaded.delete(clientId);
+      const remaining = this.getClients().length;
+      if (remaining > 0 && pending.clientsLoaded.size >= remaining) {
+        console.log(`Client left during shape ${shapeId} loading. All remaining clients loaded.`);
+        this.executeScheduledShapePlay(shapeId, pending.server);
       }
     }
 
@@ -984,7 +1369,36 @@ export class RoomManager {
         messages: this.chatManager.getFullHistory(),
         nextMessageId: this.chatManager.getNextMessageId(),
       },
+      ...(this.roomType !== "audio" && { roomType: this.roomType }),
+      ...(this.mapMetadata && { mapMetadata: this.mapMetadata }),
+      ...(this.shapes.size > 0 && {
+        shapes: Array.from(this.shapes.values()).map((s) => ({
+          shape: s.shape,
+          playlist: s.playlist,
+          playbackState: s.playback,
+        })),
+      }),
     };
+  }
+
+  /** Restore map-room state from a backup. Called by BackupManager during server startup. */
+  restoreMapState(backup: {
+    roomType?: RoomTypeValue;
+    mapMetadata?: MapMetadataType;
+    shapes?: { shape: ShapeType; playlist: AudioSourceType[]; playbackState: ShapePlaybackStateType }[];
+  }): void {
+    if (backup.roomType) this.roomType = backup.roomType;
+    if (backup.mapMetadata) this.mapMetadata = backup.mapMetadata;
+    if (backup.shapes) {
+      this.shapes.clear();
+      for (const s of backup.shapes) {
+        this.shapes.set(s.shape.id, {
+          shape: s.shape,
+          playlist: s.playlist,
+          playback: s.playbackState,
+        });
+      }
+    }
   }
 
   /**
@@ -1039,6 +1453,11 @@ export class RoomManager {
     // Stop any running intervals
     this.stopSpatialAudio();
     this.stopHeartbeatChecking();
+
+    // Clear any in-flight per-shape audio load timers
+    for (const shapeId of this.pendingShapePlays.keys()) {
+      this.clearShapePendingPlay(shapeId);
+    }
 
     if (!IS_DEMO_MODE) {
       try {

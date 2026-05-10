@@ -66,6 +66,28 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
   }
 };
 
+/**
+ * Register an externally-hosted audio URL with the room without going through
+ * the R2 presigned-upload flow. The URL must be CORS-allowing and serve audio.
+ * Useful for dev/testing without R2 configured.
+ */
+export const registerAudioUrl = async (data: { url: string; roomId: string; name?: string }) => {
+  try {
+    const body: UploadCompleteType = {
+      roomId: data.roomId,
+      originalName: data.name ?? data.url.split("/").pop() ?? "external-url",
+      publicUrl: data.url,
+    };
+    await baseAxios.post<UploadCompleteResponseType>("/upload/complete", body);
+    return { success: true, publicUrl: data.url };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(error.response?.data?.message || "Failed to register URL");
+    }
+    throw error;
+  }
+};
+
 export const fetchAudio = async (url: string) => {
   try {
     // Direct fetch from R2 public URL - zero server bandwidth

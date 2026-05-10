@@ -1,10 +1,10 @@
 "use client";
 
-import { uploadAudioFile } from "@/lib/api";
+import { registerAudioUrl, uploadAudioFile } from "@/lib/api";
 import { cn, trimFileName } from "@/lib/utils";
 import { useCanMutate } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { CloudUpload, Plus } from "lucide-react";
+import { CloudUpload, Link2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +12,8 @@ export const AudioUploaderMinimal = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [isRegisteringUrl, setIsRegisteringUrl] = useState(false);
   const canMutate = useCanMutate();
   const roomId = useRoomStore((state) => state.roomId);
 
@@ -125,6 +127,38 @@ export const AudioUploaderMinimal = () => {
         disabled={isUploading || isDisabled}
         className="hidden"
       />
+
+      {/* Paste-URL affordance — bypasses R2 upload and registers an external URL directly
+          via /upload/complete. The URL must be CORS-allowing and serve audio content. */}
+      {!isDisabled && (
+        <div className="flex items-center gap-1.5 border-t border-neutral-700/50 px-3 py-2">
+          <Link2 className="size-3.5 shrink-0 text-neutral-400" />
+          <input
+            type="url"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="…or paste an audio URL"
+            className="min-w-0 flex-1 bg-transparent text-xs text-white placeholder:text-neutral-500 focus:outline-none"
+            disabled={isRegisteringUrl}
+            onKeyDown={async (e) => {
+              if (e.key !== "Enter") return;
+              const url = urlInput.trim();
+              if (!url) return;
+              setIsRegisteringUrl(true);
+              try {
+                await registerAudioUrl({ url, roomId });
+                setUrlInput("");
+                toast.success("Audio URL added to queue");
+              } catch (err) {
+                console.error(err);
+                toast.error("Failed to register URL");
+              } finally {
+                setIsRegisteringUrl(false);
+              }
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };

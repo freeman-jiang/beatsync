@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS } from "../constants";
-import { AudioSourceSchema, PositionSchema } from "./basic";
+import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS, MAP_CONSTANTS } from "../constants";
+import { AudioSourceSchema, MapMetadataSchema, PositionSchema } from "./basic";
 import { ShapeSchema } from "./shape";
 
 // ROOM EVENTS
@@ -44,6 +44,13 @@ export const ClientActionEnum = z.enum([
   // Per-shape audio sources
   "ADD_SHAPE_AUDIO_SOURCE", // Add an audio source to a shape's playlist
   "REMOVE_SHAPE_AUDIO_SOURCES", // Remove audio sources from a shape's playlist
+  "REORDER_SHAPE_PLAYLIST", // Set the playlist order for a shape
+  // Per-shape behavior
+  "SET_SHAPE_LOOP", // Toggle whether a shape's playlist loops
+  "SET_SHAPE_GROUP", // Link/unlink a shape to a transport group (null = solo)
+  "SET_SHAPE_AUDIBLE_RADIUS", // Override the default audible radius for a shape
+  // Map metadata
+  "SET_MAP_METADATA", // Update the room's default Leaflet center/zoom
   // Client presence
   "SET_GEO_POSITION", // Update client GPS lat/lng
   "SET_VISIBILITY", // Tab hidden/visible state
@@ -62,14 +69,16 @@ export const NTPRequestPacketSchema = z.object({
 
 export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
-  shapeId: z.string(), // Which shape's playlist to play
+  // Map rooms scope playback to a particular shape's playlist. Audio rooms omit shapeId
+  // and use the room-level singleton playback state.
+  shapeId: z.string().optional(),
   trackTimeSeconds: z.number(),
   audioSource: z.string(),
 });
 
 export const PauseActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PAUSE),
-  shapeId: z.string(), // Which shape's playlist to pause
+  shapeId: z.string().optional(),
   audioSource: z.string(),
   trackTimeSeconds: z.number(),
 });
@@ -158,7 +167,7 @@ export const SendChatMessageSchema = z.object({
 export const AudioSourceLoadedSchema = z.object({
   type: z.literal(ClientActionEnum.enum.AUDIO_SOURCE_LOADED),
   source: AudioSourceSchema,
-  shapeId: z.string(), // Which shape's loading gate to advance
+  shapeId: z.string().optional(), // Which shape's loading gate to advance (map rooms only)
 });
 
 export const ReorderAudioSourcesSchema = z.object({
@@ -218,6 +227,47 @@ export const RemoveShapeAudioSourcesSchema = z.object({
 });
 export type RemoveShapeAudioSourcesType = z.infer<typeof RemoveShapeAudioSourcesSchema>;
 
+export const ReorderShapePlaylistSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REORDER_SHAPE_PLAYLIST),
+  shapeId: z.string(),
+  reorderedAudioSources: z.array(AudioSourceSchema),
+});
+export type ReorderShapePlaylistType = z.infer<typeof ReorderShapePlaylistSchema>;
+
+// ── Per-shape behavior ─────────────────────────────────────────────
+
+export const SetShapeLoopSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SHAPE_LOOP),
+  shapeId: z.string(),
+  loop: z.boolean(),
+});
+export type SetShapeLoopType = z.infer<typeof SetShapeLoopSchema>;
+
+export const SetShapeGroupSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SHAPE_GROUP),
+  shapeId: z.string(),
+  groupId: z.string().nullable(), // null = solo transport
+});
+export type SetShapeGroupType = z.infer<typeof SetShapeGroupSchema>;
+
+export const SetShapeAudibleRadiusSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SHAPE_AUDIBLE_RADIUS),
+  shapeId: z.string(),
+  audibleRadiusMeters: z
+    .number()
+    .min(MAP_CONSTANTS.MIN_AUDIBLE_RADIUS_METERS)
+    .max(MAP_CONSTANTS.MAX_AUDIBLE_RADIUS_METERS),
+});
+export type SetShapeAudibleRadiusType = z.infer<typeof SetShapeAudibleRadiusSchema>;
+
+// ── Map metadata ───────────────────────────────────────────────────
+
+export const SetMapMetadataSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_MAP_METADATA),
+  metadata: MapMetadataSchema,
+});
+export type SetMapMetadataType = z.infer<typeof SetMapMetadataSchema>;
+
 // ── Client presence ─────────────────────────────────────────────────
 
 export const SetGeoPositionSchema = z.object({
@@ -263,6 +313,13 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ClearShapesSchema,
   AddShapeAudioSourceSchema,
   RemoveShapeAudioSourcesSchema,
+  ReorderShapePlaylistSchema,
+  // Per-shape behavior
+  SetShapeLoopSchema,
+  SetShapeGroupSchema,
+  SetShapeAudibleRadiusSchema,
+  // Map metadata
+  SetMapMetadataSchema,
   // Client presence
   SetGeoPositionSchema,
   SetVisibilitySchema,

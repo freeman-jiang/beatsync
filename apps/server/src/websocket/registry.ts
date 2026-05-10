@@ -21,6 +21,21 @@ import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAud
 import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
 import { handleSetLowPassFreq } from "@/websocket/handlers/setLowPassFreq";
 import { handleSync } from "@/websocket/handlers/sync";
+import {
+  handleAddShape,
+  handleAddShapeAudioSource,
+  handleClearShapes,
+  handleDeleteShape,
+  handleRemoveShapeAudioSources,
+  handleReorderShapePlaylist,
+  handleSetGeoPosition,
+  handleSetMapMetadata,
+  handleSetShapeAudibleRadius,
+  handleSetShapeGroup,
+  handleSetShapeLoop,
+  handleSetVisibility,
+  handleUpdateShape,
+} from "@/websocket/handlers/mapHandlers";
 import type { WebsocketRegistry } from "@/websocket/types";
 
 export const WS_REGISTRY: WebsocketRegistry = {
@@ -127,5 +142,60 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_LOW_PASS_FREQ]: {
     handle: handleSetLowPassFreq,
     description: "Set low-pass filter cutoff frequency for all clients",
+  },
+
+  // ── Map-room actions ─────────────────────────────────────────────
+
+  [ClientActionEnum.enum.ADD_SHAPE]: {
+    handle: handleAddShape,
+    description: "Add a new map zone (shape)",
+  },
+  [ClientActionEnum.enum.UPDATE_SHAPE]: {
+    handle: handleUpdateShape,
+    description: "Update a shape's geometry",
+  },
+  [ClientActionEnum.enum.DELETE_SHAPE]: {
+    handle: handleDeleteShape,
+    description: "Remove a shape",
+  },
+  [ClientActionEnum.enum.CLEAR_SHAPES]: {
+    handle: handleClearShapes,
+    description: "Remove all shapes",
+  },
+  [ClientActionEnum.enum.ADD_SHAPE_AUDIO_SOURCE]: {
+    handle: handleAddShapeAudioSource,
+    description: "Append an audio source to a shape's playlist",
+  },
+  [ClientActionEnum.enum.REMOVE_SHAPE_AUDIO_SOURCES]: {
+    handle: handleRemoveShapeAudioSources,
+    description: "Remove audio sources from a shape's playlist",
+  },
+  [ClientActionEnum.enum.REORDER_SHAPE_PLAYLIST]: {
+    handle: handleReorderShapePlaylist,
+    description: "Set the playlist order for a shape",
+  },
+  [ClientActionEnum.enum.SET_SHAPE_LOOP]: {
+    handle: handleSetShapeLoop,
+    description: "Toggle whether a shape's playlist loops",
+  },
+  [ClientActionEnum.enum.SET_SHAPE_GROUP]: {
+    handle: handleSetShapeGroup,
+    description: "Link/unlink a shape to a transport group",
+  },
+  [ClientActionEnum.enum.SET_SHAPE_AUDIBLE_RADIUS]: {
+    handle: handleSetShapeAudibleRadius,
+    description: "Override the default audible radius for a shape",
+  },
+  [ClientActionEnum.enum.SET_MAP_METADATA]: {
+    handle: handleSetMapMetadata,
+    description: "Update the room's default Leaflet center/zoom",
+  },
+  [ClientActionEnum.enum.SET_GEO_POSITION]: {
+    handle: handleSetGeoPosition,
+    description: "Update a client's GPS lat/lng",
+  },
+  [ClientActionEnum.enum.SET_VISIBILITY]: {
+    handle: handleSetVisibility,
+    description: "Update a client's tab-visibility state",
   },
 };

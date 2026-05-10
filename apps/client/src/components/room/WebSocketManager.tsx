@@ -6,11 +6,19 @@ import { IS_DEMO_MODE } from "@/lib/demo";
 import { getUserLocation } from "@/lib/ip";
 import { getWsUrl } from "@/lib/urls";
 import { useChatStore } from "@/store/chat";
+import { mapAudio } from "@/lib/mapAudio";
 import { useGlobalStore } from "@/store/global";
+import { useMapStore } from "@/store/map";
 import { useRoomStore } from "@/store/room";
 import { validateProbePair, getProbeStats, NTPMeasurement } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
-import { ClientActionEnum, epochNow, NTPResponseMessageType, WSResponseSchema } from "@beatsync/shared";
+import {
+  ClientActionEnum,
+  epochNow,
+  NTPResponseMessageType,
+  type RoomTypeValue,
+  WSResponseSchema,
+} from "@beatsync/shared";
 import { useEffect } from "react";
 
 /**
@@ -32,10 +40,12 @@ const handleNTPResponse = (response: NTPResponseMessageType): NTPMeasurement | n
 interface WebSocketManagerProps {
   roomId: string;
   username: string;
+  /** Which room type the URL wanted. Forwarded to the server as a query param. */
+  requestedRoomType?: RoomTypeValue;
 }
 
 // No longer need the props interface
-export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) => {
+export const WebSocketManager = ({ roomId, username, requestedRoomType }: WebSocketManagerProps) => {
   // Get PostHog client ID
   const { clientId } = useClientId();
 
@@ -89,9 +99,10 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   const creatorSecret = searchParams?.get("creator") ?? (isClient ? localStorage.getItem("creatorSecret") : null);
   const adminParam = adminSecret ? `&admin=${encodeURIComponent(adminSecret)}` : "";
   const creatorParam = creatorSecret ? `&creator=${encodeURIComponent(creatorSecret)}` : "";
+  const roomTypeParam = requestedRoomType ? `&roomType=${encodeURIComponent(requestedRoomType)}` : "";
 
   const createConnection = () => {
-    const SOCKET_URL = `${getWsUrl()}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}${creatorParam}`;
+    const SOCKET_URL = `${getWsUrl()}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}${creatorParam}${roomTypeParam}`;
     console.log("Creating new WS connection to", SOCKET_URL);
 
     // Clear previous connection if it exists
@@ -182,7 +193,21 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
           // Handle chat messages
           setMessages(event.messages, event.isFullSync, event.newestId);
         } else if (event.type === "LOAD_AUDIO_SOURCE") {
-          handleLoadAudioSource(event);
+          // Shape-scoped loads belong to the map audio engine. The audio-room engine
+          // only handles unscoped loads.
+          if (event.shapeId) {
+            void mapAudio.loadAudioForShape(event.shapeId, event.audioSourceToPlay.url);
+          } else {
+            handleLoadAudioSource(event);
+          }
+        } else if (event.type === "ROOM_TYPE_INFO") {
+          // Authoritative room-type info from the server. Wins over the URL hint.
+          useRoomStore.getState().setRoomType(event.roomType);
+          if (event.mapMetadata) useRoomStore.getState().setMapMetadata(event.mapMetadata);
+        } else if (event.type === "MAP_METADATA_UPDATE") {
+          useRoomStore.getState().setMapMetadata(event.metadata);
+        } else if (event.type === "SHAPES_UPDATE") {
+          useMapStore.getState().setShapes(event.shapes);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
@@ -190,15 +215,26 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
         const { scheduledAction, serverTimeToExecute } = response;
 
         if (scheduledAction.type === "PLAY") {
-          schedulePlay({
-            trackTimeSeconds: scheduledAction.trackTimeSeconds,
-            targetServerTime: serverTimeToExecute,
-            audioSource: scheduledAction.audioSource,
-          });
+          if (scheduledAction.shapeId) {
+            mapAudio.playShape(
+              scheduledAction.shapeId,
+              scheduledAction.audioSource,
+              scheduledAction.trackTimeSeconds,
+              serverTimeToExecute
+            );
+          } else {
+            schedulePlay({
+              trackTimeSeconds: scheduledAction.trackTimeSeconds,
+              targetServerTime: serverTimeToExecute,
+              audioSource: scheduledAction.audioSource,
+            });
+          }
         } else if (scheduledAction.type === "PAUSE") {
-          schedulePause({
-            targetServerTime: serverTimeToExecute,
-          });
+          if (scheduledAction.shapeId) {
+            mapAudio.pauseShape(scheduledAction.shapeId);
+          } else {
+            schedulePause({ targetServerTime: serverTimeToExecute });
+          }
         } else if (scheduledAction.type === "SPATIAL_CONFIG") {
           processSpatialConfig(scheduledAction);
           if (!isSpatialAudioEnabled) {

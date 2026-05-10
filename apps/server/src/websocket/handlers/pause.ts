@@ -6,6 +6,12 @@ import type { HandlerFunction } from "@/websocket/types";
 export const handlePause: HandlerFunction<ExtractWSRequestFrom["PAUSE"]> = ({ ws, message, server }) => {
   const { room } = requireCanMutate(ws);
 
+  // Map rooms: scope to a particular shape's playlist.
+  if (room.isMapRoom() && message.shapeId) {
+    room.broadcastShapePause(message.shapeId, message, server);
+    return;
+  }
+
   // Use dynamic scheduling based on max client RTT
   const serverTimeToExecute = room.getScheduledExecutionTime();
 
@@ -25,7 +31,6 @@ export const handlePause: HandlerFunction<ExtractWSRequestFrom["PAUSE"]> = ({ ws
       type: "SCHEDULED_ACTION",
       scheduledAction: message,
       serverTimeToExecute: serverTimeToExecute,
-      // Dynamic delay based on actual client RTTs
     },
   });
 };

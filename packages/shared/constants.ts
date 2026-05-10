@@ -27,3 +27,21 @@ export const LOW_PASS_CONSTANTS = {
 export const CHAT_CONSTANTS = {
   MAX_MESSAGE_LENGTH: 20_000,
 } as const;
+
+// Map-room defaults (geospatial silent disco)
+export const MAP_CONSTANTS = {
+  // Default radius in meters within which a shape is audible to a client.
+  // Outside this radius, gain ramps to 0 and the buffer may be unloaded.
+  DEFAULT_AUDIBLE_RADIUS_METERS: 50,
+  // Min/max for per-shape audible radius overrides set by curators.
+  MIN_AUDIBLE_RADIUS_METERS: 5,
+  MAX_AUDIBLE_RADIUS_METERS: 5000,
+  // How many decoded audio buffers a client may hold concurrently.
+  // Mobile decode budget; tune via field testing.
+  DEFAULT_BUFFER_CACHE_SIZE: 12,
+  // Ramp time used when adjusting per-shape proximity gain (avoids zipper noise).
+  PROXIMITY_GAIN_RAMP_SECONDS: 0.05,
+  // Default Leaflet map view if a curator doesn't set one.
+  DEFAULT_MAP_CENTER: [42.2808, -83.7430] as [number, number], // Ann Arbor, MI
+  DEFAULT_MAP_ZOOM: 17,
+} as const;

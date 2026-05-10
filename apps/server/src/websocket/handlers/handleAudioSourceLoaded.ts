@@ -4,10 +4,16 @@ import type { HandlerFunction } from "@/websocket/types";
 
 export const handleAudioSourceLoaded: HandlerFunction<ExtractWSRequestFrom["AUDIO_SOURCE_LOADED"]> = ({
   ws,
+  message,
   server,
 }) => {
   const { room } = requireRoom(ws);
 
-  // Process that this client has loaded the audio source
+  // Map rooms route per-shape so multiple shape loads can be in flight simultaneously.
+  if (room.isMapRoom() && message.shapeId) {
+    room.processClientLoadedShapeAudio(message.shapeId, ws.data.clientId, server);
+    return;
+  }
+
   room.processClientLoadedAudioSource(ws.data.clientId, server);
 };
