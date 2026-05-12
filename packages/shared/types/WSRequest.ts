@@ -37,6 +37,8 @@ export const ClientActionEnum = z.enum([
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
   "SET_CONTEXT_LOOP", // Set the loop flag for a playlist context
+  "ADD_TRACK_TO_CONTEXT", // Append a track to a specific playlist context
+  "REMOVE_TRACK_FROM_CONTEXT", // Remove a track from a specific playlist context
   // Map-room geometry actions. Audio behavior of a shape's playlist (tracks,
   // play/pause, loop) flows through the unified per-context actions with
   // contextId = shape.id — there are no shape-specific audio actions.
@@ -195,6 +197,25 @@ export const SetContextLoopSchema = z.object({
   contextId: z.string().optional(),
 });
 
+/**
+ * Append a track to a specific context's playlist. For audio rooms this is
+ * equivalent to /upload/complete adding to the room queue; for map rooms it
+ * adds to a specific shape's playlist. Omitted contextId = "main".
+ */
+export const AddTrackToContextSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.ADD_TRACK_TO_CONTEXT),
+  source: AudioSourceSchema,
+  contextId: z.string().optional(),
+});
+export type AddTrackToContextType = z.infer<typeof AddTrackToContextSchema>;
+
+export const RemoveTrackFromContextSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REMOVE_TRACK_FROM_CONTEXT),
+  url: z.string(),
+  contextId: z.string().optional(),
+});
+export type RemoveTrackFromContextType = z.infer<typeof RemoveTrackFromContextSchema>;
+
 // ── Map-room geometry ──────────────────────────────────────────────
 // Audio behavior (tracks, play/pause, loop) flows through the unified per-
 // context actions with contextId = shape.id. The shape actions below only
@@ -284,6 +305,8 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetMetronomeSchema,
   SetLowPassFreqSchema,
   SetContextLoopSchema,
+  AddTrackToContextSchema,
+  RemoveTrackFromContextSchema,
   // Map-room geometry
   AddShapeSchema,
   UpdateShapeSchema,

@@ -24,4 +24,13 @@ export const handleReorderAudioSources: HandlerFunction<ExtractWSRequestFrom["RE
       event: { type: "SET_AUDIO_SOURCES", sources: room.getAudioSources() },
     },
   });
+  // Mirror the change to the per-context playlists channel so newer UI stays in sync.
+  sendBroadcast({
+    server,
+    roomId: ws.data.roomId,
+    message: {
+      type: "ROOM_EVENT",
+      event: { type: "PLAYLISTS_UPDATE", playlists: room.getPlaylistsView() },
+    },
+  });
 };

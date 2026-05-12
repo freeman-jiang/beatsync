@@ -33,6 +33,14 @@ export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DEL
         event: { type: "SET_AUDIO_SOURCES", sources: updated },
       },
     });
+    sendBroadcast({
+      server,
+      roomId: ws.data.roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: { type: "PLAYLISTS_UPDATE", playlists: room.getPlaylistsView() },
+      },
+    });
     return;
   }
 
@@ -87,6 +95,14 @@ export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DEL
     message: {
       type: "ROOM_EVENT",
       event: { type: "SET_AUDIO_SOURCES", sources: updated },
+    },
+  });
+  sendBroadcast({
+    server,
+    roomId: ws.data.roomId,
+    message: {
+      type: "ROOM_EVENT",
+      event: { type: "PLAYLISTS_UPDATE", playlists: room.getPlaylistsView() },
     },
   });
 };

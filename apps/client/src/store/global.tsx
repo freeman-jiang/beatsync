@@ -28,6 +28,7 @@ import {
   NTP_CONSTANTS,
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
+  PlaylistType,
   PositionType,
   SearchResponseType,
   SetAudioSourcesType,
@@ -92,6 +93,15 @@ interface GlobalStateValues {
   isInitingSystem: boolean;
   hasUserStartedSystem: boolean; // Track if user has clicked "Start System" at least once
   selectedAudioUrl: string;
+
+  /**
+   * Server-mirrored per-context playlists. Audio rooms have a single entry
+   * keyed "main"; map rooms have one entry per shape, keyed by shape.id.
+   * Updated from PLAYLISTS_UPDATE / CONTEXT_LOOP_UPDATE WS events. UI
+   * components (Queue, ShapePlaylistPanel) read tracks + playback state for
+   * a specific context from here.
+   */
+  playlists: Map<string, PlaylistType>;
 
   // Websocket
   socket: WebSocket | null;
@@ -166,6 +176,10 @@ interface GlobalState extends GlobalStateValues {
   getAudioDuration: ({ url }: { url: string }) => number;
   getSelectedTrack: () => AudioSourceState | null;
   handleSetAudioSources: (data: SetAudioSourcesType) => void;
+  /** Replace the full server-mirrored playlist map. Called by PLAYLISTS_UPDATE. */
+  setPlaylists: (playlists: PlaylistType[]) => void;
+  /** Patch a single context's loop flag. Called by CONTEXT_LOOP_UPDATE. */
+  setContextLoop: (contextId: string, loop: boolean) => void;
 
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
@@ -240,6 +254,7 @@ const initialState: GlobalStateValues = {
   // Audio Sources
   audioSources: [],
   bufferAccessQueue: [],
+  playlists: new Map(),
 
   // Audio playback state
   isPlaying: false,
@@ -1556,6 +1571,24 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         // Clear selected track - don't auto-select another
         set({ selectedAudioUrl: "" });
       }
+    },
+
+    setPlaylists: (playlists) => {
+      // Build a fresh Map keyed by context id. Replace wholesale — this event
+      // is a full snapshot from the server.
+      const next = new Map<string, PlaylistType>();
+      for (const p of playlists) next.set(p.id, p);
+      set({ playlists: next });
+    },
+
+    setContextLoop: (contextId, loop) => {
+      set((state) => {
+        const existing = state.playlists.get(contextId);
+        if (!existing) return state;
+        const next = new Map(state.playlists);
+        next.set(contextId, { ...existing, loop });
+        return { playlists: next };
+      });
     },
 
     // Reset function to clean up state

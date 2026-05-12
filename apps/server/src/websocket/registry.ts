@@ -21,6 +21,7 @@ import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAud
 import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
 import { handleSetLowPassFreq } from "@/websocket/handlers/setLowPassFreq";
 import { handleSetContextLoop } from "@/websocket/handlers/setContextLoop";
+import { handleAddTrackToContext, handleRemoveTrackFromContext } from "@/websocket/handlers/contextTracks";
 import { handleSync } from "@/websocket/handlers/sync";
 import {
   handleAddShape,
@@ -143,6 +144,14 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_CONTEXT_LOOP]: {
     handle: handleSetContextLoop,
     description: "Toggle the loop flag for a playlist context",
+  },
+  [ClientActionEnum.enum.ADD_TRACK_TO_CONTEXT]: {
+    handle: handleAddTrackToContext,
+    description: "Append a track to a specific playlist context",
+  },
+  [ClientActionEnum.enum.REMOVE_TRACK_FROM_CONTEXT]: {
+    handle: handleRemoveTrackFromContext,
+    description: "Remove a track from a specific playlist context",
   },
 
   // ── Map-room handlers ─────────────────────────────────────────────

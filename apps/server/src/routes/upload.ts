@@ -88,7 +88,10 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
 
     console.log(`✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${JSON.stringify(sources)}`);
 
-    // Broadcast to room that new audio is available
+    // Broadcast to room that new audio is available. SET_AUDIO_SOURCES is the
+    // back-compat audio-room channel; PLAYLISTS_UPDATE is the unified per-
+    // context channel that newer UI (and map rooms) reads from. Both stay
+    // synchronized.
     sendBroadcast({
       server,
       roomId,
@@ -98,6 +101,14 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
           type: "SET_AUDIO_SOURCES",
           sources,
         },
+      },
+    });
+    sendBroadcast({
+      server,
+      roomId,
+      message: {
+        type: "ROOM_EVENT",
+        event: { type: "PLAYLISTS_UPDATE", playlists: room.getPlaylistsView() },
       },
     });
 

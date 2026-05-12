@@ -1440,6 +1440,40 @@ export class RoomManager {
   }
 
   /**
+   * Append a track to a specific context's playlist. Returns the updated tracks
+   * array, or undefined if the playlist doesn't exist (e.g. stale message for
+   * a deleted shape).
+   */
+  addTrackToContext(contextId: string, source: AudioSourceType): AudioSourceType[] | undefined {
+    const playlist = this.playlists.get(contextId);
+    if (!playlist) return undefined;
+    // De-duplicate by URL — re-adding an existing source is a no-op.
+    if (!playlist.tracks.some((t) => t.url === source.url)) {
+      playlist.tracks = [...playlist.tracks, source];
+    }
+    return playlist.tracks;
+  }
+
+  /**
+   * Remove a track from a specific context's playlist. If the removed track was
+   * currently playing, the playback resets to paused. Returns { tracks,
+   * removedCurrent } or undefined if the playlist is missing.
+   */
+  removeTrackFromContext(
+    contextId: string,
+    url: string
+  ): { tracks: AudioSourceType[]; removedCurrent: boolean } | undefined {
+    const playlist = this.playlists.get(contextId);
+    if (!playlist) return undefined;
+    const removingCurrent = playlist.playback.type === "playing" && playlist.playback.audioSource === url;
+    playlist.tracks = playlist.tracks.filter((t) => t.url !== url);
+    if (removingCurrent) {
+      playlist.playback = { ...INITIAL_PLAYLIST_PLAYBACK };
+    }
+    return { tracks: playlist.tracks, removedCurrent: removingCurrent };
+  }
+
+  /**
    * Remove a playlist context. The "main" context cannot be removed because
    * back-compat accessors assume it always exists. Returns true if removed.
    */

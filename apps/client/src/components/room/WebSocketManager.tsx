@@ -208,6 +208,14 @@ export const WebSocketManager = ({ roomId, username, requestedRoomType }: WebSoc
           useRoomStore.getState().setMapMetadata(event.metadata);
         } else if (event.type === "SHAPES_UPDATE") {
           useMapStore.getState().setShapes(event.shapes);
+        } else if (event.type === "PLAYLISTS_UPDATE") {
+          // Full per-context playlist snapshot. The audio-room dashboard still
+          // reads via the existing audioSources/playbackState path; map-room
+          // UI (and any future multi-context UI) reads per-context tracks from
+          // state.playlists.
+          useGlobalStore.getState().setPlaylists(event.playlists);
+        } else if (event.type === "CONTEXT_LOOP_UPDATE") {
+          useGlobalStore.getState().setContextLoop(event.contextId, event.loop);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action
