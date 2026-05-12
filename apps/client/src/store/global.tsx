@@ -771,14 +771,26 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
 
         if (rawWaitMs < 50) {
           // Network is genuinely late — reschedule locally with proportional buffer.
-          // No server round-trip needed; we have all the info to calculate the right position.
+          // No server round-trip needed; we have all the info to calculate the right
+          // position.
+          //
+          // Position math: the source becomes audible at wall time
+          //   audibleWall = epochNow() + retryDelayMs + outputLatencyMs
+          // which maps to server time
+          //   audibleServer = audibleWall + effectiveOffset
+          //                 = targetServerTime + (elapsed + retryDelay + outputLatency)
+          // For the buffer to be at the right position when audible, the offset we
+          // pass to source.start() must be advanced by the same delta. Beatsync's
+          // original implementation here was missing the outputLatency term, which
+          // made two clients with different output latencies drift by ~OL on every
+          // late-path schedule. Same bug fixed in the map-room engine (mapAudio.ts).
           const missedByMs = 50 - rawWaitMs;
           const retryDelayMs = Math.min(missedByMs + 200, 2000);
           const elapsedSinceTargetMs = epochNow() + state.offsetEstimate - data.targetServerTime;
-          const trackPositionAtRetry = data.trackTimeSeconds + (elapsedSinceTargetMs + retryDelayMs) / 1000;
+          const trackPositionAtRetry = data.trackTimeSeconds + (elapsedSinceTargetMs + retryDelayMs + _olMs) / 1000;
 
           console.warn(
-            `[Schedule] Missed by ${missedByMs.toFixed(0)}ms, rescheduling in ${retryDelayMs.toFixed(0)}ms at track position ${trackPositionAtRetry.toFixed(2)}s`
+            `[Schedule] Missed by ${missedByMs.toFixed(0)}ms, rescheduling in ${retryDelayMs.toFixed(0)}ms at track position ${trackPositionAtRetry.toFixed(2)}s (compensating ${_olMs.toFixed(1)}ms OL)`
           );
 
           // Update state and schedule on audio thread (sample-accurate)
@@ -1115,10 +1127,30 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const { sourceNode, audioContext } = getAudioPlayer(state);
 
-      // Before any audio playback, ensure the context is running
+      // AudioContext suspended:
+      //  - If the user hasn't started the system yet (no gesture), abort with
+      //    the user-facing prompt — they need to interact before audio plays.
+      //  - If the user HAS started the system (audio worked at least once)
+      //    but the context is now suspended (e.g. iOS interruption, or a
+      //    server-initiated PLAY that arrived before the first gesture on a
+      //    reconnect), defer scheduling until the context goes back to
+      //    "running". This lets auto-resume PLAYs land sample-accurately
+      //    instead of being silently dropped.
       if (audioContext.state !== "running") {
-        console.log("AudioContext still suspended, aborting play");
-        toast.error("Audio context is suspended. Please try again.");
+        if (!state.hasUserStartedSystem) {
+          console.log("AudioContext still suspended, aborting play");
+          toast.error("Audio context is suspended. Please try again.");
+          return;
+        }
+        console.log("AudioContext suspended, deferring play until it resumes");
+        const handler = () => {
+          if (audioContext.state !== "running") return;
+          audioContext.removeEventListener("statechange", handler);
+          // Re-fire with the same args. If the original target has slipped past,
+          // playAudio's own late-path retry math will compensate.
+          void get().playAudio(data);
+        };
+        audioContext.addEventListener("statechange", handler);
         return;
       }
 
