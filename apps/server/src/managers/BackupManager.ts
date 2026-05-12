@@ -34,66 +34,59 @@ export class BackupManager {
     try {
       const room = globalManager.getOrCreateRoom(roomId);
 
-      // Concurrently validate all audio sources in R2 (no limit on concurrency)
-      const validationPromises = roomData.audioSources.map((source) => validateAudioFileExists(source.url));
-      const validationResults = await Promise.all(validationPromises);
+      // Concurrently validate every track URL in every playlist (no limit on
+      // concurrency — R2 HEAD calls are cheap and parallelizable).
+      const allTracks = roomData.playlists.flatMap((p) => p.tracks);
+      const validationResults = await Promise.all(allTracks.map((s) => validateAudioFileExists(s.url)));
+      const validUrls = new Set(allTracks.filter((_, i) => validationResults[i]).map((s) => s.url));
 
-      // Filter out audio sources that are not valid
-      const validAudioSources = roomData.audioSources.filter((_, index) => validationResults[index]);
+      // Filter each playlist down to its surviving tracks. If the currently-playing
+      // source vanished from R2, reset that playlist's playback to paused so we
+      // don't broadcast a stale schedule on first connect.
+      const restoredPlaylists = roomData.playlists.map((p) => {
+        const tracks = p.tracks.filter((s) => validUrls.has(s.url));
+        const currentTrackStillExists = validUrls.has(p.playbackState.audioSource);
+        const playbackState = currentTrackStillExists
+          ? p.playbackState
+          : {
+              type: "paused" as const,
+              audioSource: "",
+              trackIndex: 0,
+              serverTimeToExecute: 0,
+              trackPositionSeconds: 0,
+            };
+        return { id: p.id, tracks, loop: p.loop, playbackState };
+      });
 
-      // Restore audio sources
-      room.setAudioSources(validAudioSources);
-
-      // Restore client data
+      room.restorePlaylists(restoredPlaylists);
       room.restoreClientData(roomData.clientDatas);
 
-      // Restore playback state - but validate it first
-      const playbackStateIsValidTrack = validAudioSources.some(
-        (source) => source.url === roomData.playbackState.audioSource
-      );
-
-      if (playbackStateIsValidTrack) {
-        room.restorePlaybackState(roomData.playbackState);
-      } else {
-        // Playing track no longer exists - reset to paused state
-        console.log(`Room ${roomId}: Playing track no longer exists, resetting playback to paused`);
-
-        // Don't restore any playback state
-      }
-
-      // Restore chat history if it exists (for backward compatibility with old backups)
       if (roomData.chat) {
         room.restoreChatHistory(roomData.chat);
         console.log(`Room ${roomId}: Restored ${roomData.chat.messages.length} chat messages`);
       }
 
-      // Restore per-context playlists if present in the backup. Older backups don't
-      // have this field — in that case the legacy audioSources + playbackState calls
-      // above already reconstructed the "main" context fully, so nothing to do.
-      if (roomData.playlists && roomData.playlists.length > 0) {
-        room.restorePlaylists(roomData.playlists);
-        console.log(`Room ${roomId}: Restored ${roomData.playlists.length} playlist context(s)`);
-      }
-
       // Always schedule cleanup on restoration because we don't know if any clients will reconnect.
       globalManager.scheduleRoomCleanup(roomId);
+      const totalTracks = restoredPlaylists.reduce((n, p) => n + p.tracks.length, 0);
       return {
         room: {
           id: roomId,
           numClients: roomData.clientDatas.length,
-          numAudioSources: validAudioSources.length,
+          numAudioSources: totalTracks,
           globalVolume: roomData.globalVolume,
         },
         success: true,
       };
     } catch (error) {
       console.error(`❌ Failed to restore room ${roomId}:`, error);
+      const totalTracks = roomData.playlists.reduce((n, p) => n + p.tracks.length, 0);
       return {
         room: {
           id: roomId,
           globalVolume: roomData.globalVolume,
           numClients: roomData.clientDatas.length,
-          numAudioSources: roomData.audioSources.length,
+          numAudioSources: totalTracks,
         },
         success: false,
         error: error instanceof Error ? error.message : String(error),

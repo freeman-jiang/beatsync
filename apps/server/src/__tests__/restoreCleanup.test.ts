@@ -22,25 +22,39 @@ mockR2({
               lastNtpResponse: Date.now(),
             },
           ],
-          audioSources: [{ url: "test.mp3" }],
           globalVolume: 1,
-          playbackState: {
-            type: "paused",
-            audioSource: "",
-            serverTimeToExecute: 0,
-            trackPositionSeconds: 0,
-          },
+          playlists: [
+            {
+              id: "main",
+              tracks: [{ url: "test.mp3" }],
+              loop: false,
+              playbackState: {
+                type: "paused",
+                audioSource: "",
+                trackIndex: 0,
+                serverTimeToExecute: 0,
+                trackPositionSeconds: 0,
+              },
+            },
+          ],
         },
         "test-room-2": {
           clientDatas: [],
-          audioSources: [],
           globalVolume: 1,
-          playbackState: {
-            type: "paused",
-            audioSource: "",
-            serverTimeToExecute: 0,
-            trackPositionSeconds: 0,
-          },
+          playlists: [
+            {
+              id: "main",
+              tracks: [],
+              loop: false,
+              playbackState: {
+                type: "paused",
+                audioSource: "",
+                trackIndex: 0,
+                serverTimeToExecute: 0,
+                trackPositionSeconds: 0,
+              },
+            },
+          ],
         },
       },
     },

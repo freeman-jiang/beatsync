@@ -49,27 +49,21 @@ interface RoomData {
 export const ClientCacheBackupSchema = z.record(z.string(), z.object({ isAdmin: z.boolean() }));
 
 /**
- * Per-room playback state. Audio rooms only have a "main" context; future
- * multi-context room types (e.g. map rooms with one context per shape) extend
- * this same shape. Note: the on-the-wire schema for this is in
- * @beatsync/shared/playlist (PlaylistPlaybackStateSchema) — we re-declare here
- * with the "main" context's view as a back-compat type alias for code that
- * predates the playlist concept.
+ * Internal alias for the playlist playback state. The on-the-wire schema lives
+ * in @beatsync/shared/playlist as PlaylistPlaybackStateSchema. We bind a local
+ * type name so the back-compat getter/setter facade (playbackState below) has
+ * a clear return shape.
  */
-const RoomPlaybackStateSchema = z.object({
-  type: z.enum(["playing", "paused"]),
-  audioSource: z.string(),
-  serverTimeToExecute: z.number(),
-  trackPositionSeconds: z.number(),
-});
-type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
-
-// New richer playback-state shape that carries the playlist's track index.
-// Stored internally; mapped to the legacy RoomPlaybackState for back-compat
-// accessors (getPlaybackState).
 type PlaylistPlaybackState = z.infer<typeof PlaylistPlaybackStateSchema>;
 
-/** Per-context backup entry. Optional in RoomBackupSchema for back-compat. */
+/**
+ * RoomPlaybackState is the back-compat shape for the "main" playlist's playback
+ * state — same fields as PlaylistPlaybackState minus trackIndex, so legacy
+ * audio-room call sites don't need to know about playlist indices.
+ */
+type RoomPlaybackState = Omit<PlaylistPlaybackState, "trackIndex">;
+
+/** Per-context backup entry — every room's full state lives here. */
 const PlaylistBackupSchema = z.object({
   id: z.string(),
   tracks: z.array(AudioSourceSchema),
@@ -79,26 +73,20 @@ const PlaylistBackupSchema = z.object({
 
 const RoomBackupSchema = z.object({
   clientDatas: z.array(ClientDataSchema),
-  audioSources: z.array(AudioSourceSchema),
   globalVolume: z.number().min(0).max(1).default(1.0),
   lowPassFreq: z
     .number()
     .min(LOW_PASS_CONSTANTS.MIN_FREQ)
     .max(LOW_PASS_CONSTANTS.MAX_FREQ)
     .default(LOW_PASS_CONSTANTS.MAX_FREQ),
-  playbackState: RoomPlaybackStateSchema,
   chat: z
     .object({
       messages: z.array(ChatMessageSchema),
       nextMessageId: z.number(),
     })
     .optional(),
-  /**
-   * Per-context playlist state. Optional for back-compat with backups taken before
-   * the playlist concept landed — in that case the room is reconstructed from the
-   * legacy `audioSources` + `playbackState` as a single "main" context.
-   */
-  playlists: z.array(PlaylistBackupSchema).optional(),
+  /** Per-context playlist state — single source of truth for room audio. */
+  playlists: z.array(PlaylistBackupSchema),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -110,14 +98,7 @@ export const ServerBackupSchema = z.object({
 });
 export type ServerBackupType = z.infer<typeof ServerBackupSchema>;
 
-// Default/initial playback state for rooms
-const INITIAL_PLAYBACK_STATE: RoomPlaybackState = {
-  type: "paused",
-  audioSource: "",
-  serverTimeToExecute: 0,
-  trackPositionSeconds: 0,
-};
-
+/** Initial playback state for a freshly-created playlist context. */
 const INITIAL_PLAYLIST_PLAYBACK: PlaylistPlaybackState = {
   type: "paused",
   audioSource: "",
@@ -583,7 +564,7 @@ export class RoomManager {
     // Reset playback state if we removed the currently playing track
     if (removingCurrent) {
       console.log(`Room ${this.roomId}: Currently playing track was removed. Resetting playback state.`);
-      this.playbackState = INITIAL_PLAYBACK_STATE;
+      this.getMainPlaylist().playback = { ...INITIAL_PLAYLIST_PLAYBACK };
     }
 
     const after = this.audioSources.length;
@@ -1095,26 +1076,20 @@ export class RoomManager {
    * Get the backup state for this room
    */
   createBackup(): RoomBackupType {
-    // Always emit `audioSources` + `playbackState` from the main context for back-compat
-    // with backups taken before the playlist concept; ALSO emit the full per-context
-    // playlists array so multi-context rooms (map rooms) round-trip correctly.
-    const playlists = Array.from(this.playlists.values()).map((p) => ({
-      id: p.id,
-      tracks: p.tracks,
-      loop: p.loop,
-      playbackState: { ...p.playback },
-    }));
     return {
       clientDatas: Array.from(this.clientData.values()),
-      audioSources: this.audioSources,
       globalVolume: this.globalVolume,
       lowPassFreq: this.lowPassFreq,
-      playbackState: this.playbackState,
       chat: {
         messages: this.chatManager.getFullHistory(),
         nextMessageId: this.chatManager.getNextMessageId(),
       },
-      playlists,
+      playlists: Array.from(this.playlists.values()).map((p) => ({
+        id: p.id,
+        tracks: p.tracks,
+        loop: p.loop,
+        playbackState: { ...p.playback },
+      })),
     };
   }
 
@@ -1310,10 +1285,6 @@ export class RoomManager {
     clientData.forEach((client) => {
       this.clientData.set(client.clientId, client);
     });
-  }
-
-  restorePlaybackState(playbackState: RoomPlaybackState): void {
-    this.playbackState = playbackState;
   }
 
   /**
