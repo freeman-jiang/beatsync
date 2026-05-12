@@ -22,6 +22,17 @@ import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
 import { handleSetLowPassFreq } from "@/websocket/handlers/setLowPassFreq";
 import { handleSetContextLoop } from "@/websocket/handlers/setContextLoop";
 import { handleSync } from "@/websocket/handlers/sync";
+import {
+  handleAddShape,
+  handleClearShapes,
+  handleDeleteShape,
+  handleSetGeoPosition,
+  handleSetMapMetadata,
+  handleSetShapeAudibleRadius,
+  handleSetShapeGroup,
+  handleSetVisibility,
+  handleUpdateShape,
+} from "@/websocket/handlers/mapHandlers";
 import type { WebsocketRegistry } from "@/websocket/types";
 
 export const WS_REGISTRY: WebsocketRegistry = {
@@ -132,5 +143,43 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_CONTEXT_LOOP]: {
     handle: handleSetContextLoop,
     description: "Toggle the loop flag for a playlist context",
+  },
+
+  // ── Map-room handlers ─────────────────────────────────────────────
+  [ClientActionEnum.enum.ADD_SHAPE]: {
+    handle: handleAddShape,
+    description: "Add a new map zone (also creates its playlist context)",
+  },
+  [ClientActionEnum.enum.UPDATE_SHAPE]: {
+    handle: handleUpdateShape,
+    description: "Update a shape's geometry",
+  },
+  [ClientActionEnum.enum.DELETE_SHAPE]: {
+    handle: handleDeleteShape,
+    description: "Remove a shape (also removes its playlist context)",
+  },
+  [ClientActionEnum.enum.CLEAR_SHAPES]: {
+    handle: handleClearShapes,
+    description: "Remove every shape (and matching playlist context)",
+  },
+  [ClientActionEnum.enum.SET_SHAPE_AUDIBLE_RADIUS]: {
+    handle: handleSetShapeAudibleRadius,
+    description: "Override the default audible radius for a shape",
+  },
+  [ClientActionEnum.enum.SET_SHAPE_GROUP]: {
+    handle: handleSetShapeGroup,
+    description: "Link/unlink a shape to a transport group",
+  },
+  [ClientActionEnum.enum.SET_MAP_METADATA]: {
+    handle: handleSetMapMetadata,
+    description: "Update the room's default Leaflet center/zoom",
+  },
+  [ClientActionEnum.enum.SET_GEO_POSITION]: {
+    handle: handleSetGeoPosition,
+    description: "Update a client's GPS lat/lng",
+  },
+  [ClientActionEnum.enum.SET_VISIBILITY]: {
+    handle: handleSetVisibility,
+    description: "Update a client's tab-visibility state",
   },
 };

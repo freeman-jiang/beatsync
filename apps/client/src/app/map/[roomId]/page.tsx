@@ -1,18 +1,12 @@
 import { NewSyncer } from "@/components/NewSyncer";
-import { DEMO_ROOM_ID, IS_DEMO_MODE } from "@/lib/demo";
 import { validateFullRoomId } from "@/lib/room";
-import { redirect } from "next/navigation";
 
-// Force dynamic rendering and disable caching
+// Force dynamic rendering and disable caching. Map rooms are inherently per-session.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function Page({ params }: { params: Promise<{ roomId: string }> }) {
+export default async function MapRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params;
-
-  if (IS_DEMO_MODE && roomId !== DEMO_ROOM_ID) {
-    redirect("/");
-  }
 
   if (!validateFullRoomId(roomId)) {
     return (
@@ -25,5 +19,8 @@ export default async function Page({ params }: { params: Promise<{ roomId: strin
     );
   }
 
-  return <NewSyncer roomId={roomId} requestedRoomType="audio" />;
+  // Pass requestedRoomType="map" through to NewSyncer → WebSocketManager so the WS
+  // upgrade query string carries roomType=map. The server uses this to lock the room's
+  // type on first connect.
+  return <NewSyncer roomId={roomId} requestedRoomType="map" />;
 }

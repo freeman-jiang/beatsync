@@ -1,13 +1,21 @@
 import { z } from "zod";
 import { LOW_PASS_CONSTANTS } from "../constants";
 import { PlaylistSchema } from "./playlist";
+import { ShapeSchema } from "./shape";
 import {
   LocationSchema,
   PauseActionSchema,
   PlayActionSchema,
   SetPlaybackControlsSchema,
 } from "./WSRequest";
-import { AudioSourceSchema, ChatMessageSchema, PositionSchema } from "./basic";
+import {
+  AudioSourceSchema,
+  ChatMessageSchema,
+  GeoPositionSchema,
+  MapMetadataSchema,
+  PositionSchema,
+  RoomTypeEnum,
+} from "./basic";
 
 // Client change
 export const ClientDataSchema = z.object({
@@ -22,6 +30,9 @@ export const ClientDataSchema = z.object({
   isCreator: z.boolean().default(false), // Site creator badge
   location: LocationSchema.optional(),
   joinedAt: z.number(), // Timestamp when the client joined the room
+  // Map-room presence (only meaningful when roomType === "map")
+  geoPosition: GeoPositionSchema.optional(),
+  isHidden: z.boolean().optional(),
 });
 export type ClientDataType = z.infer<typeof ClientDataSchema>;
 const ClientChangeMessageSchema = z.object({
@@ -75,6 +86,35 @@ const ContextLoopUpdateSchema = z.object({
 });
 export type ContextLoopUpdateType = z.infer<typeof ContextLoopUpdateSchema>;
 
+// ── Map-room broadcasts ─────────────────────────────────────────────
+
+/**
+ * Full snapshot of shape geometry. Sent on initial connect for map rooms and
+ * after every geometry mutation. The playlist *audio* state for each shape
+ * arrives via PLAYLISTS_UPDATE (each shape has a playlist context with id =
+ * shape.id) — this event covers only what's drawn on the map.
+ */
+const ShapesUpdateSchema = z.object({
+  type: z.literal("SHAPES_UPDATE"),
+  shapes: z.array(ShapeSchema),
+});
+export type ShapesUpdateType = z.infer<typeof ShapesUpdateSchema>;
+
+const MapMetadataUpdateSchema = z.object({
+  type: z.literal("MAP_METADATA_UPDATE"),
+  metadata: MapMetadataSchema,
+});
+export type MapMetadataUpdateType = z.infer<typeof MapMetadataUpdateSchema>;
+
+/** Sent on connect so the client knows whether to render the audio dashboard
+ *  or the map shell. Carries map defaults if applicable. */
+const RoomTypeInfoSchema = z.object({
+  type: z.literal("ROOM_TYPE_INFO"),
+  roomType: RoomTypeEnum,
+  mapMetadata: MapMetadataSchema.optional(),
+});
+export type RoomTypeInfoType = z.infer<typeof RoomTypeInfoSchema>;
+
 const RoomEventSchema = z.object({
   type: z.literal("ROOM_EVENT"),
   event: z.discriminatedUnion("type", [
@@ -85,6 +125,9 @@ const RoomEventSchema = z.object({
     LoadAudioSourceSchema,
     PlaylistsUpdateSchema,
     ContextLoopUpdateSchema,
+    ShapesUpdateSchema,
+    MapMetadataUpdateSchema,
+    RoomTypeInfoSchema,
   ]),
 });
 

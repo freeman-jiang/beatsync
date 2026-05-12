@@ -14,6 +14,26 @@ export const PositionSchema = z.object({
 });
 export type PositionType = z.infer<typeof PositionSchema>;
 
+// Real-world geographic coordinate. Used by map rooms for client presence and
+// shape geometry (Leaflet stores latlng pairs, which we mirror here for typing).
+export const GeoPositionSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+export type GeoPositionType = z.infer<typeof GeoPositionSchema>;
+
+// Discriminator for which experience a room offers. Set by the first connecting
+// client (WS upgrade query param) and immutable for the room's lifetime.
+export const RoomTypeEnum = z.enum(["audio", "map"]);
+export type RoomTypeValue = z.infer<typeof RoomTypeEnum>;
+
+// Curator-controlled default Leaflet view for a map room.
+export const MapMetadataSchema = z.object({
+  center: z.tuple([z.number(), z.number()]),
+  zoom: z.number().min(0).max(22),
+});
+export type MapMetadataType = z.infer<typeof MapMetadataSchema>;
+
 export const AudioSourceSchema = z.object({
   url: z.string(),
 });

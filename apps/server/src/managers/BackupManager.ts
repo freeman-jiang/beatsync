@@ -60,6 +60,13 @@ export class BackupManager {
 
       room.restorePlaylists(restoredPlaylists);
       room.restoreClientData(roomData.clientDatas);
+      if (roomData.roomType || roomData.mapMetadata || roomData.shapes) {
+        room.restoreMapState({
+          roomType: roomData.roomType,
+          mapMetadata: roomData.mapMetadata,
+          shapes: roomData.shapes,
+        });
+      }
 
       if (roomData.chat) {
         room.restoreChatHistory(roomData.chat);

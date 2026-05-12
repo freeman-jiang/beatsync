@@ -12,6 +12,8 @@ import type {
   ChatMessageType,
   ClientDataType,
   DiscoveryRoomType,
+  GeoPositionType,
+  MapMetadataType,
   PauseActionType,
   PlayActionType,
   PlaybackControlsPermissionsEnum,
@@ -19,6 +21,8 @@ import type {
   PlaylistType,
   PositionType,
   RoomType,
+  RoomTypeValue,
+  ShapeType,
   WSBroadcastType,
 } from "@beatsync/shared";
 import {
@@ -27,8 +31,11 @@ import {
   epochNow,
   LOW_PASS_CONSTANTS,
   MAIN_CONTEXT_ID,
+  MapMetadataSchema,
   NTP_CONSTANTS,
   PlaylistPlaybackStateSchema,
+  RoomTypeEnum,
+  ShapeSchema,
 } from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
@@ -87,6 +94,10 @@ const RoomBackupSchema = z.object({
     .optional(),
   /** Per-context playlist state — single source of truth for room audio. */
   playlists: z.array(PlaylistBackupSchema),
+  /** Map-room state. Only meaningful when roomType === "map". */
+  roomType: RoomTypeEnum.optional(),
+  mapMetadata: MapMetadataSchema.optional(),
+  shapes: z.array(ShapeSchema).optional(),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -208,6 +219,16 @@ export class RoomManager {
   private serverRef?: BunServer;
 
   private demoAudioReadyClients = new Set<string>();
+
+  // Map-room state. roomType is fixed for the room's lifetime (set by the first
+  // connecting client via the WS upgrade ?roomType query param). When 'audio',
+  // shape methods refuse to mutate. When 'map', shapes is the authoritative
+  // geometry registry — each shape has a corresponding playlist context with
+  // id = shape.id (the playlist holds its tracks + playback state).
+  private roomType: RoomTypeValue = "audio";
+  private mapMetadata?: MapMetadataType;
+  private readonly shapes = new Map<string, ShapeType>();
+
   constructor(
     private readonly roomId: string,
     onClientCountChange?: () => void // To update the global # of clients active
@@ -1136,7 +1157,20 @@ export class RoomManager {
         loop: p.loop,
         playbackState: { ...p.playback },
       })),
+      ...(this.roomType !== "audio" && { roomType: this.roomType }),
+      ...(this.mapMetadata && { mapMetadata: this.mapMetadata }),
+      ...(this.shapes.size > 0 && { shapes: Array.from(this.shapes.values()) }),
     };
+  }
+
+  /** Restore map-room state from a backup. */
+  restoreMapState(backup: { roomType?: RoomTypeValue; mapMetadata?: MapMetadataType; shapes?: ShapeType[] }): void {
+    if (backup.roomType) this.roomType = backup.roomType;
+    if (backup.mapMetadata) this.mapMetadata = backup.mapMetadata;
+    if (backup.shapes) {
+      this.shapes.clear();
+      for (const s of backup.shapes) this.shapes.set(s.id, s);
+    }
   }
 
   /**
@@ -1418,6 +1452,117 @@ export class RoomManager {
       clearTimeout(p.pendingPlay.timeout);
     }
     this.playlists.delete(contextId);
+    return true;
+  }
+
+  // ── Map-room API ───────────────────────────────────────────────────
+
+  getRoomType(): RoomTypeValue {
+    return this.roomType;
+  }
+
+  isMapRoom(): boolean {
+    return this.roomType === "map";
+  }
+
+  /**
+   * Set the room's type. The first client to connect wins; subsequent attempts
+   * to change the type after clients have joined throw. Idempotent for same-
+   * value sets.
+   */
+  setRoomType(roomType: RoomTypeValue): void {
+    if (this.roomType === roomType) return;
+    if (this.wsConnections.size > 0) {
+      throw new Error(
+        `Cannot change room ${this.roomId} from ${this.roomType} to ${roomType}: room already has clients`
+      );
+    }
+    this.roomType = roomType;
+  }
+
+  getMapMetadata(): MapMetadataType | undefined {
+    return this.mapMetadata;
+  }
+
+  setMapMetadata(metadata: MapMetadataType): void {
+    this.mapMetadata = metadata;
+  }
+
+  /** All currently-registered shapes (geometry only). */
+  getShapes(): ShapeType[] {
+    return Array.from(this.shapes.values());
+  }
+
+  getShape(shapeId: string): ShapeType | undefined {
+    return this.shapes.get(shapeId);
+  }
+
+  /**
+   * Add a new shape and create its matching playlist context (id = shape.id,
+   * loop=true by default — zones are continuous ambient by design). Returns
+   * false if a shape with the same id already exists.
+   */
+  addShape(shape: ShapeType): boolean {
+    if (this.shapes.has(shape.id)) return false;
+    this.shapes.set(shape.id, shape);
+    this.addPlaylist(shape.id, { loop: true });
+    return true;
+  }
+
+  /** Update a shape's geometry only. Returns true if the shape existed. */
+  updateShapeCoordinates(shapeId: string, coordinates: unknown): boolean {
+    const existing = this.shapes.get(shapeId);
+    if (!existing) return false;
+    this.shapes.set(shapeId, { ...existing, coordinates });
+    return true;
+  }
+
+  /**
+   * Remove a shape AND its matching playlist context. Any in-flight audio load
+   * on the playlist is cancelled by removePlaylist.
+   */
+  deleteShape(shapeId: string): boolean {
+    if (!this.shapes.has(shapeId)) return false;
+    this.shapes.delete(shapeId);
+    this.removePlaylist(shapeId);
+    return true;
+  }
+
+  /** Remove every shape (and matching playlist context). */
+  clearShapes(): void {
+    for (const id of Array.from(this.shapes.keys())) {
+      this.deleteShape(id);
+    }
+  }
+
+  setShapeAudibleRadius(shapeId: string, audibleRadiusMeters: number): boolean {
+    const existing = this.shapes.get(shapeId);
+    if (!existing) return false;
+    this.shapes.set(shapeId, { ...existing, audibleRadiusMeters });
+    return true;
+  }
+
+  setShapeGroup(shapeId: string, groupId: string | null): boolean {
+    const existing = this.shapes.get(shapeId);
+    if (!existing) return false;
+    this.shapes.set(shapeId, { ...existing, groupId });
+    return true;
+  }
+
+  // Client presence in map rooms.
+  setClientGeoPosition(clientId: string, geoPosition: GeoPositionType): boolean {
+    const client = this.clientData.get(clientId);
+    if (!client) return false;
+    client.geoPosition = geoPosition;
+    this.clientData.set(clientId, client);
+    return true;
+  }
+
+  setClientVisibility(clientId: string, isHidden: boolean): boolean {
+    const client = this.clientData.get(clientId);
+    if (!client) return false;
+    client.isHidden = isHidden;
+    this.clientData.set(clientId, client);
     return true;
   }
 

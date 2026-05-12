@@ -347,9 +347,28 @@ const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   return Math.max(0, (waitTimeMilliseconds - outputLatencyMs) / 1000);
 };
 
-const resolveAudioUrl = (url: string): string => (url.startsWith("/") ? `${getApiUrl()}${url}` : url);
+/**
+ * Public version of getWaitTimeSeconds for callers outside the store (e.g.
+ * mapAudio.ts). Returns the raw + compensated timings so the caller can apply
+ * the same late-path retry math the audio room's schedulePlay uses.
+ */
+export const computeScheduleTiming = (
+  targetServerTime: number
+): { waitSeconds: number; rawWaitMs: number; outputLatencyMs: number } => {
+  const state = useGlobalStore.getState();
+  const effectiveOffset = state.offsetEstimate + state.nudgeOffsetMs;
+  const rawWaitMs = calculateWaitTimeMilliseconds(targetServerTime, effectiveOffset);
+  const outputLatencyMs = getFilteredOutputLatencyMs();
+  const waitSeconds = Math.max(0, (rawWaitMs - outputLatencyMs) / 1000);
+  return { waitSeconds, rawWaitMs, outputLatencyMs };
+};
 
-const downloadBufferFromURL = async (data: { url: string; onProgress?: (loaded: number, total: number) => void }) => {
+export const resolveAudioUrl = (url: string): string => (url.startsWith("/") ? `${getApiUrl()}${url}` : url);
+
+export const downloadBufferFromURL = async (data: {
+  url: string;
+  onProgress?: (loaded: number, total: number) => void;
+}) => {
   const response = await fetch(resolveAudioUrl(data.url));
   const contentLength = Number(response.headers.get("content-length") ?? 0);
 

@@ -42,11 +42,36 @@ function debouncedDemoUserCountBroadcast(server: BunServer, roomId: string): voi
 export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
   console.log(`WebSocket connection opened for user ${ws.data.username} in room ${ws.data.roomId}`);
 
-  const { roomId } = ws.data;
+  const { roomId, requestedRoomType } = ws.data;
   ws.subscribe(roomId);
 
   const room = globalManager.getOrCreateRoom(roomId);
+
+  // First-connection wins: if this is the first client AND they asked for a
+  // specific room type, lock the room to that type. Subsequent clients see
+  // whatever the first one chose via ROOM_TYPE_INFO below.
+  if (requestedRoomType && room.getClients().length === 0) {
+    try {
+      room.setRoomType(requestedRoomType);
+    } catch (err) {
+      console.warn(`Could not set room ${roomId} type to ${requestedRoomType}: ${(err as Error).message}`);
+    }
+  }
+
   room.addClient(ws);
+
+  // Tell the client what kind of room they joined so it mounts the right UI.
+  sendToClient({
+    ws,
+    message: {
+      type: "ROOM_EVENT",
+      event: {
+        type: "ROOM_TYPE_INFO",
+        roomType: room.getRoomType(),
+        ...(room.getMapMetadata() && { mapMetadata: room.getMapMetadata() }),
+      },
+    },
+  });
 
   const { audioSources, globalVolume, lowPassFreq } = room.getState();
   const now = epochNow();
@@ -173,6 +198,22 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     sendToClient({ ws, message: createClientUpdate(roomId) });
     // Broadcast to others: debounced
     debouncedClientChangeBroadcast(server, roomId);
+  }
+
+  // For map rooms: send the geometry snapshot. Per-shape playlists are
+  // already covered by the PLAYLISTS_UPDATE sent earlier (one playlist per
+  // shape, keyed by shape.id).
+  if (room.isMapRoom()) {
+    const shapes = room.getShapes();
+    if (shapes.length > 0) {
+      sendToClient({
+        ws,
+        message: {
+          type: "ROOM_EVENT",
+          event: { type: "SHAPES_UPDATE", shapes },
+        },
+      });
+    }
   }
 
   // Auto-resume: send a SCHEDULED_ACTION/PLAY for every currently-playing

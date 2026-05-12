@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS } from "../constants";
-import { AudioSourceSchema, PositionSchema } from "./basic";
+import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS, MAP_CONSTANTS } from "../constants";
+import { AudioSourceSchema, MapMetadataSchema, PositionSchema } from "./basic";
+import { ShapeSchema } from "./shape";
 
 // ROOM EVENTS
 export const LocationSchema = z.object({
@@ -36,6 +37,18 @@ export const ClientActionEnum = z.enum([
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
   "SET_CONTEXT_LOOP", // Set the loop flag for a playlist context
+  // Map-room geometry actions. Audio behavior of a shape's playlist (tracks,
+  // play/pause, loop) flows through the unified per-context actions with
+  // contextId = shape.id — there are no shape-specific audio actions.
+  "ADD_SHAPE",
+  "UPDATE_SHAPE",
+  "DELETE_SHAPE",
+  "CLEAR_SHAPES",
+  "SET_SHAPE_AUDIBLE_RADIUS",
+  "SET_SHAPE_GROUP",
+  "SET_MAP_METADATA",
+  "SET_GEO_POSITION", // Client GPS update
+  "SET_VISIBILITY", // Tab visibility (hidden tabs still receive sync)
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -182,6 +195,71 @@ export const SetContextLoopSchema = z.object({
   contextId: z.string().optional(),
 });
 
+// ── Map-room geometry ──────────────────────────────────────────────
+// Audio behavior (tracks, play/pause, loop) flows through the unified per-
+// context actions with contextId = shape.id. The shape actions below only
+// manage geometry + map-specific behavior (audible radius, transport group).
+
+export const AddShapeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.ADD_SHAPE),
+  shape: ShapeSchema,
+});
+export type AddShapeType = z.infer<typeof AddShapeSchema>;
+
+export const UpdateShapeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.UPDATE_SHAPE),
+  shapeId: z.string(),
+  coordinates: z.unknown(),
+});
+export type UpdateShapeType = z.infer<typeof UpdateShapeSchema>;
+
+export const DeleteShapeSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DELETE_SHAPE),
+  shapeId: z.string(),
+});
+export type DeleteShapeType = z.infer<typeof DeleteShapeSchema>;
+
+export const ClearShapesSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.CLEAR_SHAPES),
+});
+export type ClearShapesType = z.infer<typeof ClearShapesSchema>;
+
+export const SetShapeAudibleRadiusSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SHAPE_AUDIBLE_RADIUS),
+  shapeId: z.string(),
+  audibleRadiusMeters: z
+    .number()
+    .min(MAP_CONSTANTS.MIN_AUDIBLE_RADIUS_METERS)
+    .max(MAP_CONSTANTS.MAX_AUDIBLE_RADIUS_METERS),
+});
+export type SetShapeAudibleRadiusType = z.infer<typeof SetShapeAudibleRadiusSchema>;
+
+export const SetShapeGroupSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SHAPE_GROUP),
+  shapeId: z.string(),
+  groupId: z.string().nullable(),
+});
+export type SetShapeGroupType = z.infer<typeof SetShapeGroupSchema>;
+
+export const SetMapMetadataSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_MAP_METADATA),
+  metadata: MapMetadataSchema,
+});
+export type SetMapMetadataType = z.infer<typeof SetMapMetadataSchema>;
+
+export const SetGeoPositionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_GEO_POSITION),
+  lat: z.number(),
+  lng: z.number(),
+});
+export type SetGeoPositionType = z.infer<typeof SetGeoPositionSchema>;
+
+export const SetVisibilitySchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_VISIBILITY),
+  isHidden: z.boolean(),
+});
+export type SetVisibilityType = z.infer<typeof SetVisibilitySchema>;
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -206,6 +284,16 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetMetronomeSchema,
   SetLowPassFreqSchema,
   SetContextLoopSchema,
+  // Map-room geometry
+  AddShapeSchema,
+  UpdateShapeSchema,
+  DeleteShapeSchema,
+  ClearShapesSchema,
+  SetShapeAudibleRadiusSchema,
+  SetShapeGroupSchema,
+  SetMapMetadataSchema,
+  SetGeoPositionSchema,
+  SetVisibilitySchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

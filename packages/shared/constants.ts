@@ -27,3 +27,14 @@ export const LOW_PASS_CONSTANTS = {
 export const CHAT_CONSTANTS = {
   MAX_MESSAGE_LENGTH: 20_000,
 } as const;
+
+// Map-room defaults (geospatial silent disco).
+export const MAP_CONSTANTS = {
+  DEFAULT_AUDIBLE_RADIUS_METERS: 50,
+  MIN_AUDIBLE_RADIUS_METERS: 5,
+  MAX_AUDIBLE_RADIUS_METERS: 5000,
+  DEFAULT_BUFFER_CACHE_SIZE: 12,
+  PROXIMITY_GAIN_RAMP_SECONDS: 0.05,
+  DEFAULT_MAP_CENTER: [42.2808, -83.7430] as [number, number], // Ann Arbor, MI
+  DEFAULT_MAP_ZOOM: 17,
+} as const;
