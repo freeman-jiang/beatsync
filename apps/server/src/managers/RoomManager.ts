@@ -1045,18 +1045,28 @@ export class RoomManager {
     return true;
   }
 
+  /**
+   * Send a resume PLAY scheduled-action for every currently-playing context to
+   * a single client. Used by both:
+   *  - SYNC client request (replaces the original audio-room-only behavior)
+   *  - handleOpen's initial-state burst (so newly connected clients auto-resume
+   *    every playing playlist without needing to send SYNC)
+   *
+   * The trackTimeSeconds is computed forward to the *scheduled* future moment,
+   * so when the client actually plays, the playback position matches everyone
+   * else's at that wall time.
+   */
   syncClient(ws: ServerWebSocket<WSData>): void {
-    // A client has joined late, and needs to sync with the room
-    // Predict where the playback state will be after the dynamic scheduling delay
-    // And make client play at that position then
-
-    // Determine if we are currently playing or paused
-    if (this.playbackState.type === "paused") {
-      return; // Nothing to do - client will play on next scheduled action
+    for (const playlist of this.playlists.values()) {
+      if (playlist.playback.type !== "playing") continue;
+      this.sendResumePlayForContext(ws, playlist);
     }
+  }
 
-    const serverTimeWhenPlaybackStarted = this.playbackState.serverTimeToExecute;
-    const trackPositionSecondsWhenPlaybackStarted = this.playbackState.trackPositionSeconds;
+  /** Send one resume PLAY for a specific playlist context. */
+  private sendResumePlayForContext(ws: ServerWebSocket<WSData>, playlist: PlaylistRuntime): void {
+    const serverTimeWhenStarted = playlist.playback.serverTimeToExecute;
+    const trackPositionWhenStarted = playlist.playback.trackPositionSeconds;
     const now = epochNow();
 
     // Use dynamic scheduling based on max client RTT
@@ -1064,18 +1074,13 @@ export class RoomManager {
       extraOffsetMs: 1500, // Another extra 1.5 seconds to sync
     });
 
-    // Calculate how much time has elapsed since playback started
-    const timeElapsedSincePlaybackStarted = now - serverTimeWhenPlaybackStarted;
+    const timeElapsedSinceStart = now - serverTimeWhenStarted;
+    const timeElapsedAtExecution = serverTimeToExecute - serverTimeWhenStarted;
+    const resumeTrackTimeSeconds = trackPositionWhenStarted + timeElapsedAtExecution / 1000;
 
-    // Calculate how much time will have elapsed by the time the client responds
-    // to the sync response
-    const timeElapsedAtExecution = serverTimeToExecute - serverTimeWhenPlaybackStarted;
-
-    // Convert to seconds and add to the starting position
-    const resumeTrackTimeSeconds = trackPositionSecondsWhenPlaybackStarted + timeElapsedAtExecution / 1000;
     console.log(
-      `Syncing late client: track started at ${trackPositionSecondsWhenPlaybackStarted.toFixed(2)}s, ` +
-        `${(timeElapsedSincePlaybackStarted / 1000).toFixed(2)}s elapsed, ` +
+      `Resuming ctx=${playlist.id} on client ${ws.data.clientId}: track started at ` +
+        `${trackPositionWhenStarted.toFixed(2)}s, ${(timeElapsedSinceStart / 1000).toFixed(2)}s elapsed, ` +
         `will be at ${resumeTrackTimeSeconds.toFixed(2)}s when client starts`
     );
 
@@ -1085,10 +1090,11 @@ export class RoomManager {
         type: "SCHEDULED_ACTION",
         scheduledAction: {
           type: "PLAY",
-          audioSource: this.playbackState.audioSource,
-          trackTimeSeconds: resumeTrackTimeSeconds, // Use the calculated position
+          audioSource: playlist.playback.audioSource,
+          trackTimeSeconds: resumeTrackTimeSeconds,
+          ...(playlist.id !== MAIN_CONTEXT_ID && { contextId: playlist.id }),
         },
-        serverTimeToExecute: serverTimeToExecute,
+        serverTimeToExecute,
       },
     });
   }

@@ -174,6 +174,16 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     // Broadcast to others: debounced
     debouncedClientChangeBroadcast(server, roomId);
   }
+
+  // Auto-resume: send a SCHEDULED_ACTION/PLAY for every currently-playing
+  // playlist context. This was previously only triggered by an explicit SYNC
+  // request from the client (and only for the "main" audio-room playback).
+  // Doing it on every connect means late-joiners (and tabs that reconnect
+  // after a network blip) hit the running playback immediately — no client
+  // action needed.
+  if (!IS_DEMO_MODE) {
+    room.syncClient(ws);
+  }
 };
 
 export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string | Buffer, server: BunServer) => {
