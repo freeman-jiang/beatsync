@@ -52,12 +52,19 @@ export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
   trackTimeSeconds: z.number(),
   audioSource: z.string(),
+  /**
+   * Which playback context (playlist) to operate on. Omitted = "main" — preserves
+   * audio-room behavior. Future room types (e.g. map rooms) use per-shape contexts.
+   */
+  contextId: z.string().optional(),
 });
 
 export const PauseActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PAUSE),
   audioSource: z.string(),
   trackTimeSeconds: z.number(),
+  /** See PlayActionSchema.contextId. Omitted = "main". */
+  contextId: z.string().optional(),
 });
 
 const StartSpatialAudioSchema = z.object({
@@ -144,6 +151,8 @@ export const SendChatMessageSchema = z.object({
 export const AudioSourceLoadedSchema = z.object({
   type: z.literal(ClientActionEnum.enum.AUDIO_SOURCE_LOADED),
   source: AudioSourceSchema,
+  /** Which playback context's load gate to advance. Omitted = "main". */
+  contextId: z.string().optional(),
 });
 
 export const ReorderAudioSourcesSchema = z.object({

@@ -49,6 +49,8 @@ export type ChatUpdateType = z.infer<typeof ChatUpdateSchema>;
 const LoadAudioSourceSchema = z.object({
   type: z.literal("LOAD_AUDIO_SOURCE"),
   audioSourceToPlay: AudioSourceSchema,
+  /** Which playback context this load is for. Omitted = "main". */
+  contextId: z.string().optional(),
 });
 export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
 
