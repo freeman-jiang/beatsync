@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LOW_PASS_CONSTANTS } from "../constants";
+import { PlaylistSchema } from "./playlist";
 import {
   LocationSchema,
   PauseActionSchema,
@@ -54,6 +55,26 @@ const LoadAudioSourceSchema = z.object({
 });
 export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
 
+/**
+ * Full per-context playlist snapshot. Sent on initial connect (so the client
+ * can render every playlist's tracks + playback state without needing a
+ * separate SET_AUDIO_SOURCES per context) and after any mutation that affects
+ * the playlist list itself (e.g. a context is added or removed).
+ */
+const PlaylistsUpdateSchema = z.object({
+  type: z.literal("PLAYLISTS_UPDATE"),
+  playlists: z.array(PlaylistSchema),
+});
+export type PlaylistsUpdateType = z.infer<typeof PlaylistsUpdateSchema>;
+
+/** Server confirms the loop flag changed on a specific context. */
+const ContextLoopUpdateSchema = z.object({
+  type: z.literal("CONTEXT_LOOP_UPDATE"),
+  contextId: z.string(),
+  loop: z.boolean(),
+});
+export type ContextLoopUpdateType = z.infer<typeof ContextLoopUpdateSchema>;
+
 const RoomEventSchema = z.object({
   type: z.literal("ROOM_EVENT"),
   event: z.discriminatedUnion("type", [
@@ -62,6 +83,8 @@ const RoomEventSchema = z.object({
     SetPlaybackControlsSchema,
     ChatUpdateSchema,
     LoadAudioSourceSchema,
+    PlaylistsUpdateSchema,
+    ContextLoopUpdateSchema,
   ]),
 });
 

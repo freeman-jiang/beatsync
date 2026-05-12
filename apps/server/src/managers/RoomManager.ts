@@ -1391,6 +1391,14 @@ export class RoomManager {
     return true;
   }
 
+  /** Toggle the loop flag for a context. Returns true if the playlist existed. */
+  setContextLoop(contextId: string, loop: boolean): boolean {
+    const playlist = this.playlists.get(contextId);
+    if (!playlist) return false;
+    playlist.loop = loop;
+    return true;
+  }
+
   /**
    * Remove a playlist context. The "main" context cannot be removed because
    * back-compat accessors assume it always exists. Returns true if removed.

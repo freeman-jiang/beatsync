@@ -35,6 +35,7 @@ export const ClientActionEnum = z.enum([
   "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
+  "SET_CONTEXT_LOOP", // Set the loop flag for a playlist context
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -170,6 +171,17 @@ export const SetLowPassFreqSchema = z.object({
   freq: z.number().min(LOW_PASS_CONSTANTS.MIN_FREQ).max(LOW_PASS_CONSTANTS.MAX_FREQ),
 });
 
+/**
+ * Toggle the loop flag on a playlist context. When true, the current track
+ * loops continuously until the user advances. Map zones default true; audio
+ * rooms default false. Omitted contextId = "main".
+ */
+export const SetContextLoopSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_CONTEXT_LOOP),
+  loop: z.boolean(),
+  contextId: z.string().optional(),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -193,6 +205,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ReorderAudioSourcesSchema,
   SetMetronomeSchema,
   SetLowPassFreqSchema,
+  SetContextLoopSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

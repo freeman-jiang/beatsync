@@ -20,6 +20,7 @@ import { handleStopSpatialAudio } from "@/websocket/handlers/stopSpatialAudio";
 import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAudioSources";
 import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
 import { handleSetLowPassFreq } from "@/websocket/handlers/setLowPassFreq";
+import { handleSetContextLoop } from "@/websocket/handlers/setContextLoop";
 import { handleSync } from "@/websocket/handlers/sync";
 import type { WebsocketRegistry } from "@/websocket/types";
 
@@ -127,5 +128,9 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_LOW_PASS_FREQ]: {
     handle: handleSetLowPassFreq,
     description: "Set low-pass filter cutoff frequency for all clients",
+  },
+  [ClientActionEnum.enum.SET_CONTEXT_LOOP]: {
+    handle: handleSetContextLoop,
+    description: "Toggle the loop flag for a playlist context",
   },
 };

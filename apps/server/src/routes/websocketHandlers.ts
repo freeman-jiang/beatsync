@@ -68,6 +68,21 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     });
   }
 
+  // Send the full per-context playlist snapshot. This is the unified channel
+  // every future room type (map rooms, etc.) uses to bootstrap a client's
+  // view of every playlist in the room. Audio rooms get a single "main"
+  // playlist that mirrors the SET_AUDIO_SOURCES above.
+  const playlistsView = room.getPlaylistsView();
+  if (playlistsView.length > 0) {
+    sendToClient({
+      ws,
+      message: {
+        type: "ROOM_EVENT",
+        event: { type: "PLAYLISTS_UPDATE", playlists: playlistsView },
+      },
+    });
+  }
+
   sendToClient({
     ws,
     message: {
