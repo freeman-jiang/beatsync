@@ -16,11 +16,20 @@ import type {
   PlayActionType,
   PlaybackControlsPermissionsEnum,
   PlaybackControlsPermissionsType,
+  PlaylistType,
   PositionType,
   RoomType,
   WSBroadcastType,
 } from "@beatsync/shared";
-import { ChatMessageSchema, ClientDataSchema, epochNow, LOW_PASS_CONSTANTS, NTP_CONSTANTS } from "@beatsync/shared";
+import {
+  ChatMessageSchema,
+  ClientDataSchema,
+  epochNow,
+  LOW_PASS_CONSTANTS,
+  MAIN_CONTEXT_ID,
+  NTP_CONSTANTS,
+  PlaylistPlaybackStateSchema,
+} from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
@@ -39,13 +48,34 @@ interface RoomData {
 
 export const ClientCacheBackupSchema = z.record(z.string(), z.object({ isAdmin: z.boolean() }));
 
+/**
+ * Per-room playback state. Audio rooms only have a "main" context; future
+ * multi-context room types (e.g. map rooms with one context per shape) extend
+ * this same shape. Note: the on-the-wire schema for this is in
+ * @beatsync/shared/playlist (PlaylistPlaybackStateSchema) — we re-declare here
+ * with the "main" context's view as a back-compat type alias for code that
+ * predates the playlist concept.
+ */
 const RoomPlaybackStateSchema = z.object({
   type: z.enum(["playing", "paused"]),
-  audioSource: z.string(), // URL of the audio source
-  serverTimeToExecute: z.number(), // When playback started/paused (server time)
-  trackPositionSeconds: z.number(), // Position in track when started/paused (seconds)
+  audioSource: z.string(),
+  serverTimeToExecute: z.number(),
+  trackPositionSeconds: z.number(),
 });
 type RoomPlaybackState = z.infer<typeof RoomPlaybackStateSchema>;
+
+// New richer playback-state shape that carries the playlist's track index.
+// Stored internally; mapped to the legacy RoomPlaybackState for back-compat
+// accessors (getPlaybackState).
+type PlaylistPlaybackState = z.infer<typeof PlaylistPlaybackStateSchema>;
+
+/** Per-context backup entry. Optional in RoomBackupSchema for back-compat. */
+const PlaylistBackupSchema = z.object({
+  id: z.string(),
+  tracks: z.array(AudioSourceSchema),
+  loop: z.boolean().default(false),
+  playbackState: PlaylistPlaybackStateSchema,
+});
 
 const RoomBackupSchema = z.object({
   clientDatas: z.array(ClientDataSchema),
@@ -63,6 +93,12 @@ const RoomBackupSchema = z.object({
       nextMessageId: z.number(),
     })
     .optional(),
+  /**
+   * Per-context playlist state. Optional for back-compat with backups taken before
+   * the playlist concept landed — in that case the room is reconstructed from the
+   * legacy `audioSources` + `playbackState` as a single "main" context.
+   */
+  playlists: z.array(PlaylistBackupSchema).optional(),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -82,12 +118,34 @@ const INITIAL_PLAYBACK_STATE: RoomPlaybackState = {
   trackPositionSeconds: 0,
 };
 
+const INITIAL_PLAYLIST_PLAYBACK: PlaylistPlaybackState = {
+  type: "paused",
+  audioSource: "",
+  trackIndex: 0,
+  serverTimeToExecute: 0,
+  trackPositionSeconds: 0,
+};
+
 interface PendingPlayState {
   clientsLoaded: Set<string>;
   timeout: NodeJS.Timeout;
   playAction: PlayActionType;
   initiatorClientId: string;
   server: BunServer;
+}
+
+/**
+ * Per-context playlist state. Audio rooms have exactly one of these keyed
+ * MAIN_CONTEXT_ID. Future room types (e.g. map rooms) own multiple — one
+ * per shape. All the audio-loading / scheduling state that used to live as
+ * flat fields on RoomManager now lives here scoped per context.
+ */
+interface PlaylistRuntime {
+  id: string;
+  tracks: AudioSourceType[];
+  playback: PlaylistPlaybackState;
+  loop: boolean;
+  pendingPlay?: PendingPlayState;
 }
 
 /**
@@ -99,7 +157,53 @@ export class RoomManager {
 
   private clientData = new Map<string, ClientDataType>(); // map of clientId -> client data
   private wsConnections = new Map<string, ServerWebSocket<WSData>>(); // map of clientId -> ws
-  private audioSources: AudioSourceType[] = [];
+
+  /**
+   * Per-context playlist storage. Always contains at least the "main" context
+   * (initialized in the constructor). Future room types add more entries; the
+   * audio-room facing back-compat accessors (audioSources / playbackState /
+   * pendingPlay below) read and write the main context.
+   */
+  private readonly playlists: Map<string, PlaylistRuntime>;
+
+  /** Back-compat accessor: returns the main context's tracks. */
+  private get audioSources(): AudioSourceType[] {
+    return this.getMainPlaylist().tracks;
+  }
+  private set audioSources(value: AudioSourceType[]) {
+    this.getMainPlaylist().tracks = value;
+  }
+
+  /** Back-compat accessor: returns the main context's playback as the legacy
+   *  RoomPlaybackState shape (no trackIndex — pre-playlist callers don't need it). */
+  private get playbackState(): RoomPlaybackState {
+    const p = this.getMainPlaylist().playback;
+    return {
+      type: p.type,
+      audioSource: p.audioSource,
+      serverTimeToExecute: p.serverTimeToExecute,
+      trackPositionSeconds: p.trackPositionSeconds,
+    };
+  }
+  private set playbackState(value: RoomPlaybackState) {
+    const current = this.getMainPlaylist().playback;
+    this.getMainPlaylist().playback = {
+      ...current,
+      type: value.type,
+      audioSource: value.audioSource,
+      serverTimeToExecute: value.serverTimeToExecute,
+      trackPositionSeconds: value.trackPositionSeconds,
+    };
+  }
+
+  /** Back-compat accessor: returns the main context's pending play state. */
+  private get pendingPlay(): PendingPlayState | undefined {
+    return this.getMainPlaylist().pendingPlay;
+  }
+  private set pendingPlay(value: PendingPlayState | undefined) {
+    this.getMainPlaylist().pendingPlay = value;
+  }
+
   private listeningSource: PositionType = {
     x: GRID.ORIGIN_X,
     y: GRID.ORIGIN_Y,
@@ -113,7 +217,6 @@ export class RoomManager {
   private readonly debouncedAudioReady = debounce(() => this.flushAudioReadyBroadcast(), 200);
   private heartbeatCheckInterval?: NodeJS.Timeout;
   private onClientCountChange?: () => void;
-  private playbackState: RoomPlaybackState = INITIAL_PLAYBACK_STATE;
   private playbackControlsPermissions: PlaybackControlsPermissionsType = "ADMIN_ONLY";
   private globalVolume = 1.0;
   private lowPassFreq: number = LOW_PASS_CONSTANTS.MAX_FREQ; // Default bypassed (full spectrum)
@@ -123,8 +226,6 @@ export class RoomManager {
   private chatManager: ChatManager;
   private serverRef?: BunServer;
 
-  // Audio loading state for synchronized playback
-  private pendingPlay?: PendingPlayState;
   private demoAudioReadyClients = new Set<string>();
   constructor(
     private readonly roomId: string,
@@ -132,9 +233,29 @@ export class RoomManager {
   ) {
     this.onClientCountChange = onClientCountChange;
     this.chatManager = new ChatManager({ roomId });
+    // Every room starts with a single "main" context. Multi-context rooms (e.g. map
+    // rooms with one playlist per shape) add more via addPlaylist().
+    this.playlists = new Map([
+      [
+        MAIN_CONTEXT_ID,
+        {
+          id: MAIN_CONTEXT_ID,
+          tracks: [],
+          playback: { ...INITIAL_PLAYLIST_PLAYBACK },
+          loop: false,
+        },
+      ],
+    ]);
     if (IS_DEMO_MODE) {
       this.globalVolume = 0.8;
     }
+  }
+
+  /** Internal helper — always returns the "main" context (initialized in ctor). */
+  private getMainPlaylist(): PlaylistRuntime {
+    const p = this.playlists.get(MAIN_CONTEXT_ID);
+    if (!p) throw new Error(`Room ${this.roomId} is missing the ${MAIN_CONTEXT_ID} playlist`);
+    return p;
   }
 
   /**
@@ -974,6 +1095,15 @@ export class RoomManager {
    * Get the backup state for this room
    */
   createBackup(): RoomBackupType {
+    // Always emit `audioSources` + `playbackState` from the main context for back-compat
+    // with backups taken before the playlist concept; ALSO emit the full per-context
+    // playlists array so multi-context rooms (map rooms) round-trip correctly.
+    const playlists = Array.from(this.playlists.values()).map((p) => ({
+      id: p.id,
+      tracks: p.tracks,
+      loop: p.loop,
+      playbackState: { ...p.playback },
+    }));
     return {
       clientDatas: Array.from(this.clientData.values()),
       audioSources: this.audioSources,
@@ -984,6 +1114,7 @@ export class RoomManager {
         messages: this.chatManager.getFullHistory(),
         nextMessageId: this.chatManager.getNextMessageId(),
       },
+      playlists,
     };
   }
 
@@ -1201,5 +1332,91 @@ export class RoomManager {
     }
 
     this.audioSources = newOrder;
+  }
+
+  // ── Per-context playlist API ────────────────────────────────────────
+  //
+  // The methods above all operate on the "main" context implicitly via the
+  // back-compat accessors. The methods below let handlers reference any
+  // context explicitly — needed by multi-context room types (map rooms).
+
+  /** Get a playlist runtime by id, or undefined if it doesn't exist. */
+  getPlaylist(contextId: string): PlaylistRuntime | undefined {
+    return this.playlists.get(contextId);
+  }
+
+  /** Get every context id in the room, including "main". */
+  getPlaylistIds(): string[] {
+    return Array.from(this.playlists.keys());
+  }
+
+  /**
+   * Return all playlists in wire format for broadcasting to clients. Used by
+   * the initial-state burst on connect, and any time the playlist set changes.
+   */
+  getPlaylistsView(): PlaylistType[] {
+    return Array.from(this.playlists.values()).map((p) => ({
+      id: p.id,
+      tracks: p.tracks,
+      loop: p.loop,
+      playbackState: { ...p.playback },
+    }));
+  }
+
+  /**
+   * Create a new playlist context. Returns true if added; false if the id was
+   * already taken. The default loop value can be overridden — map rooms want
+   * loop=true so zones play continuously, audio rooms want loop=false so
+   * tracks play once and advance.
+   */
+  addPlaylist(contextId: string, opts: { loop?: boolean } = {}): boolean {
+    if (this.playlists.has(contextId)) return false;
+    this.playlists.set(contextId, {
+      id: contextId,
+      tracks: [],
+      playback: { ...INITIAL_PLAYLIST_PLAYBACK },
+      loop: opts.loop ?? false,
+    });
+    return true;
+  }
+
+  /**
+   * Remove a playlist context. The "main" context cannot be removed because
+   * back-compat accessors assume it always exists. Returns true if removed.
+   */
+  removePlaylist(contextId: string): boolean {
+    if (contextId === MAIN_CONTEXT_ID) return false;
+    const p = this.playlists.get(contextId);
+    if (!p) return false;
+    // Clear any in-flight load timer so it doesn't fire after the playlist is gone.
+    if (p.pendingPlay) {
+      clearTimeout(p.pendingPlay.timeout);
+    }
+    this.playlists.delete(contextId);
+    return true;
+  }
+
+  /** Restore per-context playlists from a backup. Falls back gracefully when
+   *  the backup predates the playlist concept (only `audioSources` +
+   *  `playbackState` available). */
+  restorePlaylists(playlists: NonNullable<RoomBackupType["playlists"]>): void {
+    this.playlists.clear();
+    for (const p of playlists) {
+      this.playlists.set(p.id, {
+        id: p.id,
+        tracks: p.tracks,
+        loop: p.loop,
+        playback: { ...p.playbackState },
+      });
+    }
+    // Guarantee "main" exists post-restore even if the backup was malformed.
+    if (!this.playlists.has(MAIN_CONTEXT_ID)) {
+      this.playlists.set(MAIN_CONTEXT_ID, {
+        id: MAIN_CONTEXT_ID,
+        tracks: [],
+        playback: { ...INITIAL_PLAYLIST_PLAYBACK },
+        loop: false,
+      });
+    }
   }
 }
