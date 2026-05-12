@@ -439,7 +439,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
   };
 
   // Load audio buffer for a source
-  const loadAudioSource = async (url: string) => {
+  const loadAudioSource = async (url: string, contextId?: string) => {
     try {
       const state = get();
       const existing = state.audioSources.find((as) => as.source.url === url);
@@ -458,6 +458,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           request: {
             type: ClientActionEnum.enum.AUDIO_SOURCE_LOADED,
             source: { url },
+            ...(contextId !== undefined && { contextId }),
           },
         });
         return;
@@ -502,6 +503,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         request: {
           type: ClientActionEnum.enum.AUDIO_SOURCE_LOADED,
           source: { url },
+          ...(contextId !== undefined && { contextId }),
         },
       });
     } catch (error) {
@@ -1655,9 +1657,11 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     // Audio source methods
-    handleLoadAudioSource: ({ audioSourceToPlay }: LoadAudioSourceType) => {
+    handleLoadAudioSource: ({ audioSourceToPlay, contextId }: LoadAudioSourceType) => {
       set({ selectedAudioUrl: audioSourceToPlay.url });
-      loadAudioSource(audioSourceToPlay.url);
+      // The contextId flows through to AUDIO_SOURCE_LOADED so the server can advance
+      // the right per-context load gate. Audio rooms send no contextId → "main".
+      loadAudioSource(audioSourceToPlay.url, contextId);
     },
   };
 });
