@@ -246,40 +246,57 @@ export class RoomManager {
     return this.roomId;
   }
 
-  clearAudioLoadingState(): void {
-    if (!this.pendingPlay) return;
-    // Clear the timeout
-    if (this.pendingPlay.timeout) {
-      clearTimeout(this.pendingPlay.timeout);
+  /**
+   * Resolve a contextId to its playlist runtime. Returns undefined and logs if
+   * the playlist doesn't exist (e.g. a stale message from a deleted map shape).
+   */
+  private resolvePlaylist(contextId: string | undefined, action: string): PlaylistRuntime | undefined {
+    const id = contextId ?? MAIN_CONTEXT_ID;
+    const playlist = this.playlists.get(id);
+    if (!playlist) {
+      console.warn(`Room ${this.roomId}: ${action} for unknown context ${id}`);
     }
-
-    // Clear the pending play
-    this.pendingPlay = undefined;
+    return playlist;
   }
 
   /**
-   * Initiate audio source loading for all clients before playback
+   * Clear any in-flight audio-load coordination for the given context. Defaults
+   * to the main context for callers that pre-date the playlist concept.
+   */
+  clearAudioLoadingState(contextId?: string): void {
+    const playlist = this.resolvePlaylist(contextId, "clearAudioLoadingState");
+    if (!playlist?.pendingPlay) return;
+    clearTimeout(playlist.pendingPlay.timeout);
+    playlist.pendingPlay = undefined;
+  }
+
+  /**
+   * Initiate audio source loading for all clients before playback. Scoped to
+   * the playAction's contextId (defaults to "main"). Mirrors the original
+   * audio-room flow exactly — the only addition is the per-context routing.
    */
   initiateAudioSourceLoad(playAction: PlayActionType, initiatorClientId: string, server: BunServer): void {
-    // Clear any existing loading state
-    this.clearAudioLoadingState();
+    const contextId = playAction.contextId ?? MAIN_CONTEXT_ID;
+    const playlist = this.resolvePlaylist(contextId, "initiateAudioSourceLoad");
+    if (!playlist) return;
 
-    // Find the audio source to load
-    const audioSource = this.audioSources.find((source) => source.url === playAction.audioSource);
+    this.clearAudioLoadingState(contextId);
 
+    // Find the audio source to load within this context's tracks
+    const audioSource = playlist.tracks.find((source) => source.url === playAction.audioSource);
     if (!audioSource) {
-      console.warn(`Cannot load non-existent audio source: ${playAction.audioSource}`);
+      console.warn(`Cannot load non-existent audio source on context ${contextId}: ${playAction.audioSource}`);
       return;
     }
 
-    // Set up timeout to execute play even if some clients don't respond
     const timeout = setTimeout(() => {
-      console.log(`Audio loading timeout reached after ${RoomManager.AUDIO_LOAD_TIMEOUT_MS}ms. Proceeding with play.`);
-      this.executeScheduledPlay(server);
+      console.log(
+        `Audio loading timeout reached after ${RoomManager.AUDIO_LOAD_TIMEOUT_MS}ms on context ${contextId}. Proceeding with play.`
+      );
+      this.executeScheduledPlay(server, contextId);
     }, RoomManager.AUDIO_LOAD_TIMEOUT_MS);
 
-    // Store pending play state
-    this.pendingPlay = {
+    playlist.pendingPlay = {
       clientsLoaded: new Set([initiatorClientId]),
       timeout,
       playAction,
@@ -287,7 +304,7 @@ export class RoomManager {
       server,
     };
 
-    // Broadcast LOAD_AUDIO_SOURCE to all clients
+    // Broadcast LOAD_AUDIO_SOURCE to all clients, scoped to the context.
     sendBroadcast({
       server,
       roomId: this.roomId,
@@ -296,6 +313,7 @@ export class RoomManager {
         event: {
           type: "LOAD_AUDIO_SOURCE",
           audioSourceToPlay: audioSource,
+          ...(contextId !== MAIN_CONTEXT_ID && { contextId }),
         },
       },
     });
@@ -303,25 +321,30 @@ export class RoomManager {
     console.log(`Initiated audio loading for ${audioSource.url} in room ${this.roomId}`);
   }
 
-  allClientsLoadedPendingSource(): boolean {
-    if (!this.pendingPlay) {
-      console.warn(`Room ${this.roomId}: No pending play state found`);
+  /**
+   * Whether every connected client has reported AUDIO_SOURCE_LOADED for the
+   * given context's pending play. Returns false if no pending play exists or
+   * the room is empty.
+   */
+  allClientsLoadedPendingSource(contextId?: string): boolean {
+    const playlist = this.resolvePlaylist(contextId, "allClientsLoadedPendingSource");
+    if (!playlist?.pendingPlay) {
       return false;
     }
 
     const clientCount = this.getClients().length;
-    // Don't start playback if there are no clients
     if (clientCount === 0) {
       return false;
     }
 
-    return this.pendingPlay.clientsLoaded.size === clientCount;
+    return playlist.pendingPlay.clientsLoaded.size === clientCount;
   }
 
   /**
-   * Process when a client reports they've loaded the audio source
+   * Process when a client reports they've loaded the audio source. Routes to
+   * the right context's load gate.
    */
-  processClientLoadedAudioSource(clientId: string, server: BunServer): void {
+  processClientLoadedAudioSource(clientId: string, server: BunServer, contextId?: string): void {
     if (IS_DEMO_MODE) {
       this.serverRef = server;
       this.demoAudioReadyClients.add(clientId);
@@ -329,24 +352,24 @@ export class RoomManager {
       return;
     }
 
-    if (!this.pendingPlay) {
+    const id = contextId ?? MAIN_CONTEXT_ID;
+    const playlist = this.playlists.get(id);
+    if (!playlist?.pendingPlay) {
       console.warn(
-        `Room ${this.roomId}: Client ${clientId} reported audio source loaded, but no pending play state found`
+        `Room ${this.roomId}: Client ${clientId} reported audio source loaded for context ${id}, but no pending play state found`
       );
       return;
     }
 
-    // Add client to loaded set
-    this.pendingPlay.clientsLoaded.add(clientId);
+    playlist.pendingPlay.clientsLoaded.add(clientId);
 
-    const loadedCount = this.pendingPlay.clientsLoaded.size;
+    const loadedCount = playlist.pendingPlay.clientsLoaded.size;
     const totalCount = this.getClients().length;
-    console.log(`Room ${this.roomId}: ${loadedCount}/${totalCount} clients loaded audio`);
+    console.log(`Room ${this.roomId} ctx=${id}: ${loadedCount}/${totalCount} clients loaded audio`);
 
-    // Check if all active clients have loaded
-    if (this.allClientsLoadedPendingSource()) {
-      console.log(`Room ${this.roomId}: All clients loaded. Starting playback.`);
-      this.executeScheduledPlay(server);
+    if (this.allClientsLoadedPendingSource(id)) {
+      console.log(`Room ${this.roomId} ctx=${id}: All clients loaded. Starting playback.`);
+      this.executeScheduledPlay(server, id);
     }
   }
 
@@ -358,13 +381,12 @@ export class RoomManager {
    * Execute the scheduled play after audio loading is complete
    * Could be called by either the timeout or explicitly because all clients loaded
    */
-  private executeScheduledPlay(server: BunServer): void {
-    if (!this.pendingPlay) {
-      return;
-    }
+  private executeScheduledPlay(server: BunServer, contextId?: string): void {
+    const playlist = this.resolvePlaylist(contextId, "executeScheduledPlay");
+    if (!playlist?.pendingPlay) return;
 
-    const { playAction } = this.pendingPlay;
-    this.clearAudioLoadingState();
+    const { playAction } = playlist.pendingPlay;
+    this.clearAudioLoadingState(contextId);
     this.broadcastPlay(playAction, server);
   }
 
@@ -504,16 +526,15 @@ export class RoomManager {
       this.stopHeartbeatChecking();
     }
 
-    // Check if we were waiting for this client to load audio
-    if (this.pendingPlay) {
-      // Remove client from loaded set if they were there
-      this.pendingPlay.clientsLoaded.delete(clientId);
-
-      // Recheck if all remaining clients have loaded
-      if (this.allClientsLoadedPendingSource()) {
-        console.log(`Client left during loading. All remaining clients loaded. Starting playback.`);
-        // Use the stored server reference
-        this.executeScheduledPlay(this.pendingPlay.server);
+    // Check every pending audio-load gate (one per context) for this client.
+    // If the departing client's absence unblocks any gate, fire its play now.
+    for (const [contextId, playlist] of this.playlists.entries()) {
+      const pending = playlist.pendingPlay;
+      if (!pending) continue;
+      pending.clientsLoaded.delete(clientId);
+      if (this.allClientsLoadedPendingSource(contextId)) {
+        console.log(`Client left during loading on ctx=${contextId}. All remaining clients loaded. Starting playback.`);
+        this.executeScheduledPlay(pending.server, contextId);
       }
     }
 
@@ -958,49 +979,68 @@ export class RoomManager {
     }
   }
 
+  /**
+   * Record a paused state for the targeted context. Pause can reference a
+   * track that's since been deleted — in that case we still mark the context
+   * paused but with an empty audioSource.
+   */
   updatePlaybackSchedulePause(pauseSchema: PauseActionType, serverTimeToExecute: number): boolean {
-    // Validate that the audio source exists in the room (if provided)
-    // Pause can reference a track that might have been deleted, which is ok
-    // But we should validate if the track is specified
-    if (pauseSchema.audioSource) {
-      const trackExists = this.audioSources.some((source) => source.url === pauseSchema.audioSource);
+    const playlist = this.resolvePlaylist(pauseSchema.contextId, "updatePlaybackSchedulePause");
+    if (!playlist) return false;
 
+    if (pauseSchema.audioSource) {
+      const trackExists = playlist.tracks.some((source) => source.url === pauseSchema.audioSource);
       if (!trackExists) {
-        console.warn(`Room ${this.roomId}: Attempted to pause non-existent track: ${pauseSchema.audioSource}`);
-        // For pause, we'll still update but with empty audioSource
-        this.playbackState = {
+        console.warn(
+          `Room ${this.roomId}: Attempted to pause non-existent track on ${playlist.id}: ${pauseSchema.audioSource}`
+        );
+        playlist.playback = {
           type: "paused",
           audioSource: "",
+          trackIndex: playlist.playback.trackIndex,
           trackPositionSeconds: 0,
-          serverTimeToExecute: serverTimeToExecute,
+          serverTimeToExecute,
         };
         return false;
       }
     }
 
-    this.playbackState = {
+    const trackIndex = pauseSchema.audioSource
+      ? playlist.tracks.findIndex((s) => s.url === pauseSchema.audioSource)
+      : playlist.playback.trackIndex;
+    playlist.playback = {
       type: "paused",
       audioSource: pauseSchema.audioSource,
+      trackIndex: trackIndex === -1 ? playlist.playback.trackIndex : trackIndex,
       trackPositionSeconds: pauseSchema.trackTimeSeconds,
-      serverTimeToExecute: serverTimeToExecute,
+      serverTimeToExecute,
     };
     return true;
   }
 
+  /**
+   * Record a playing state for the targeted context. Rejects (returns false)
+   * when the audio source isn't in the playlist — caller should not broadcast
+   * the play in that case.
+   */
   updatePlaybackSchedulePlay(playSchema: PlayActionType, serverTimeToExecute: number): boolean {
-    // Validate that the audio source exists in the room
-    const trackExists = this.audioSources.some((source) => source.url === playSchema.audioSource);
+    const playlist = this.resolvePlaylist(playSchema.contextId, "updatePlaybackSchedulePlay");
+    if (!playlist) return false;
 
-    if (!trackExists) {
-      console.warn(`Room ${this.roomId}: Attempted to play non-existent track: ${playSchema.audioSource}`);
+    const trackIndex = playlist.tracks.findIndex((source) => source.url === playSchema.audioSource);
+    if (trackIndex === -1) {
+      console.warn(
+        `Room ${this.roomId}: Attempted to play non-existent track on ${playlist.id}: ${playSchema.audioSource}`
+      );
       return false;
     }
 
-    this.playbackState = {
+    playlist.playback = {
       type: "playing",
       audioSource: playSchema.audioSource,
+      trackIndex,
       trackPositionSeconds: playSchema.trackTimeSeconds,
-      serverTimeToExecute: serverTimeToExecute,
+      serverTimeToExecute,
     };
     return true;
   }
