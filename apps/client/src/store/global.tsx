@@ -98,8 +98,8 @@ interface GlobalStateValues {
    * Server-mirrored per-context playlists. Audio rooms have a single entry
    * keyed "main"; map rooms have one entry per shape, keyed by shape.id.
    * Updated from PLAYLISTS_UPDATE / CONTEXT_LOOP_UPDATE WS events. UI
-   * components (Queue, ShapePlaylistPanel) read tracks + playback state for
-   * a specific context from here.
+   * components (Queue parameterized by contextId, MapShapePanel) read tracks
+   * + playback state for a specific context from here.
    */
   playlists: Map<string, PlaylistType>;
 
@@ -1578,7 +1578,25 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // is a full snapshot from the server.
       const next = new Map<string, PlaylistType>();
       for (const p of playlists) next.set(p.id, p);
-      set({ playlists: next });
+
+      // Reconcile audioSources to the union of every context's tracks so that
+      // map-room shape playlists participate in the global URL → loading-state
+      // registry. Preserves existing per-URL status / buffer / progress for
+      // URLs we already know about; new URLs start as "idle".
+      set((state) => {
+        const knownByUrl = new Map(state.audioSources.map((as) => [as.source.url, as]));
+        const seen = new Set<string>();
+        const merged: AudioSourceState[] = [];
+        for (const playlist of next.values()) {
+          for (const track of playlist.tracks) {
+            if (seen.has(track.url)) continue;
+            seen.add(track.url);
+            const existing = knownByUrl.get(track.url);
+            merged.push(existing ?? { source: track, status: "idle" });
+          }
+        }
+        return { playlists: next, audioSources: merged };
+      });
     },
 
     setContextLoop: (contextId, loop) => {

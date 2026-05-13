@@ -16,7 +16,7 @@ const baseAxios = axios.create({
   },
 });
 
-export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
+export const uploadAudioFile = async (data: { file: File; roomId: string; contextId?: string }) => {
   try {
     // Step 1: Get presigned upload URL from server
     const uploadUrlRequest: GetUploadUrlType = {
@@ -50,6 +50,7 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
       roomId: data.roomId,
       originalName: data.file.name,
       publicUrl,
+      ...(data.contextId !== undefined && { contextId: data.contextId }),
     };
 
     await baseAxios.post<UploadCompleteResponseType>("/upload/complete", uploadCompleteRequest);
@@ -71,12 +72,13 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
  * the R2 presigned-upload flow. The URL must be CORS-allowing and serve audio.
  * Useful for dev/testing without R2 configured.
  */
-export const registerAudioUrl = async (data: { url: string; roomId: string; name?: string }) => {
+export const registerAudioUrl = async (data: { url: string; roomId: string; name?: string; contextId?: string }) => {
   try {
     const body: UploadCompleteType = {
       roomId: data.roomId,
       originalName: data.name ?? data.url.split("/").pop() ?? "external-url",
       publicUrl: data.url,
+      ...(data.contextId !== undefined && { contextId: data.contextId }),
     };
     await baseAxios.post<UploadCompleteResponseType>("/upload/complete", body);
     return { success: true, publicUrl: data.url };

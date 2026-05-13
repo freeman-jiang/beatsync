@@ -5,7 +5,28 @@ import { Separator } from "../ui/separator";
 import { Chat } from "./right/Chat";
 import { SpatialAudio } from "./right/SpatialAudio";
 
-export const Right = () => {
+interface RightProps {
+  /** When true, drops the Spatial tab and renders Chat full-height. Used by map
+   *  rooms where the grid-based spatial audio panel doesn't apply (proximity
+   *  comes from GPS, not the grid). */
+  chatOnly?: boolean;
+}
+
+export const Right = ({ chatOnly = false }: RightProps = {}) => {
+  if (chatOnly) {
+    return (
+      <div className="w-full lg:w-80 lg:flex-shrink-0 border-l border-neutral-800/50 bg-neutral-900/50 backdrop-blur-md flex flex-col h-full">
+        <div className="px-3 py-2 flex items-center gap-2 border-b border-neutral-800/50">
+          <MessageCircle className="h-3.5 w-3.5 text-neutral-400" />
+          <span className="text-sm font-medium">Chat</span>
+        </div>
+        <div className="flex-1 overflow-hidden h-full">
+          <Chat />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full lg:w-80 lg:flex-shrink-0 border-l border-neutral-800/50 bg-neutral-900/50 backdrop-blur-md flex flex-col h-full">
       <Tabs defaultValue="chat" className="flex flex-col h-full">
@@ -23,14 +44,6 @@ export const Right = () => {
         </div>
         <div className="relative">
           <Separator className="bg-neutral-800/50" />
-          {/* <div
-            className="
-              pointer-events-none
-              absolute left-0 right-0 top-full h-3
-              bg-gradient-to-b from-neutral-900/80 to-transparent
-              transition-opacity duration-300
-            "
-          /> */}
         </div>
         <TabsContent value="chat" className="flex-1 overflow-hidden h-full">
           <Chat />

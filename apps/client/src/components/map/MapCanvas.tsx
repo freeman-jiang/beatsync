@@ -48,6 +48,7 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
   const mapMetadata = useRoomStore((s) => s.mapMetadata);
   const connectedClients = useGlobalStore((s) => s.connectedClients);
   const shapes = useMapStore((s) => s.shapes);
+  const selectedShapeId = useMapStore((s) => s.selectedShapeId);
   const ownPosition = useMapStore((s) => s.ownPosition);
   const setOwnPosition = useMapStore((s) => s.setOwnPosition);
   const { clientId: myClientId } = useClientId();
@@ -247,6 +248,13 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
         }
         group.addLayer(layer);
         shapeLayersRef.current.set(shape.id, layer);
+        // Click on a shape selects it for the playlist panel. Capture by id;
+        // the store call is read fresh so this doesn't go stale when the
+        // selection changes.
+        layer.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          useMapStore.getState().setSelectedShapeId(shape.id);
+        });
       } else if (layer instanceof L.Circle && wantsCircle) {
         const { center, radius } = coords as { center: [number, number]; radius: number };
         layer.setLatLng(center as L.LatLngTuple);
@@ -271,6 +279,20 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
       }
     }
   }, [shapes]);
+
+  // ── Highlight the selected shape ────────────────────────────────
+  useEffect(() => {
+    for (const [id, layer] of shapeLayersRef.current.entries()) {
+      const isSelected = id === selectedShapeId;
+      if (layer instanceof L.Path) {
+        layer.setStyle({
+          color: isSelected ? "#fde047" : "#22c55e",
+          weight: isSelected ? 3 : 2,
+          fillOpacity: isSelected ? 0.25 : 0.15,
+        });
+      }
+    }
+  }, [selectedShapeId, shapes]);
 
   // ── Sync other users' markers ──────────────────────────────────
   useEffect(() => {

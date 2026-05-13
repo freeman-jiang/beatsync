@@ -16,9 +16,12 @@ import { PlaybackPermissions } from "./PlaybackPermissions";
 
 interface LeftProps {
   className?: string;
+  /** When true, omit the bottom audio uploader (map rooms move upload to each
+   *  shape's playlist column). Tips section still renders. */
+  hideUploader?: boolean;
 }
 
-export const Left = ({ className }: LeftProps) => {
+export const Left = ({ className, hideUploader = false }: LeftProps) => {
   const roomId = useRoomStore((state) => state.roomId);
   const clockOffset = useGlobalStore((state) => state.offsetEstimate);
   const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
@@ -95,9 +98,11 @@ export const Left = ({ className }: LeftProps) => {
           </ul>
         </div>
 
-        <div className="pl-1">
-          <AudioUploaderMinimal />
-        </div>
+        {!hideUploader && (
+          <div className="pl-1">
+            <AudioUploaderMinimal />
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );

@@ -76,7 +76,7 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
       return errorResponse(`Invalid request data: ${parseResult.error.message}`, 400);
     }
 
-    const { roomId, publicUrl } = parseResult.data;
+    const { roomId, publicUrl, contextId } = parseResult.data;
 
     // Check if room exists
     const room = globalManager.getRoom(roomId);
@@ -84,25 +84,37 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
       return errorResponse("Room not found. The room may have been closed during upload.", 404);
     }
 
-    const sources = room.addAudioSource({ url: publicUrl });
-
-    console.log(`✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${JSON.stringify(sources)}`);
+    // When contextId is provided (map rooms uploading to a specific shape's
+    // playlist), append to that context. Otherwise fall back to the legacy
+    // room-wide audioSources list (audio rooms).
+    if (contextId !== undefined) {
+      const tracks = room.addTrackToContext(contextId, { url: publicUrl });
+      if (!tracks) {
+        return errorResponse(`Playlist context "${contextId}" not found in room ${roomId}.`, 404);
+      }
+    } else {
+      const sources = room.addAudioSource({ url: publicUrl });
+      console.log(`✅ Audio upload completed - broadcasting to room ${roomId} new sources: ${JSON.stringify(sources)}`);
+    }
 
     // Broadcast to room that new audio is available. SET_AUDIO_SOURCES is the
-    // back-compat audio-room channel; PLAYLISTS_UPDATE is the unified per-
-    // context channel that newer UI (and map rooms) reads from. Both stay
-    // synchronized.
-    sendBroadcast({
-      server,
-      roomId,
-      message: {
-        type: "ROOM_EVENT",
-        event: {
-          type: "SET_AUDIO_SOURCES",
-          sources,
+    // back-compat audio-room channel and only meaningful for the main context;
+    // PLAYLISTS_UPDATE is the unified per-context channel that newer UI (and
+    // map rooms) reads from. We always send PLAYLISTS_UPDATE so every context
+    // mirror stays in sync; SET_AUDIO_SOURCES is only sent for main uploads.
+    if (contextId === undefined) {
+      sendBroadcast({
+        server,
+        roomId,
+        message: {
+          type: "ROOM_EVENT",
+          event: {
+            type: "SET_AUDIO_SOURCES",
+            sources: room.getAudioSources(),
+          },
         },
-      },
-    });
+      });
+    }
     sendBroadcast({
       server,
       roomId,

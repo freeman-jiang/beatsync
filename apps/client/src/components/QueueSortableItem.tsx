@@ -1,7 +1,7 @@
 import { cn, extractFileNameFromUrl, formatTime } from "@/lib/utils";
 import { AudioSourceState, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
-import { ClientActionEnum } from "@beatsync/shared";
+import { ClientActionEnum, MAIN_CONTEXT_ID } from "@beatsync/shared";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -20,26 +20,39 @@ export const QueueSortableItem = ({
   sourceState,
   index,
   canMutate,
+  contextId = MAIN_CONTEXT_ID,
 }: {
   id: string;
   sourceState: AudioSourceState;
   index: number;
   canMutate: boolean;
+  /** Which playlist context this item belongs to. */
+  contextId?: string;
 }) => {
+  const isMain = contextId === MAIN_CONTEXT_ID;
   const getAudioDuration = useGlobalStore((state) => state.getAudioDuration);
+  // Audio-room selection lives on selectedAudioUrl + isPlaying; map-room
+  // per-shape selection lives on playlists.get(contextId).playbackState.
   const selectedAudioUrl = useGlobalStore((state) => state.selectedAudioUrl);
+  const mainIsPlaying = useGlobalStore((state) => state.isPlaying);
+  const contextPlayback = useGlobalStore((state) =>
+    isMain ? undefined : state.playlists.get(contextId)?.playbackState
+  );
   const changeAudioSource = useGlobalStore((state) => state.changeAudioSource);
   const broadcastPlay = useGlobalStore((state) => state.broadcastPlay);
   const broadcastPause = useGlobalStore((state) => state.broadcastPause);
-  const isPlaying = useGlobalStore((state) => state.isPlaying);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const isSelected = isMain
+    ? selectedAudioUrl === sourceState.source.url
+    : contextPlayback?.audioSource === sourceState.source.url;
+  const isPlaying = isMain ? mainIsPlaying : contextPlayback?.type === "playing";
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  const isSelected = selectedAudioUrl === sourceState.source.url;
   const isPlayingThis = isSelected && isPlaying;
   const isLoading = sourceState.status === "loading";
   const isError = sourceState.status === "error";
@@ -58,15 +71,43 @@ export const QueueSortableItem = ({
     }
 
     const source = sourceState.source;
-    if (source.url === selectedAudioUrl) {
-      if (isPlaying) {
-        broadcastPause();
+
+    if (isMain) {
+      // Audio-room behavior: change selection then play.
+      if (source.url === selectedAudioUrl) {
+        if (isPlaying) broadcastPause();
+        else broadcastPlay();
       } else {
-        broadcastPlay();
+        changeAudioSource(source.url);
+        broadcastPlay(0);
       }
+      return;
+    }
+
+    // Per-context (map-room shape) behavior: directly broadcast PLAY/PAUSE for
+    // this contextId. No global "selected" — the playback target is the URL.
+    const socket = useGlobalStore.getState().socket;
+    if (!socket) return;
+    if (isSelected && isPlaying) {
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.PAUSE,
+          contextId,
+          audioSource: source.url,
+          trackTimeSeconds: 0,
+        },
+      });
     } else {
-      changeAudioSource(source.url);
-      broadcastPlay(0);
+      sendWSRequest({
+        ws: socket,
+        request: {
+          type: ClientActionEnum.enum.PLAY,
+          contextId,
+          audioSource: source.url,
+          trackTimeSeconds: isSelected ? (contextPlayback?.trackPositionSeconds ?? 0) : 0,
+        },
+      });
     }
   };
 
@@ -285,10 +326,16 @@ export const QueueSortableItem = ({
                 if (!socket) return;
                 sendWSRequest({
                   ws: socket,
-                  request: {
-                    type: ClientActionEnum.enum.DELETE_AUDIO_SOURCES,
-                    urls: [sourceState.source.url],
-                  },
+                  request: isMain
+                    ? {
+                        type: ClientActionEnum.enum.DELETE_AUDIO_SOURCES,
+                        urls: [sourceState.source.url],
+                      }
+                    : {
+                        type: ClientActionEnum.enum.REMOVE_TRACK_FROM_CONTEXT,
+                        contextId,
+                        url: sourceState.source.url,
+                      },
                 });
               }}
             >

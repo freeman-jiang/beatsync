@@ -39,6 +39,9 @@ interface MapStateValues {
 
   /** Global default audible radius (per-shape can override via shape.audibleRadiusMeters). */
   audibleRadiusMeters: number;
+
+  /** Which shape is currently selected (drives the per-shape playlist panel). */
+  selectedShapeId: string | null;
 }
 
 interface MapStoreActions {
@@ -53,6 +56,8 @@ interface MapStoreActions {
 
   setShapeAudioChain: (shapeId: string, chain: ShapeAudioChain | undefined) => void;
 
+  setSelectedShapeId: (shapeId: string | null) => void;
+
   reset: () => void;
 }
 
@@ -65,12 +70,18 @@ const initialState: MapStateValues = {
   ownPosition: undefined,
   locationMode: "manual",
   audibleRadiusMeters: 500,
+  selectedShapeId: null,
 };
 
 export const useMapStore = create<MapState>()((set) => ({
   ...initialState,
 
-  setShapes: (shapes) => set(() => ({ shapes: new Map(shapes.map((s) => [s.id, s])) })),
+  setShapes: (shapes) =>
+    set((s) => {
+      const next = new Map(shapes.map((sh) => [sh.id, sh]));
+      const selectedShapeId = s.selectedShapeId && next.has(s.selectedShapeId) ? s.selectedShapeId : null;
+      return { shapes: next, selectedShapeId };
+    }),
 
   updateShape: (shape) =>
     set((s) => {
@@ -88,7 +99,8 @@ export const useMapStore = create<MapState>()((set) => ({
       gains.delete(shapeId);
       const chains = new Map(s.audioChains);
       chains.delete(shapeId);
-      return { shapes: next, proximityGains: gains, audioChains: chains };
+      const selectedShapeId = s.selectedShapeId === shapeId ? null : s.selectedShapeId;
+      return { shapes: next, proximityGains: gains, audioChains: chains, selectedShapeId };
     }),
 
   setOwnPosition: (ownPosition) => set({ ownPosition }),
@@ -110,6 +122,8 @@ export const useMapStore = create<MapState>()((set) => ({
       else next.delete(shapeId);
       return { audioChains: next };
     }),
+
+  setSelectedShapeId: (selectedShapeId) => set({ selectedShapeId }),
 
   reset: () =>
     set(() => ({

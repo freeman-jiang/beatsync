@@ -35,6 +35,10 @@ export const UploadCompleteSchema = z.object({
   roomId: z.string(),
   originalName: z.string(),
   publicUrl: z.string().url(),
+  // When present, append the URL to the named playlist context instead of the
+  // legacy room-wide audioSources list. Used by map rooms to upload directly
+  // into a shape's playlist (contextId == shape.id).
+  contextId: z.string().optional(),
 });
 export type UploadCompleteType = z.infer<typeof UploadCompleteSchema>;
 

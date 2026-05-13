@@ -8,7 +8,15 @@ import { CloudUpload, Link2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export const AudioUploaderMinimal = () => {
+interface AudioUploaderMinimalProps {
+  /** When set, route the upload to this playlist context (e.g. a shape.id in map rooms).
+   *  Omit for legacy audio-room uploads, which target the main context. */
+  contextId?: string;
+  /** Optional label override; default depends on whether contextId is set. */
+  label?: string;
+}
+
+export const AudioUploaderMinimal = ({ contextId, label }: AudioUploaderMinimalProps = {}) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -32,6 +40,7 @@ export const AudioUploaderMinimal = () => {
       await uploadAudioFile({
         file,
         roomId,
+        contextId,
       });
 
       setTimeout(() => setFileName(null), 3000);
@@ -108,11 +117,11 @@ export const AudioUploaderMinimal = () => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-white truncate">
-              {isUploading ? "Uploading..." : fileName ? trimFileName(fileName) : "Upload audio"}
+              {isUploading ? "Uploading..." : fileName ? trimFileName(fileName) : (label ?? "Upload audio")}
             </div>
             {!isUploading && !fileName && (
               <div className={cn("text-xs truncate", isDisabled ? "text-neutral-500" : "text-neutral-400")}>
-                {isDisabled ? "Must be an admin to upload" : "Add music to queue"}
+                {isDisabled ? "Must be an admin to upload" : contextId ? "Add to this zone" : "Add music to queue"}
               </div>
             )}
           </div>
@@ -146,9 +155,9 @@ export const AudioUploaderMinimal = () => {
               if (!url) return;
               setIsRegisteringUrl(true);
               try {
-                await registerAudioUrl({ url, roomId });
+                await registerAudioUrl({ url, roomId, contextId });
                 setUrlInput("");
-                toast.success("Audio URL added to queue");
+                toast.success(contextId ? "Added to zone" : "Audio URL added to queue");
               } catch (err) {
                 console.error(err);
                 toast.error("Failed to register URL");
