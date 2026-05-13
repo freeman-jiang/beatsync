@@ -230,6 +230,14 @@ export const WebSocketManager = ({ roomId, username, requestedRoomType }: WebSoc
               scheduledAction.trackTimeSeconds,
               serverTimeToExecute
             );
+            // Mirror the playing state into the client's playlists map so the
+            // UI (Queue selection, EnsembleControls counter) updates.
+            useGlobalStore.getState().setContextPlayback(scheduledAction.contextId, {
+              type: "playing",
+              audioSource: scheduledAction.audioSource,
+              serverTimeToExecute,
+              trackPositionSeconds: scheduledAction.trackTimeSeconds,
+            });
           } else {
             schedulePlay({
               trackTimeSeconds: scheduledAction.trackTimeSeconds,
@@ -240,6 +248,10 @@ export const WebSocketManager = ({ roomId, username, requestedRoomType }: WebSoc
         } else if (scheduledAction.type === "PAUSE") {
           if (scheduledAction.contextId) {
             mapAudio.pauseShape(scheduledAction.contextId);
+            useGlobalStore.getState().setContextPlayback(scheduledAction.contextId, {
+              type: "paused",
+              audioSource: scheduledAction.audioSource,
+            });
           } else {
             schedulePause({ targetServerTime: serverTimeToExecute });
           }

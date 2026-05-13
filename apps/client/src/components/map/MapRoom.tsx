@@ -130,13 +130,12 @@ export const MapRoom = ({ roomId }: MapRoomProps) => {
           initial="hidden"
           animate="visible"
         >
-          {/* Desktop / wide layout */}
+          {/* Desktop / wide layout — Left | (Map stacked over Playlist) | Right */}
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden min-h-0">
             <Left className="flex" hideUploader />
 
-            {/* Center: map on the left, selected-shape playlist on the right. */}
-            <div className="flex flex-1 min-w-0">
-              <div className="relative flex-1 min-w-0">
+            <div className="flex flex-1 flex-col min-w-0 min-h-0">
+              <div className="relative flex-[2] min-h-0">
                 <MapOverlays
                   locationMode={locationMode}
                   setLocationMode={setLocationMode}
@@ -150,7 +149,7 @@ export const MapRoom = ({ roomId }: MapRoomProps) => {
                 />
                 <MapCanvas canMutate={canMutate} />
               </div>
-              <div className="hidden w-96 shrink-0 border-l border-neutral-800/50 bg-neutral-900/30 md:flex md:flex-col">
+              <div className="flex flex-[1] min-h-0 flex-col border-t border-neutral-800/50 bg-neutral-900/30">
                 <MapShapePanel canMutate={canMutate} />
               </div>
             </div>
@@ -158,9 +157,9 @@ export const MapRoom = ({ roomId }: MapRoomProps) => {
             <Right chatOnly />
           </div>
 
-          {/* Mobile / narrow layout — for now we just stack the map and panel. */}
+          {/* Mobile / narrow layout — same vertical stack as desktop. */}
           <div className="flex flex-1 flex-col overflow-hidden lg:hidden min-h-0">
-            <div className="relative flex-1 min-h-0">
+            <div className="relative flex-[2] min-h-0">
               <MapOverlays
                 locationMode={locationMode}
                 setLocationMode={setLocationMode}
@@ -174,7 +173,7 @@ export const MapRoom = ({ roomId }: MapRoomProps) => {
               />
               <MapCanvas canMutate={canMutate} />
             </div>
-            <div className="flex h-72 flex-col border-t border-neutral-800/50 bg-neutral-900/40">
+            <div className="flex flex-[1] min-h-0 flex-col border-t border-neutral-800/50 bg-neutral-900/40">
               <MapShapePanel canMutate={canMutate} />
             </div>
           </div>

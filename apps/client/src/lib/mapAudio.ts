@@ -88,6 +88,14 @@ async function loadAudioForShape(shapeId: string, url: string): Promise<void> {
       return;
     }
     chain.buffer = buffer;
+    // Mirror the decoded buffer into the global audioSources registry so
+    // getAudioDuration (Queue's "--:--" → duration cell) lights up for shape
+    // tracks. Audio rooms hit this same path via loadAudioSource() in
+    // globalStore; map rooms decode through mapAudio, so we have to write it
+    // back ourselves.
+    useGlobalStore.setState((state) => ({
+      audioSources: state.audioSources.map((as) => (as.source.url === url ? { ...as, status: "loaded", buffer } : as)),
+    }));
     notifyLoaded(shapeId, url);
 
     // If a play() arrived while we were decoding (late-join resume), re-fire it now

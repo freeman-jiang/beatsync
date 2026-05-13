@@ -120,13 +120,42 @@ export const handleSetMapMetadata: HandlerFunction<ExtractWSRequestFrom["SET_MAP
 
 // ── Client presence (participation, not curation) ──────────────────
 
-export const handleSetGeoPosition: HandlerFunction<ExtractWSRequestFrom["SET_GEO_POSITION"]> = ({ ws, message }) => {
+export const handleSetGeoPosition: HandlerFunction<ExtractWSRequestFrom["SET_GEO_POSITION"]> = ({
+  ws,
+  message,
+  server,
+}) => {
   const { room } = requireRoom(ws);
   if (!room.isMapRoom()) return;
-  room.setClientGeoPosition(ws.data.clientId, { lat: message.lat, lng: message.lng });
+  const changed = room.setClientGeoPosition(ws.data.clientId, { lat: message.lat, lng: message.lng });
+  if (!changed) return;
+  // Broadcast the updated client list so every other tab/device sees the new
+  // marker position. Manual mode only sends on dragend; GPS sends ~every 1s
+  // (browser-throttled), so a full client-list broadcast per update is fine.
+  sendBroadcast({
+    server,
+    roomId: ws.data.roomId,
+    message: {
+      type: "ROOM_EVENT",
+      event: { type: "CLIENT_CHANGE", clients: room.getClients() },
+    },
+  });
 };
 
-export const handleSetVisibility: HandlerFunction<ExtractWSRequestFrom["SET_VISIBILITY"]> = ({ ws, message }) => {
+export const handleSetVisibility: HandlerFunction<ExtractWSRequestFrom["SET_VISIBILITY"]> = ({
+  ws,
+  message,
+  server,
+}) => {
   const { room } = requireRoom(ws);
-  room.setClientVisibility(ws.data.clientId, message.isHidden);
+  const changed = room.setClientVisibility(ws.data.clientId, message.isHidden);
+  if (!changed) return;
+  sendBroadcast({
+    server,
+    roomId: ws.data.roomId,
+    message: {
+      type: "ROOM_EVENT",
+      event: { type: "CLIENT_CHANGE", clients: room.getClients() },
+    },
+  });
 };

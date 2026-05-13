@@ -37,6 +37,7 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
+  const drawControlRef = useRef<L.Control.Draw | null>(null);
   // Map shape.id → the Leaflet layer that renders it.
   const shapeLayersRef = useRef<Map<string, L.Layer>>(new Map());
   // Map clientId → marker layer for other users.
@@ -54,6 +55,10 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
   const { clientId: myClientId } = useClientId();
 
   // ── Initialize Leaflet map once ────────────────────────────────
+  // This effect MUST NOT depend on canMutate — re-running it tears down the
+  // map (and all shape layers) without re-firing the shape-render effect,
+  // leaving the user with an empty map after admin promotion. Draw control
+  // toggling lives in its own effect below.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -68,106 +73,6 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
 
     const drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
-
-    if (canMutate) {
-      const drawControl = new L.Control.Draw({
-        edit: { featureGroup: drawnItems, remove: true },
-        draw: {
-          polygon: { allowIntersection: false, showArea: false },
-          rectangle: false, // duplicates polygon for our purposes
-          circle: {},
-          circlemarker: false,
-          marker: false,
-          polyline: false,
-        },
-      });
-      map.addControl(drawControl);
-
-      map.on(L.Draw.Event.CREATED, (event) => {
-        const e = event as L.DrawEvents.Created;
-        const layer = e.layer;
-        const id =
-          (typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID()) ||
-          `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-        let coordinates: unknown;
-        if (e.layerType === "circle" && layer instanceof L.Circle) {
-          const c = layer.getLatLng();
-          coordinates = { center: [c.lat, c.lng], radius: layer.getRadius() };
-        } else if (layer instanceof L.Polygon) {
-          coordinates = (layer.getLatLngs() as L.LatLng[][]).map((ring) => ring.map((pt) => [pt.lat, pt.lng]));
-        } else {
-          return;
-        }
-
-        const ws = useGlobalStore.getState().socket;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        sendWSRequest({
-          ws,
-          request: {
-            type: ClientActionEnum.enum.ADD_SHAPE,
-            shape: {
-              id,
-              type: e.layerType,
-              coordinates,
-              createdBy: myClientId ?? "anonymous",
-              createdAt: Date.now(),
-              groupId: null,
-              audibleRadiusMeters: 50,
-            },
-          },
-        });
-        // Don't add the layer locally — the server's SHAPES_UPDATE will broadcast it
-        // back and our shape-render effect will draw it. This keeps the visual state
-        // single-sourced from the store.
-      });
-
-      map.on(L.Draw.Event.DELETED, (event) => {
-        const e = event as L.DrawEvents.Deleted;
-        const ws = useGlobalStore.getState().socket;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        e.layers.eachLayer((layer) => {
-          for (const [id, l] of shapeLayersRef.current.entries()) {
-            if (l === layer) {
-              sendWSRequest({
-                ws,
-                request: { type: ClientActionEnum.enum.DELETE_SHAPE, shapeId: id },
-              });
-              break;
-            }
-          }
-        });
-      });
-
-      map.on(L.Draw.Event.EDITED, (event) => {
-        const e = event as L.DrawEvents.Edited;
-        const ws = useGlobalStore.getState().socket;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        e.layers.eachLayer((layer) => {
-          let shapeId: string | undefined;
-          for (const [id, l] of shapeLayersRef.current.entries()) {
-            if (l === layer) {
-              shapeId = id;
-              break;
-            }
-          }
-          if (!shapeId) return;
-          let coordinates: unknown;
-          if (layer instanceof L.Circle) {
-            const c = layer.getLatLng();
-            coordinates = { center: [c.lat, c.lng], radius: layer.getRadius() };
-          } else if (layer instanceof L.Polygon) {
-            coordinates = (layer.getLatLngs() as L.LatLng[][]).map((ring) => ring.map((pt) => [pt.lat, pt.lng]));
-          } else {
-            return;
-          }
-          sendWSRequest({
-            ws,
-            request: { type: ClientActionEnum.enum.UPDATE_SHAPE, shapeId, coordinates },
-          });
-        });
-      });
-    }
 
     // Manual-mode drag: clicking the map sets the user's position. (For phones,
     // the GPS path also flows through setOwnPosition once permission is granted.)
@@ -194,12 +99,133 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
       map.remove();
       mapRef.current = null;
       drawnItemsRef.current = null;
+      drawControlRef.current = null;
       shapeLayersRef.current.clear();
       otherMarkersRef.current.clear();
       ownMarkerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canMutate]);
+  }, []);
+
+  // ── Add/remove the draw control when admin status changes ──────
+  // Keeps the same L.Map instance — only the control and its event handlers
+  // come and go with canMutate. Shape layers and other state are preserved.
+  useEffect(() => {
+    const map = mapRef.current;
+    const drawnItems = drawnItemsRef.current;
+    if (!map || !drawnItems || !canMutate) return;
+
+    const drawControl = new L.Control.Draw({
+      edit: { featureGroup: drawnItems, remove: true },
+      draw: {
+        polygon: { allowIntersection: false, showArea: false },
+        rectangle: false, // duplicates polygon for our purposes
+        circle: {},
+        circlemarker: false,
+        marker: false,
+        polyline: false,
+      },
+    });
+    map.addControl(drawControl);
+    drawControlRef.current = drawControl;
+
+    const onCreated = (event: L.LeafletEvent) => {
+      const e = event as L.DrawEvents.Created;
+      const layer = e.layer;
+      const id =
+        (typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID()) ||
+        `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      let coordinates: unknown;
+      if (e.layerType === "circle" && layer instanceof L.Circle) {
+        const c = layer.getLatLng();
+        coordinates = { center: [c.lat, c.lng], radius: layer.getRadius() };
+      } else if (layer instanceof L.Polygon) {
+        coordinates = (layer.getLatLngs() as L.LatLng[][]).map((ring) => ring.map((pt) => [pt.lat, pt.lng]));
+      } else {
+        return;
+      }
+
+      const ws = useGlobalStore.getState().socket;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      sendWSRequest({
+        ws,
+        request: {
+          type: ClientActionEnum.enum.ADD_SHAPE,
+          shape: {
+            id,
+            type: e.layerType,
+            coordinates,
+            createdBy: myClientId ?? "anonymous",
+            createdAt: Date.now(),
+            groupId: null,
+            audibleRadiusMeters: 50,
+          },
+        },
+      });
+      // Don't add the layer locally — the server's SHAPES_UPDATE will broadcast it
+      // back and our shape-render effect will draw it. This keeps the visual state
+      // single-sourced from the store.
+    };
+
+    const onDeleted = (event: L.LeafletEvent) => {
+      const e = event as L.DrawEvents.Deleted;
+      const ws = useGlobalStore.getState().socket;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      e.layers.eachLayer((layer) => {
+        for (const [id, l] of shapeLayersRef.current.entries()) {
+          if (l === layer) {
+            sendWSRequest({
+              ws,
+              request: { type: ClientActionEnum.enum.DELETE_SHAPE, shapeId: id },
+            });
+            break;
+          }
+        }
+      });
+    };
+
+    const onEdited = (event: L.LeafletEvent) => {
+      const e = event as L.DrawEvents.Edited;
+      const ws = useGlobalStore.getState().socket;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      e.layers.eachLayer((layer) => {
+        let shapeId: string | undefined;
+        for (const [id, l] of shapeLayersRef.current.entries()) {
+          if (l === layer) {
+            shapeId = id;
+            break;
+          }
+        }
+        if (!shapeId) return;
+        let coordinates: unknown;
+        if (layer instanceof L.Circle) {
+          const c = layer.getLatLng();
+          coordinates = { center: [c.lat, c.lng], radius: layer.getRadius() };
+        } else if (layer instanceof L.Polygon) {
+          coordinates = (layer.getLatLngs() as L.LatLng[][]).map((ring) => ring.map((pt) => [pt.lat, pt.lng]));
+        } else {
+          return;
+        }
+        sendWSRequest({
+          ws,
+          request: { type: ClientActionEnum.enum.UPDATE_SHAPE, shapeId, coordinates },
+        });
+      });
+    };
+
+    map.on(L.Draw.Event.CREATED, onCreated);
+    map.on(L.Draw.Event.DELETED, onDeleted);
+    map.on(L.Draw.Event.EDITED, onEdited);
+
+    return () => {
+      map.off(L.Draw.Event.CREATED, onCreated);
+      map.off(L.Draw.Event.DELETED, onDeleted);
+      map.off(L.Draw.Event.EDITED, onEdited);
+      map.removeControl(drawControl);
+      drawControlRef.current = null;
+    };
+  }, [canMutate, myClientId]);
 
   // Re-center when mapMetadata changes (curator hit "Set map view").
   useEffect(() => {

@@ -180,6 +180,19 @@ interface GlobalState extends GlobalStateValues {
   setPlaylists: (playlists: PlaylistType[]) => void;
   /** Patch a single context's loop flag. Called by CONTEXT_LOOP_UPDATE. */
   setContextLoop: (contextId: string, loop: boolean) => void;
+  /** Patch a single context's playback state. Called when a SCHEDULED_ACTION
+   *  PLAY/PAUSE arrives with a contextId — keeps the per-context view of
+   *  playbackState in sync so UI (Queue, EnsembleControls) reflects reality
+   *  without waiting for the server to send a full PLAYLISTS_UPDATE. */
+  setContextPlayback: (
+    contextId: string,
+    patch: {
+      type: "playing" | "paused";
+      audioSource: string;
+      serverTimeToExecute?: number;
+      trackPositionSeconds?: number;
+    }
+  ) => void;
 
   setIsInitingSystem: (isIniting: boolean) => void;
   reorderClient: (clientId: string) => void;
@@ -1596,6 +1609,25 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           }
         }
         return { playlists: next, audioSources: merged };
+      });
+    },
+
+    setContextPlayback: (contextId, patch) => {
+      set((state) => {
+        const existing = state.playlists.get(contextId);
+        if (!existing) return state;
+        const next = new Map(state.playlists);
+        next.set(contextId, {
+          ...existing,
+          playbackState: {
+            ...existing.playbackState,
+            type: patch.type,
+            audioSource: patch.audioSource,
+            serverTimeToExecute: patch.serverTimeToExecute ?? existing.playbackState.serverTimeToExecute,
+            trackPositionSeconds: patch.trackPositionSeconds ?? existing.playbackState.trackPositionSeconds,
+          },
+        });
+        return { playlists: next };
       });
     },
 
