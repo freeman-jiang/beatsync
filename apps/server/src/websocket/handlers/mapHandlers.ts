@@ -76,14 +76,14 @@ export const handleClearShapes: HandlerFunction<ExtractWSRequestFrom["CLEAR_SHAP
   broadcastPlaylists(room, server);
 };
 
-export const handleSetShapeAudibleRadius: HandlerFunction<ExtractWSRequestFrom["SET_SHAPE_AUDIBLE_RADIUS"]> = ({
+export const handleSetShapeFalloff: HandlerFunction<ExtractWSRequestFrom["SET_SHAPE_FALLOFF"]> = ({
   ws,
   message,
   server,
 }) => {
   const { room } = requireCanMutate(ws);
   if (!room.isMapRoom()) return;
-  if (!room.setShapeAudibleRadius(message.shapeId, message.audibleRadiusMeters)) return;
+  if (!room.setShapeFalloff(message.shapeId, message.falloffMeters)) return;
   broadcastShapes(room, server);
 };
 

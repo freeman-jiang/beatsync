@@ -24,13 +24,14 @@ export const ShapeSchema = z.object({
   // (Note: enforced in the future; landed as a placeholder field for now.)
   groupId: z.string().nullable().default(null),
 
-  // Radius in meters at which a client outside the zone still hears it (linear
-  // falloff). Curators can tune per-shape; circles also have their own drawn
-  // radius which takes precedence if larger.
-  audibleRadiusMeters: z
+  // Distance in meters past the shape's edge over which audio fades from full
+  // to silent. Inside the shape itself: full volume. Outside: linear fade from
+  // 1 → 0 across this many meters of distance to the nearest edge. Curators
+  // tune this per shape via SET_SHAPE_FALLOFF.
+  falloffMeters: z
     .number()
-    .min(MAP_CONSTANTS.MIN_AUDIBLE_RADIUS_METERS)
-    .max(MAP_CONSTANTS.MAX_AUDIBLE_RADIUS_METERS)
-    .default(MAP_CONSTANTS.DEFAULT_AUDIBLE_RADIUS_METERS),
+    .min(MAP_CONSTANTS.MIN_FALLOFF_METERS)
+    .max(MAP_CONSTANTS.MAX_FALLOFF_METERS)
+    .default(MAP_CONSTANTS.DEFAULT_FALLOFF_METERS),
 });
 export type ShapeType = z.infer<typeof ShapeSchema>;

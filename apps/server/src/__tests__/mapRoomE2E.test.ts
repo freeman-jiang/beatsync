@@ -56,7 +56,7 @@ function makeShape(id: string) {
     createdBy: "admin",
     createdAt: Date.now(),
     groupId: null,
-    audibleRadiusMeters: 50,
+    falloffMeters: 25,
   };
 }
 

@@ -63,7 +63,7 @@ describe("BackupManager: map round-trip", () => {
                 createdBy: "creator",
                 createdAt: 1,
                 groupId: "g1",
-                audibleRadiusMeters: 75,
+                falloffMeters: 75,
               },
             ],
           },
@@ -84,7 +84,7 @@ describe("BackupManager: map round-trip", () => {
     expect(room).toBeTruthy();
     expect(room!.getRoomType()).toBe("map");
     expect(room!.getMapMetadata()).toEqual({ center: [42.28, -83.74], zoom: 17 });
-    expect(room!.getShape("s1")?.audibleRadiusMeters).toBe(75);
+    expect(room!.getShape("s1")?.falloffMeters).toBe(75);
     expect(room!.getShape("s1")?.groupId).toBe("g1");
     // The shape's playlist context survived too.
     const ctx = room!.getPlaylist("s1");

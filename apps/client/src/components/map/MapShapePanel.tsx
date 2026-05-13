@@ -16,11 +16,13 @@
 import { AudioUploaderMinimal } from "@/components/AudioUploaderMinimal";
 import { Queue } from "@/components/Queue";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { useGlobalStore } from "@/store/global";
 import { useMapStore } from "@/store/map";
 import { sendWSRequest } from "@/utils/ws";
-import { ClientActionEnum } from "@beatsync/shared";
+import { ClientActionEnum, MAP_CONSTANTS } from "@beatsync/shared";
 import { Repeat, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 interface MapShapePanelProps {
   canMutate: boolean;
@@ -33,6 +35,22 @@ export const MapShapePanel = ({ canMutate }: MapShapePanelProps) => {
   const isConnected = useGlobalStore((s) => s.socket?.readyState === WebSocket.OPEN);
 
   const shape = selectedShapeId ? shapes.get(selectedShapeId) : undefined;
+
+  // Local slider value (uncontrolled wrt server). Snaps to the shape's server-
+  // side falloff when the selection changes or the server pushes an update;
+  // outgoing changes commit only on release (onValueCommit) so we don't spam
+  // SET_SHAPE_FALLOFF during a drag.
+  const serverFalloffKey = shape ? `${shape.id}:${shape.falloffMeters}` : "";
+  const [falloffDraft, setFalloffDraft] = useState<number>(
+    shape?.falloffMeters ?? MAP_CONSTANTS.DEFAULT_FALLOFF_METERS
+  );
+  const [knownKey, setKnownKey] = useState<string>(serverFalloffKey);
+  // Sync local draft to server value during render whenever the selection or
+  // server-side falloff changes (the recommended pattern over useEffect+setState).
+  if (serverFalloffKey !== knownKey) {
+    setKnownKey(serverFalloffKey);
+    setFalloffDraft(shape?.falloffMeters ?? MAP_CONSTANTS.DEFAULT_FALLOFF_METERS);
+  }
 
   if (!shape) {
     return (
@@ -57,9 +75,7 @@ export const MapShapePanel = ({ canMutate }: MapShapePanelProps) => {
       <div className="flex items-center justify-between gap-2 border-b border-neutral-800/50 px-4 py-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-neutral-100">Zone {shape.id.slice(0, 6)}</div>
-          <div className="text-[11px] text-neutral-500">
-            {shape.type} · audible @ {shape.audibleRadiusMeters}m
-          </div>
+          <div className="text-[11px] text-neutral-500">{shape.type}</div>
         </div>
         {canMutate && (
           <div className="flex items-center gap-1">
@@ -93,6 +109,33 @@ export const MapShapePanel = ({ canMutate }: MapShapePanelProps) => {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* Edge-falloff slider — gain stays 1.0 inside the zone and fades to 0
+          across this distance past the boundary. */}
+      <div className="border-b border-neutral-800/50 px-4 py-2.5">
+        <div className="mb-1 flex items-center justify-between text-[11px]">
+          <span className="text-neutral-400">Edge falloff</span>
+          <span className="font-mono text-neutral-300">{falloffDraft}m</span>
+        </div>
+        <Slider
+          value={[falloffDraft]}
+          min={MAP_CONSTANTS.MIN_FALLOFF_METERS}
+          max={Math.max(200, MAP_CONSTANTS.MIN_FALLOFF_METERS + 1)}
+          step={1}
+          disabled={!canMutate || !isConnected}
+          onValueChange={(v) => setFalloffDraft(v[0])}
+          onValueCommit={(v) =>
+            send({
+              type: ClientActionEnum.enum.SET_SHAPE_FALLOFF,
+              shapeId: shape.id,
+              falloffMeters: v[0],
+            })
+          }
+        />
+        <div className="mt-1 text-[10px] text-neutral-500">
+          Inside the zone: full volume. Outside: fades over {falloffDraft}m.
+        </div>
       </div>
 
       {/* Uploader pinned above the queue */}

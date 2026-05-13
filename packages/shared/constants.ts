@@ -30,9 +30,12 @@ export const CHAT_CONSTANTS = {
 
 // Map-room defaults (geospatial silent disco).
 export const MAP_CONSTANTS = {
-  DEFAULT_AUDIBLE_RADIUS_METERS: 50,
-  MIN_AUDIBLE_RADIUS_METERS: 5,
-  MAX_AUDIBLE_RADIUS_METERS: 5000,
+  // Distance past the shape's edge over which audio fades from full to silent.
+  // Inside the shape always plays at gain 1.0; outside falls off linearly until
+  // it hits zero at falloffMeters beyond the nearest edge.
+  DEFAULT_FALLOFF_METERS: 25,
+  MIN_FALLOFF_METERS: 0,
+  MAX_FALLOFF_METERS: 5000,
   DEFAULT_BUFFER_CACHE_SIZE: 12,
   PROXIMITY_GAIN_RAMP_SECONDS: 0.05,
   DEFAULT_MAP_CENTER: [42.2808, -83.7430] as [number, number], // Ann Arbor, MI

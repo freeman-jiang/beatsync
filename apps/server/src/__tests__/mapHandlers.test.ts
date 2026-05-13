@@ -37,7 +37,7 @@ import {
   handleDeleteShape,
   handleSetGeoPosition,
   handleSetMapMetadata,
-  handleSetShapeAudibleRadius,
+  handleSetShapeFalloff,
   handleSetShapeGroup,
   handleSetVisibility,
   handleUpdateShape,
@@ -60,7 +60,7 @@ function makeShape(id: string, overrides: Partial<ShapeType> = {}): ShapeType {
     createdBy: "creator",
     createdAt: Date.now(),
     groupId: null,
-    audibleRadiusMeters: 50,
+    falloffMeters: 25,
     ...overrides,
   };
 }
@@ -191,19 +191,19 @@ describe("handleUpdateShape / handleDeleteShape / handleClearShapes", () => {
   });
 });
 
-describe("handleSetShapeAudibleRadius / handleSetShapeGroup", () => {
+describe("handleSetShapeFalloff / handleSetShapeGroup", () => {
   it("updates the field and broadcasts SHAPES_UPDATE", () => {
     const { room, adminWs, server } = freshMapRoom();
     room.addShape(makeShape("s1"));
     broadcasts = [];
-    void handleSetShapeAudibleRadius({
+    void handleSetShapeFalloff({
       ws: adminWs,
-      message: { type: "SET_SHAPE_AUDIBLE_RADIUS", shapeId: "s1", audibleRadiusMeters: 250 },
+      message: { type: "SET_SHAPE_FALLOFF", shapeId: "s1", falloffMeters: 120 },
       server,
     });
     let ev = lastEventOfType("SHAPES_UPDATE");
     if (ev.type !== "SHAPES_UPDATE") throw new Error("unreachable");
-    expect(ev.shapes[0].audibleRadiusMeters).toBe(250);
+    expect(ev.shapes[0].falloffMeters).toBe(120);
 
     void handleSetShapeGroup({
       ws: adminWs,

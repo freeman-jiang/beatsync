@@ -2,9 +2,15 @@
 
 import type { ShapeType } from "@beatsync/shared";
 import { describe, expect, it } from "bun:test";
-import { haversineMeters, proximityGainForShape, shapeCentroid, shapeRadiusMeters } from "@/lib/geo";
+import {
+  distanceToShapeEdgeMeters,
+  haversineMeters,
+  isInsideShape,
+  proximityGainForShape,
+  shapeCentroid,
+} from "@/lib/geo";
 
-function poly(coords: [number, number][]): ShapeType {
+function poly(coords: [number, number][], falloff = 25): ShapeType {
   return {
     id: "p1",
     type: "polygon",
@@ -12,11 +18,11 @@ function poly(coords: [number, number][]): ShapeType {
     createdBy: "c",
     createdAt: 0,
     groupId: null,
-    audibleRadiusMeters: 50,
+    falloffMeters: falloff,
   };
 }
 
-function circle(center: [number, number], radius: number, audibleRadius = 0): ShapeType {
+function circle(center: [number, number], radius: number, falloff = 25): ShapeType {
   return {
     id: "c1",
     type: "circle",
@@ -24,7 +30,7 @@ function circle(center: [number, number], radius: number, audibleRadius = 0): Sh
     createdBy: "c",
     createdAt: 0,
     groupId: null,
-    audibleRadiusMeters: audibleRadius,
+    falloffMeters: falloff,
   };
 }
 
@@ -65,27 +71,6 @@ describe("shapeCentroid", () => {
     expect(c?.lng).toBeCloseTo(1, 5);
   });
 
-  it("handles polygons specified as { lat, lng } objects", () => {
-    const s: ShapeType = {
-      id: "p2",
-      type: "polygon",
-      coordinates: [
-        [
-          { lat: 0, lng: 0 },
-          { lat: 4, lng: 0 },
-          { lat: 0, lng: 4 },
-        ],
-      ],
-      createdBy: "c",
-      createdAt: 0,
-      groupId: null,
-      audibleRadiusMeters: 50,
-    };
-    const centroid = shapeCentroid(s);
-    expect(centroid?.lat).toBeCloseTo(4 / 3, 5);
-    expect(centroid?.lng).toBeCloseTo(4 / 3, 5);
-  });
-
   it("returns undefined for unknown coordinate shapes", () => {
     const broken: ShapeType = {
       id: "x",
@@ -94,47 +79,104 @@ describe("shapeCentroid", () => {
       createdBy: "c",
       createdAt: 0,
       groupId: null,
-      audibleRadiusMeters: 50,
+      falloffMeters: 25,
     };
     expect(shapeCentroid(broken)).toBeUndefined();
   });
 });
 
-describe("shapeRadiusMeters", () => {
-  it("returns the drawn radius for circles (when larger than audibleRadiusMeters)", () => {
-    expect(shapeRadiusMeters(circle([0, 0], 200, 50))).toBe(200);
+// A small polygon centred at (0,0) — easier reasoning for the inside/outside math.
+// At the equator ~111.32km per degree of longitude → 0.001° lng ≈ 111m.
+// We construct a ~100m square around (0,0) by using lat/lng offsets of ~0.00045.
+const SQUARE_HALF_DEG = 0.00045; // ~50m
+function smallSquare(falloff = 25): ShapeType {
+  return poly(
+    [
+      [-SQUARE_HALF_DEG, -SQUARE_HALF_DEG],
+      [-SQUARE_HALF_DEG, SQUARE_HALF_DEG],
+      [SQUARE_HALF_DEG, SQUARE_HALF_DEG],
+      [SQUARE_HALF_DEG, -SQUARE_HALF_DEG],
+    ],
+    falloff
+  );
+}
+
+describe("isInsideShape", () => {
+  it("returns true at the center of a circle", () => {
+    expect(isInsideShape({ lat: 0, lng: 0 }, circle([0, 0], 50))).toBe(true);
   });
 
-  it("falls back to audibleRadiusMeters for non-circle shapes", () => {
-    expect(
-      shapeRadiusMeters(
-        poly([
-          [0, 0],
-          [0, 1],
-        ])
-      )
-    ).toBe(50);
+  it("returns true just inside the circle radius", () => {
+    // ~30m north of (0,0) — inside a 50m-radius circle
+    expect(isInsideShape({ lat: 30 / 111_320, lng: 0 }, circle([0, 0], 50))).toBe(true);
+  });
+
+  it("returns false just outside the circle radius", () => {
+    // ~70m north of (0,0) — outside a 50m-radius circle
+    expect(isInsideShape({ lat: 70 / 111_320, lng: 0 }, circle([0, 0], 50))).toBe(false);
+  });
+
+  it("returns true at the centroid of a polygon", () => {
+    expect(isInsideShape({ lat: 0, lng: 0 }, smallSquare())).toBe(true);
+  });
+
+  it("returns false outside the polygon", () => {
+    // 1 degree latitude is ~111km — clearly outside the ~100m square
+    expect(isInsideShape({ lat: 1, lng: 0 }, smallSquare())).toBe(false);
+  });
+});
+
+describe("distanceToShapeEdgeMeters", () => {
+  it("returns 0 inside a shape", () => {
+    expect(distanceToShapeEdgeMeters({ lat: 0, lng: 0 }, circle([0, 0], 50))).toBe(0);
+    expect(distanceToShapeEdgeMeters({ lat: 0, lng: 0 }, smallSquare())).toBe(0);
+  });
+
+  it("returns positive distance outside a circle equal to dist-radius", () => {
+    // ~100m from center, radius 50 → ~50m outside
+    const d = distanceToShapeEdgeMeters({ lat: 100 / 111_320, lng: 0 }, circle([0, 0], 50));
+    expect(d).toBeGreaterThan(45);
+    expect(d).toBeLessThan(55);
+  });
+
+  it("returns near-edge distance for a polygon", () => {
+    // ~50m north of the square's center; the square's edge is ~50m north of center
+    const d = distanceToShapeEdgeMeters({ lat: 100 / 111_320, lng: 0 }, smallSquare());
+    expect(d).toBeGreaterThan(40);
+    expect(d).toBeLessThan(60);
   });
 });
 
 describe("proximityGainForShape", () => {
-  it("returns 1 when listener is at the centroid", () => {
-    const s = circle([42.28, -83.74], 100);
-    expect(proximityGainForShape({ lat: 42.28, lng: -83.74 }, s)).toBeCloseTo(1, 5);
+  it("returns 1 anywhere inside the shape (circle)", () => {
+    const c = circle([0, 0], 100, 30);
+    expect(proximityGainForShape({ lat: 0, lng: 0 }, c)).toBe(1);
+    // ~50m from center, well inside the 100m-radius circle
+    expect(proximityGainForShape({ lat: 50 / 111_320, lng: 0 }, c)).toBe(1);
   });
 
-  it("returns 0 outside the audible radius", () => {
-    const s = circle([0, 0], 50);
-    // 1 degree latitude is ~111km — well outside 50m
-    expect(proximityGainForShape({ lat: 1, lng: 0 }, s)).toBe(0);
+  it("returns 1 anywhere inside the shape (polygon)", () => {
+    expect(proximityGainForShape({ lat: 0, lng: 0 }, smallSquare())).toBe(1);
   });
 
-  it("ramps linearly between centroid and radius", () => {
-    const s = circle([0, 0], 100);
-    // Move just under 50m north of (0,0)
-    const fortyMeters = { lat: 40 / 111_320, lng: 0 };
-    const gain = proximityGainForShape(fortyMeters, s);
-    expect(gain).toBeGreaterThan(0.5);
-    expect(gain).toBeLessThan(0.7);
+  it("fades linearly from 1 at the edge to 0 past falloffMeters", () => {
+    const c = circle([0, 0], 50, 50); // radius 50, falloff 50m past edge
+    // 75m from center → 25m past the edge → ~0.5
+    const gain = proximityGainForShape({ lat: 75 / 111_320, lng: 0 }, c);
+    expect(gain).toBeGreaterThan(0.4);
+    expect(gain).toBeLessThan(0.6);
+  });
+
+  it("returns 0 well past the falloff range", () => {
+    const c = circle([0, 0], 50, 25);
+    // ~200m from center, way past edge+falloff
+    expect(proximityGainForShape({ lat: 200 / 111_320, lng: 0 }, c)).toBe(0);
+  });
+
+  it("hard cutoff when falloffMeters is 0", () => {
+    const c = circle([0, 0], 50, 0);
+    expect(proximityGainForShape({ lat: 0, lng: 0 }, c)).toBe(1);
+    // 1m outside the edge — already 0
+    expect(proximityGainForShape({ lat: 51 / 111_320, lng: 0 }, c)).toBe(0);
   });
 });

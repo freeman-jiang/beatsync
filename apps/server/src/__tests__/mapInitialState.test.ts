@@ -121,7 +121,7 @@ describe("handleOpen: SHAPES_UPDATE for map rooms", () => {
       createdBy: "x",
       createdAt: 0,
       groupId: null,
-      audibleRadiusMeters: 50,
+      falloffMeters: 25,
     });
     room.addShape({
       id: "s2",
@@ -130,7 +130,7 @@ describe("handleOpen: SHAPES_UPDATE for map rooms", () => {
       createdBy: "x",
       createdAt: 0,
       groupId: null,
-      audibleRadiusMeters: 50,
+      falloffMeters: 25,
     });
 
     const ws = createMockWs({ clientId: "c1", roomId: "r1" });
@@ -152,7 +152,7 @@ describe("handleOpen: per-context resume on connect", () => {
       createdBy: "x",
       createdAt: 0,
       groupId: null,
-      audibleRadiusMeters: 50,
+      falloffMeters: 25,
     });
     room.addTrackToContext("s1", { url: "track.mp3" });
     // Pretend playback started 2 seconds ago at position 5s.

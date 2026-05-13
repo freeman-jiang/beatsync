@@ -38,7 +38,7 @@ function makeShape(id: string, overrides: Partial<ShapeType> = {}): ShapeType {
     createdBy: "creator-client",
     createdAt: Date.now(),
     groupId: null,
-    audibleRadiusMeters: 50,
+    falloffMeters: 25,
     ...overrides,
   };
 }
@@ -106,8 +106,8 @@ describe("RoomManager: shape CRUD", () => {
     ];
     expect(room.updateShapeCoordinates("s1", newCoords)).toBe(true);
     expect(room.getShape("s1")?.coordinates).toEqual(newCoords);
-    // Audible radius / group unchanged
-    expect(room.getShape("s1")?.audibleRadiusMeters).toBe(50);
+    // Falloff / group unchanged
+    expect(room.getShape("s1")?.falloffMeters).toBe(25);
   });
 
   it("updateShapeCoordinates on missing shape returns false", () => {
@@ -133,10 +133,10 @@ describe("RoomManager: shape CRUD", () => {
     expect(room.getPlaylist("main")).toBeDefined();
   });
 
-  it("setShapeAudibleRadius mutates only audibleRadius", () => {
+  it("setShapeFalloff mutates only falloffMeters", () => {
     room.addShape(makeShape("s1"));
-    expect(room.setShapeAudibleRadius("s1", 200)).toBe(true);
-    expect(room.getShape("s1")?.audibleRadiusMeters).toBe(200);
+    expect(room.setShapeFalloff("s1", 100)).toBe(true);
+    expect(room.getShape("s1")?.falloffMeters).toBe(100);
   });
 
   it("setShapeGroup mutates only groupId", () => {
@@ -262,7 +262,7 @@ describe("RoomManager: map backup round-trip", () => {
     const original = new RoomManager(ROOM_ID);
     original.setRoomType("map");
     original.setMapMetadata({ center: [1, 2], zoom: 10 });
-    original.addShape(makeShape("s1", { audibleRadiusMeters: 200, groupId: "g1" }));
+    original.addShape(makeShape("s1", { falloffMeters: 100, groupId: "g1" }));
 
     const backup = original.createBackup();
     const restored = new RoomManager(ROOM_ID);
@@ -275,7 +275,7 @@ describe("RoomManager: map backup round-trip", () => {
     expect(restored.getRoomType()).toBe("map");
     expect(restored.getMapMetadata()).toEqual({ center: [1, 2], zoom: 10 });
     const restoredShape = restored.getShape("s1");
-    expect(restoredShape?.audibleRadiusMeters).toBe(200);
+    expect(restoredShape?.falloffMeters).toBe(100);
     expect(restoredShape?.groupId).toBe("g1");
   });
 });

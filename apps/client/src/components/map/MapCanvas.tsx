@@ -6,6 +6,7 @@
 // position updates) are sent via WebSocket using sendWSRequest.
 
 import { useClientId } from "@/hooks/useClientId";
+import { getShapeCircle, getShapePolygonRing, outwardOffsetPolygonRing } from "@/lib/geo";
 import { useGlobalStore } from "@/store/global";
 import { useMapStore } from "@/store/map";
 import { useRoomStore } from "@/store/room";
@@ -40,6 +41,9 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
   const drawControlRef = useRef<L.Control.Draw | null>(null);
   // Map shape.id → the Leaflet layer that renders it.
   const shapeLayersRef = useRef<Map<string, L.Layer>>(new Map());
+  // Map shape.id → the dashed "halo" layer that visualizes that shape's
+  // falloff range. Only present for the currently-selected shape.
+  const haloLayersRef = useRef<Map<string, L.Path>>(new Map());
   // Map clientId → marker layer for other users.
   const otherMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   // Single marker for the current client.
@@ -159,7 +163,7 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
             createdBy: myClientId ?? "anonymous",
             createdAt: Date.now(),
             groupId: null,
-            audibleRadiusMeters: 50,
+            falloffMeters: 25,
           },
         },
       });
@@ -316,6 +320,67 @@ export const MapCanvas = ({ canMutate }: MapCanvasProps) => {
           weight: isSelected ? 3 : 2,
           fillOpacity: isSelected ? 0.25 : 0.15,
         });
+      }
+    }
+  }, [selectedShapeId, shapes]);
+
+  // ── Falloff halos for every shape ───────────────────────────────
+  // Visualizes each shape's audio falloff as a dashed outline at the falloff
+  // distance past the shape's edge. The selected shape's halo uses the same
+  // yellow accent as its outline; others use the green accent. Halos are
+  // non-interactive so clicks still pass through to the shape underneath.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const haloStyle = (isSelected: boolean): L.PathOptions => ({
+      color: isSelected ? "#fde047" : "#22c55e",
+      weight: 1.5,
+      opacity: isSelected ? 0.9 : 0.55,
+      fillColor: isSelected ? "#fde047" : "#22c55e",
+      fillOpacity: isSelected ? 0.06 : 0.03,
+      dashArray: "4 4",
+      interactive: false,
+    });
+
+    const seen = new Set<string>();
+
+    for (const shape of shapes.values()) {
+      if (shape.falloffMeters <= 0) continue; // hard cutoff — nothing to draw
+      const isSelected = shape.id === selectedShapeId;
+      const style = haloStyle(isSelected);
+
+      const circle = getShapeCircle(shape);
+      const ring = getShapePolygonRing(shape);
+      let halo: L.Path | undefined;
+      if (circle) {
+        halo = L.circle([circle.center.lat, circle.center.lng], {
+          radius: circle.radius + shape.falloffMeters,
+          ...style,
+        });
+      } else if (ring) {
+        const outer = outwardOffsetPolygonRing(ring, shape.falloffMeters);
+        halo = L.polygon(
+          outer.map((p) => [p.lat, p.lng] as L.LatLngTuple),
+          style
+        );
+      }
+      if (!halo) continue;
+
+      // Replace the prior halo wholesale — simpler than trying to mutate
+      // geometry + style in place across all shape types.
+      const existing = haloLayersRef.current.get(shape.id);
+      if (existing) map.removeLayer(existing);
+      halo.addTo(map);
+      haloLayersRef.current.set(shape.id, halo);
+      seen.add(shape.id);
+    }
+
+    // Drop halos whose shape was removed or whose falloff went to 0.
+    for (const [id, halo] of haloLayersRef.current.entries()) {
+      if (!seen.has(id)) {
+        map.removeLayer(halo);
+        haloLayersRef.current.delete(id);
       }
     }
   }, [selectedShapeId, shapes]);

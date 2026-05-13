@@ -1569,10 +1569,10 @@ export class RoomManager {
     }
   }
 
-  setShapeAudibleRadius(shapeId: string, audibleRadiusMeters: number): boolean {
+  setShapeFalloff(shapeId: string, falloffMeters: number): boolean {
     const existing = this.shapes.get(shapeId);
     if (!existing) return false;
-    this.shapes.set(shapeId, { ...existing, audibleRadiusMeters });
+    this.shapes.set(shapeId, { ...existing, falloffMeters });
     return true;
   }
 

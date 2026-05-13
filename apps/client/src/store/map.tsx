@@ -37,8 +37,8 @@ interface MapStateValues {
   ownPosition?: GeoPositionType;
   locationMode: LocationMode;
 
-  /** Global default audible radius (per-shape can override via shape.audibleRadiusMeters). */
-  audibleRadiusMeters: number;
+  /** Global default falloff distance (per-shape can override via shape.falloffMeters). */
+  defaultFalloffMeters: number;
 
   /** Which shape is currently selected (drives the per-shape playlist panel). */
   selectedShapeId: string | null;
@@ -69,7 +69,7 @@ const initialState: MapStateValues = {
   audioChains: new Map(),
   ownPosition: undefined,
   locationMode: "manual",
-  audibleRadiusMeters: 500,
+  defaultFalloffMeters: 25,
   selectedShapeId: null,
 };
 

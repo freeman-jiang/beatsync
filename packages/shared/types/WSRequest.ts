@@ -46,7 +46,7 @@ export const ClientActionEnum = z.enum([
   "UPDATE_SHAPE",
   "DELETE_SHAPE",
   "CLEAR_SHAPES",
-  "SET_SHAPE_AUDIBLE_RADIUS",
+  "SET_SHAPE_FALLOFF",
   "SET_SHAPE_GROUP",
   "SET_MAP_METADATA",
   "SET_GEO_POSITION", // Client GPS update
@@ -245,15 +245,12 @@ export const ClearShapesSchema = z.object({
 });
 export type ClearShapesType = z.infer<typeof ClearShapesSchema>;
 
-export const SetShapeAudibleRadiusSchema = z.object({
-  type: z.literal(ClientActionEnum.enum.SET_SHAPE_AUDIBLE_RADIUS),
+export const SetShapeFalloffSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_SHAPE_FALLOFF),
   shapeId: z.string(),
-  audibleRadiusMeters: z
-    .number()
-    .min(MAP_CONSTANTS.MIN_AUDIBLE_RADIUS_METERS)
-    .max(MAP_CONSTANTS.MAX_AUDIBLE_RADIUS_METERS),
+  falloffMeters: z.number().min(MAP_CONSTANTS.MIN_FALLOFF_METERS).max(MAP_CONSTANTS.MAX_FALLOFF_METERS),
 });
-export type SetShapeAudibleRadiusType = z.infer<typeof SetShapeAudibleRadiusSchema>;
+export type SetShapeFalloffType = z.infer<typeof SetShapeFalloffSchema>;
 
 export const SetShapeGroupSchema = z.object({
   type: z.literal(ClientActionEnum.enum.SET_SHAPE_GROUP),
@@ -312,7 +309,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   UpdateShapeSchema,
   DeleteShapeSchema,
   ClearShapesSchema,
-  SetShapeAudibleRadiusSchema,
+  SetShapeFalloffSchema,
   SetShapeGroupSchema,
   SetMapMetadataSchema,
   SetGeoPositionSchema,

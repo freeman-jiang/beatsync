@@ -29,7 +29,7 @@ import {
   handleDeleteShape,
   handleSetGeoPosition,
   handleSetMapMetadata,
-  handleSetShapeAudibleRadius,
+  handleSetShapeFalloff,
   handleSetShapeGroup,
   handleSetVisibility,
   handleUpdateShape,
@@ -171,9 +171,9 @@ export const WS_REGISTRY: WebsocketRegistry = {
     handle: handleClearShapes,
     description: "Remove every shape (and matching playlist context)",
   },
-  [ClientActionEnum.enum.SET_SHAPE_AUDIBLE_RADIUS]: {
-    handle: handleSetShapeAudibleRadius,
-    description: "Override the default audible radius for a shape",
+  [ClientActionEnum.enum.SET_SHAPE_FALLOFF]: {
+    handle: handleSetShapeFalloff,
+    description: "Set the edge-falloff distance (meters past the shape boundary at which gain hits 0)",
   },
   [ClientActionEnum.enum.SET_SHAPE_GROUP]: {
     handle: handleSetShapeGroup,
