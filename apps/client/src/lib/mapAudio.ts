@@ -391,12 +391,19 @@ function getDebugInfo(): ShapePlaybackDebug[] {
   return out;
 }
 
+/** Snapshot of every shape id with an active audio chain. Used by the React
+ *  layer to detect shapes that disappeared from the server and tear them down. */
+function knownShapeIds(): string[] {
+  return Array.from(chains.keys());
+}
+
 export const mapAudio = {
   loadAudioForShape,
   playShape,
   pauseShape,
   setProximityGain,
   unloadShape,
+  knownShapeIds,
   reset,
   getDebugInfo,
 };

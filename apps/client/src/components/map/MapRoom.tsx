@@ -92,6 +92,17 @@ export const MapRoom = ({ roomId }: MapRoomProps) => {
     useMapStore.getState().setProximityGains(nextGains);
   }, [ownPosition, shapes]);
 
+  // Tear down audio chains for shapes that have been deleted. Without this,
+  // mapAudio's chain map keeps the AudioBufferSourceNode running even after
+  // the server removed the shape (and its playlist context) — so a deleted
+  // zone would keep playing at whatever gain it had at the moment of deletion.
+  useEffect(() => {
+    const liveIds = new Set(shapes.keys());
+    for (const knownId of mapAudio.knownShapeIds()) {
+      if (!liveIds.has(knownId)) mapAudio.unloadShape(knownId);
+    }
+  }, [shapes]);
+
   // Autoplay-policy unlock: browsers keep the AudioContext suspended until a real
   // user gesture. A late-joining map-room visitor receives a unicast resume from
   // the server *before* any interaction — so source.start() schedules silently.
