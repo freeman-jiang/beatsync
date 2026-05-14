@@ -143,7 +143,7 @@ export const MapRoom = ({ roomId }: MapRoomProps) => {
         >
           {/* Desktop / wide layout — Left | (Map stacked over Playlist) | Right */}
           <div className="hidden lg:flex lg:flex-1 lg:overflow-hidden min-h-0">
-            <Left className="flex" hideUploader />
+            <Left className="flex" hideUploader roomLabel="HereHear room" />
 
             <div className="flex flex-1 flex-col min-w-0 min-h-0">
               <div className="relative flex-[2] min-h-0">

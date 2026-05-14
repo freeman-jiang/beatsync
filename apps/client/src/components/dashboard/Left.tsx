@@ -19,9 +19,12 @@ interface LeftProps {
   /** When true, omit the bottom audio uploader (map rooms move upload to each
    *  shape's playlist column). Tips section still renders. */
   hideUploader?: boolean;
+  /** Override the room header label. When set, the `#` icon is hidden and the
+   *  label renders as `{roomLabel} {roomId}` (e.g. map rooms use "HereHear room"). */
+  roomLabel?: string;
 }
 
-export const Left = ({ className, hideUploader = false }: LeftProps) => {
+export const Left = ({ className, hideUploader = false, roomLabel }: LeftProps) => {
   const roomId = useRoomStore((state) => state.roomId);
   const clockOffset = useGlobalStore((state) => state.offsetEstimate);
   const roundTripEstimate = useGlobalStore((state) => state.roundTripEstimate);
@@ -49,8 +52,16 @@ export const Left = ({ className, hideUploader = false }: LeftProps) => {
       <motion.div className="px-3.5 space-y-2.5 py-2 mt-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 font-medium">
-            <Hash size={18} />
-            <span>Room {roomId}</span>
+            {roomLabel ? (
+              <span>
+                {roomLabel} {roomId}
+              </span>
+            ) : (
+              <>
+                <Hash size={18} />
+                <span>Room {roomId}</span>
+              </>
+            )}
           </div>
 
           {/* QR Code Dialog */}
