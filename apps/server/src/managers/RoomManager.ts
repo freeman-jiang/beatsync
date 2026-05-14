@@ -913,6 +913,46 @@ export class RoomManager {
   }
 
   syncClient(ws: ServerWebSocket<WSData>): void {
+    const now = epochNow();
+
+    sendUnicast({
+      ws,
+      message: {
+        type: "SCHEDULED_ACTION",
+        serverTimeToExecute: now,
+        scheduledAction: {
+          type: "GLOBAL_VOLUME_CONFIG",
+          volume: this.globalVolume,
+          rampTime: 0.1,
+        },
+      },
+    });
+
+    sendUnicast({
+      ws,
+      message: {
+        type: "SCHEDULED_ACTION",
+        serverTimeToExecute: now,
+        scheduledAction: {
+          type: "METRONOME_CONFIG",
+          enabled: this.isMetronomeEnabled,
+        },
+      },
+    });
+
+    sendUnicast({
+      ws,
+      message: {
+        type: "SCHEDULED_ACTION",
+        serverTimeToExecute: now,
+        scheduledAction: {
+          type: "LOW_PASS_CONFIG",
+          freq: this.lowPassFreq,
+          rampTime: 0.05,
+        },
+      },
+    });
+
     // A client has joined late, and needs to sync with the room
     // Predict where the playback state will be after the dynamic scheduling delay
     // And make client play at that position then
@@ -924,7 +964,6 @@ export class RoomManager {
 
     const serverTimeWhenPlaybackStarted = this.playbackState.serverTimeToExecute;
     const trackPositionSecondsWhenPlaybackStarted = this.playbackState.trackPositionSeconds;
-    const now = epochNow();
 
     // Use dynamic scheduling based on max client RTT
     const serverTimeToExecute = this.getScheduledExecutionTime({

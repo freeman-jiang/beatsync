@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { throttle } from "throttle-debounce";
 import { Slider } from "../ui/slider";
+import { Switch } from "../ui/switch";
 
 interface GlobalVolumeControlProps {
   className?: string;
@@ -16,6 +17,8 @@ interface GlobalVolumeControlProps {
 export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolumeControlProps) => {
   const canMutate = useCanMutate();
   const globalVolume = useGlobalStore((state) => state.globalVolume);
+  const syncVolume = useGlobalStore((state) => state.syncVolume);
+  const setSyncVolume = useGlobalStore((state) => state.setSyncVolume);
   const sendGlobalVolumeUpdate = useGlobalStore((state) => state.sendGlobalVolumeUpdate);
 
   // Local state for optimistic UI updates
@@ -155,6 +158,14 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
               className={cn("flex-1", !canMutate && "opacity-50")}
             />
             <div className="text-xs text-neutral-400 min-w-[3rem] text-right">{Math.round(displayVolume * 100)}%</div>
+            <div className="flex items-center gap-1.5 ml-1">
+              <span className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight select-none">Sync</span>
+              <Switch
+                checked={syncVolume}
+                onCheckedChange={setSyncVolume}
+                className="data-[state=checked]:bg-primary-500 [&_[data-slot=switch-thumb]]:bg-white scale-75"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -196,9 +207,14 @@ export const GlobalVolumeControl = ({ className, isMobile = false }: GlobalVolum
           className={cn("w-full", !canMutate && "opacity-50")}
         />
       </div>
-      {/* <div className="text-xs text-neutral-400 min-w-[2.5rem]">
-        {Math.round(isDragging ? localVolume : globalVolume * 100)}%
-      </div> */}
+      <div className="flex items-center gap-2 ml-1">
+        <span className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight select-none">Sync</span>
+        <Switch
+          checked={syncVolume}
+          onCheckedChange={setSyncVolume}
+          className="data-[state=checked]:bg-primary-500 [&_[data-slot=switch-thumb]]:bg-white scale-75"
+        />
+      </div>
     </motion.div>
   );
 };
