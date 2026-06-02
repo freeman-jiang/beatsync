@@ -123,9 +123,8 @@ export function InlineSearch() {
     // Show checkmark animation
     setShowCheckmark(true);
 
-    // Dismiss search results immediately and clear input
+    // Dismiss search results immediately but keep input text
     setShowResults(false);
-    reset(); // Clear the form input
 
     // Hide checkmark after 2 seconds
     setTimeout(() => {
@@ -136,6 +135,9 @@ export function InlineSearch() {
   const handleFocus = () => {
     if (!canMutate) return;
     setIsFocused(true);
+    if (watchedQuery && watchedQuery.trim() !== "") {
+      setShowResults(true);
+    }
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
@@ -273,6 +275,24 @@ export function InlineSearch() {
                 >
                   <ArrowDown className="w-5 h-5 text-green-500" />
                 </motion.div>
+              ) : watchedQuery ? (
+                <motion.button
+                  key="clear"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    reset();
+                    setShowResults(false);
+                  }}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="flex items-center justify-center p-1 rounded-full hover:bg-white/10 text-neutral-400 hover:text-white pointer-events-auto transition-colors animate-in fade-in zoom-in duration-200"
+                >
+                  <X className="size-4" />
+                </motion.button>
               ) : (
                 <motion.div
                   key="shortcut"
