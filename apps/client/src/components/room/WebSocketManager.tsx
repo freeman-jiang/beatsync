@@ -60,6 +60,8 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   const setPlaybackControlsPermissions = useGlobalStore((state) => state.setPlaybackControlsPermissions);
   const setActiveStreamJobs = useGlobalStore((state) => state.setActiveStreamJobs);
   const setMessages = useChatStore((state) => state.setMessages);
+  const deleteMessage = useChatStore((state) => state.deleteMessage);
+  const setIsRoomPrivate = useChatStore((state) => state.setIsRoomPrivate);
   const handleLoadAudioSource = useGlobalStore((state) => state.handleLoadAudioSource);
 
   // Use the NTP heartbeat hook
@@ -91,7 +93,9 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   const creatorParam = creatorSecret ? `&creator=${encodeURIComponent(creatorSecret)}` : "";
 
   const createConnection = () => {
-    const SOCKET_URL = `${getWsUrl()}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}${creatorParam}`;
+    const password = typeof window !== "undefined" ? sessionStorage.getItem(`room-password-${roomId}`) : null;
+    const passwordParam = password ? `&password=${encodeURIComponent(password)}` : "";
+    const SOCKET_URL = `${getWsUrl()}?roomId=${roomId}&username=${username}&clientId=${clientId}${adminParam}${creatorParam}${passwordParam}`;
     console.log("Creating new WS connection to", SOCKET_URL);
 
     // Clear previous connection if it exists
@@ -183,6 +187,10 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
           setMessages(event.messages, event.isFullSync, event.newestId);
         } else if (event.type === "LOAD_AUDIO_SOURCE") {
           handleLoadAudioSource(event);
+        } else if (event.type === "MESSAGE_DELETED") {
+          deleteMessage(event.messageId);
+        } else if (event.type === "ROOM_PRIVACY_CHANGED") {
+          setIsRoomPrivate(event.isPrivate);
         }
       } else if (response.type === "SCHEDULED_ACTION") {
         // handle scheduling action

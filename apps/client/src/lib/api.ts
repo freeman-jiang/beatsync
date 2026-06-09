@@ -1,8 +1,10 @@
 import {
+  CheckRoomPasswordResponseType,
   DiscoverRoomsType,
   GetActiveRoomsType,
   GetDefaultAudioType,
   GetUploadUrlType,
+  RoomInfoType,
   UploadCompleteResponseType,
   UploadCompleteType,
   UploadUrlResponseType,
@@ -108,4 +110,20 @@ export async function fetchDiscoverRooms() {
   const response = await fetch(`${getApiUrl()}/discover`);
   const data: DiscoverRoomsType = await response.json();
   return data;
+}
+
+export async function fetchRoomInfo(roomId: string): Promise<RoomInfoType> {
+  const response = await fetch(`${getApiUrl()}/room-info?roomId=${encodeURIComponent(roomId)}`);
+  if (!response.ok) throw new Error("Failed to fetch room info");
+  return response.json() as Promise<RoomInfoType>;
+}
+
+export async function checkRoomPassword(roomId: string, password: string): Promise<CheckRoomPasswordResponseType> {
+  const response = await fetch(`${getApiUrl()}/check-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roomId, password }),
+  });
+  if (!response.ok) throw new Error("Failed to check password");
+  return response.json() as Promise<CheckRoomPasswordResponseType>;
 }

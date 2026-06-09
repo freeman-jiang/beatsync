@@ -61,11 +61,31 @@ export const RoomSchema = z.object({
   clientCount: z.number(),
   audioSourceCount: z.number(),
   hasSpatialAudio: z.boolean(),
+  isPrivate: z.boolean(),
 });
 export type RoomType = z.infer<typeof RoomSchema>;
 
 export const GetActiveRoomsSchema = z.number();
 export type GetActiveRoomsType = z.infer<typeof GetActiveRoomsSchema>;
+
+// Room info – used by client to check privacy before WS connect
+export const RoomInfoSchema = z.object({
+  roomId: z.string(),
+  isPrivate: z.boolean(),
+});
+export type RoomInfoType = z.infer<typeof RoomInfoSchema>;
+
+// Check password request/response
+export const CheckRoomPasswordSchema = z.object({
+  roomId: z.string(),
+  password: z.string().regex(/^\d{6}$/, "Password must be exactly 6 digits"),
+});
+export type CheckRoomPasswordRequestType = z.infer<typeof CheckRoomPasswordSchema>;
+
+export const CheckRoomPasswordResponseSchema = z.object({
+  success: z.boolean(),
+});
+export type CheckRoomPasswordResponseType = z.infer<typeof CheckRoomPasswordResponseSchema>;
 
 export const DiscoveryRoomSchema = z.object({
   roomId: z.string(),

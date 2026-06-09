@@ -5,6 +5,7 @@ import { SOCIAL_LINKS } from "@/constants";
 import { fetchActiveRooms } from "@/lib/api";
 import { generateName } from "@/lib/randomNames";
 import { validateFullRoomId, validatePartialRoomId } from "@/lib/room";
+import { cn } from "@/lib/utils";
 import { useRoomStore } from "@/store/room";
 import { useQuery } from "@tanstack/react-query";
 import { PlusCircle } from "lucide-react";
@@ -24,6 +25,11 @@ interface JoinFormData {
 export const Join = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [makePrivate, setMakePrivate] = useState(false);
+  const [createPin, setCreatePin] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+
   const setUsername = useRoomStore((state) => state.setUsername);
   const username = useRoomStore((state) => state.username);
 
@@ -68,11 +74,30 @@ export const Join = () => {
     router.push(`/room/${data.roomId}`);
   };
 
-  const handleCreateRoom = () => {
+  const handleOpenCreateModal = () => {
+    setShowCreateModal(true);
+    setMakePrivate(false);
+    setCreatePin("");
+    setCreateError(null);
+  };
+
+  const handleConfirmCreate = () => {
+    if (makePrivate) {
+      if (!/^\d{6}$/.test(createPin)) {
+        setCreateError("PIN must be exactly 6 digits");
+        return;
+      }
+    }
+
     setIsCreating(true);
 
     // Generate a random 6-digit room ID
     const newRoomId = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (makePrivate) {
+      sessionStorage.setItem(`room-password-${newRoomId}`, createPin);
+      sessionStorage.setItem(`password-verified-${newRoomId}`, "true");
+    }
 
     router.push(`/room/${newRoomId}`);
   };
@@ -242,7 +267,7 @@ export const Join = () => {
                 }}
                 whileTap={{ scale: 0.985 }}
                 transition={{ duration: 0.3 }}
-                onClick={handleCreateRoom}
+                onClick={handleOpenCreateModal}
                 disabled={isJoining || isCreating}
               >
                 {isCreating ? (
@@ -340,6 +365,112 @@ export const Join = () => {
         {/* Active Rooms Section */}
         <ActiveRooms />
       </div>
+
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="relative w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl shadow-black/80"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <PlusCircle className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold text-white">Create a Sync Room</h3>
+              </div>
+              <p className="text-xs text-neutral-400 mb-6">
+                Generate a new shared listening space. You can make it private to prevent random users from joining.
+              </p>
+
+              {/* Toggle Switch */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-neutral-800/50 border border-neutral-800 mb-4">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-white">Private Room</span>
+                  <span className="text-[11px] text-neutral-500">Require a 6-digit PIN to join</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMakePrivate(!makePrivate);
+                    setCreateError(null);
+                  }}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 outline-none cursor-pointer",
+                    makePrivate ? "bg-primary" : "bg-neutral-700"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-neutral-950 transition-transform duration-200",
+                      makePrivate ? "translate-x-6" : "translate-x-1"
+                    )}
+                  />
+                </button>
+              </div>
+
+              {/* PIN Input field */}
+              <AnimatePresence>
+                {makePrivate && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pb-4">
+                      <label htmlFor="create-pin-input" className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                        6-Digit Room PIN
+                      </label>
+                      <input
+                        id="create-pin-input"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="e.g. 123456"
+                        value={createPin}
+                        onChange={(e) => {
+                          setCreatePin(e.target.value.replace(/\D/g, "").slice(0, 6));
+                          setCreateError(null);
+                        }}
+                        className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm text-white font-mono tracking-widest placeholder:font-sans placeholder:tracking-normal outline-none focus:border-primary/60 transition-colors"
+                      />
+                      {createError && <p className="mt-1.5 text-[11px] text-red-400">{createError}</p>}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Buttons */}
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmCreate}
+                  disabled={isCreating}
+                  className="flex-1 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold py-2.5 transition-all cursor-pointer flex items-center justify-center"
+                >
+                  {isCreating ? "Creating..." : "Create Room"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={isCreating}
+                  className="flex-1 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-semibold py-2.5 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

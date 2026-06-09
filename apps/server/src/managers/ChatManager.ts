@@ -32,6 +32,7 @@ export class ChatManager {
       timestamp: epochNow(),
       countryCode: client.location?.countryCode,
       isCreator: client.isCreator,
+      isDeleted: false,
     };
 
     this.chatMessages.push(message);
@@ -77,5 +78,20 @@ export class ChatManager {
     if (nextMessageId > 0) {
       this.nextMessageId = nextMessageId;
     }
+  }
+
+  /**
+   * Unsend (soft-delete) a message by ID.
+   * Only the original sender can unsend their own message.
+   * Returns the updated message, or undefined if not found / not authorized.
+   */
+  unsendMessage(messageId: number, clientId: string): ChatMessageType | undefined {
+    const msg = this.chatMessages.find((m) => m.id === messageId);
+    if (!msg) return undefined;
+    if (msg.clientId !== clientId) return undefined;
+
+    msg.isDeleted = true;
+    msg.text = "";
+    return msg;
   }
 }
