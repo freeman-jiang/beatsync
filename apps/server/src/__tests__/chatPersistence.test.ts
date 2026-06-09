@@ -118,6 +118,7 @@ describe("Chat Persistence", () => {
         text: `Message ${i}`,
         timestamp: Date.now() + i,
         isCreator: false,
+        isDeleted: false,
       });
     }
 

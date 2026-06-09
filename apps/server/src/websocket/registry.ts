@@ -7,7 +7,9 @@ import { handleSendChatMessage } from "@/websocket/handlers/handleSendChatMessag
 import { handleSendIp } from "@/websocket/handlers/handleSendIp";
 import { handleSetAdmin } from "@/websocket/handlers/handleSetAdmin";
 import { handleSetPlaybackControls } from "@/websocket/handlers/handleSetPlaybackControls";
+import { handleSetRoomPassword } from "@/websocket/handlers/handleSetRoomPassword";
 import { handleStreamMusic } from "@/websocket/handlers/handleStreamMusic";
+import { handleUnsendMessage } from "@/websocket/handlers/handleUnsendMessage";
 import { handleMoveClient } from "@/websocket/handlers/moveClient";
 import { handleNTPRequest } from "@/websocket/handlers/ntpRequest";
 import { handlePause } from "@/websocket/handlers/pause";
@@ -127,5 +129,13 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_LOW_PASS_FREQ]: {
     handle: handleSetLowPassFreq,
     description: "Set low-pass filter cutoff frequency for all clients",
+  },
+  [ClientActionEnum.enum.SET_ROOM_PASSWORD]: {
+    handle: handleSetRoomPassword,
+    description: "Host sets or clears a 6-digit room password (admin only)",
+  },
+  [ClientActionEnum.enum.UNSEND_MESSAGE]: {
+    handle: handleUnsendMessage,
+    description: "Remove a sent chat message (sender only)",
   },
 };

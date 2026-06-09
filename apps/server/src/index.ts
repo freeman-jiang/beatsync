@@ -1,10 +1,12 @@
 import { ADMIN_SECRET, IS_DEMO_MODE } from "@/demo";
 import { BackupManager } from "@/managers/BackupManager";
 import { getActiveRooms } from "@/routes/active";
+import { handleCheckPassword } from "@/routes/checkPassword";
 import { handleGetDefaultAudio } from "@/routes/default";
 import { handleServeAudio } from "@/routes/demoAudio";
 import { handleDiscover } from "@/routes/discover";
 import { handleRoot } from "@/routes/root";
+import { handleRoomInfo } from "@/routes/roomInfo";
 import { handleStats } from "@/routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "@/routes/upload";
 import { handleWebSocketUpgrade } from "@/routes/websocket";
@@ -35,7 +37,7 @@ const server = Bun.serve<WSData>({
           return handleRoot(req);
 
         case "/ws":
-          return handleWebSocketUpgrade(req, server);
+          return await handleWebSocketUpgrade(req, server);
 
         case "/upload/get-presigned-url":
           if (IS_DEMO_MODE) return errorResponse("Uploads disabled in demo mode", 403);
@@ -56,6 +58,13 @@ const server = Bun.serve<WSData>({
 
         case "/discover":
           return handleDiscover(req);
+
+        case "/room-info":
+          return handleRoomInfo(req);
+
+        case "/check-password":
+          if (req.method !== "POST") return errorResponse("Method not allowed", 405);
+          return handleCheckPassword(req);
 
         default:
           return errorResponse("Not found", 404);

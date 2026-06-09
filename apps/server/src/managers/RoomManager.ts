@@ -24,6 +24,7 @@ import { ChatMessageSchema, ClientDataSchema, epochNow, LOW_PASS_CONSTANTS, NTP_
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 interface RoomData {
@@ -122,6 +123,9 @@ export class RoomManager {
   private activeStreamJobs = new Map<string, { status: string }>();
   private chatManager: ChatManager;
   private serverRef?: BunServer;
+  // Room privacy / password
+  private passwordHash: string | null = null;
+  private isPrivate = false;
 
   // Audio loading state for synchronized playback
   private pendingPlay?: PendingPlayState;
@@ -528,6 +532,7 @@ export class RoomManager {
       clientCount: this.getClients().length,
       audioSourceCount: this.audioSources.length,
       hasSpatialAudio: !!this.intervalId,
+      isPrivate: this.isPrivate,
     };
   }
 
@@ -565,6 +570,40 @@ export class RoomManager {
     }
 
     return this.chatManager.addMessage({ client, text });
+  }
+
+  /**
+   * Unsend a chat message
+   */
+  unsendChatMessage(messageId: number, clientId: string): ChatMessageType | undefined {
+    return this.chatManager.unsendMessage(messageId, clientId);
+  }
+
+  /**
+   * Set or clear the room password.
+   * Pass null to disable the password (make room public).
+   */
+  async setRoomPassword(password: string | null): Promise<void> {
+    if (password === null) {
+      this.passwordHash = null;
+      this.isPrivate = false;
+    } else {
+      this.passwordHash = await bcrypt.hash(password, 10);
+      this.isPrivate = true;
+    }
+  }
+
+  /**
+   * Verify a plaintext password against the stored hash.
+   * Always returns true if the room is not private.
+   */
+  async checkPassword(password: string): Promise<boolean> {
+    if (!this.isPrivate || !this.passwordHash) return true;
+    return bcrypt.compare(password, this.passwordHash);
+  }
+
+  getIsPrivate(): boolean {
+    return this.isPrivate;
   }
 
   /**

@@ -35,6 +35,8 @@ export const ClientActionEnum = z.enum([
   "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
+  "SET_ROOM_PASSWORD", // Host sets or clears a 6-digit room password
+  "UNSEND_MESSAGE", // Sender removes one of their own messages
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -161,6 +163,20 @@ export const SetLowPassFreqSchema = z.object({
   freq: z.number().min(LOW_PASS_CONSTANTS.MIN_FREQ).max(LOW_PASS_CONSTANTS.MAX_FREQ),
 });
 
+export const SetRoomPasswordSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SET_ROOM_PASSWORD),
+  // null means disable the password; a 6-digit string enables it
+  password: z
+    .string()
+    .regex(/^\d{6}$/, "Password must be exactly 6 digits")
+    .nullable(),
+});
+
+export const UnsendMessageSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.UNSEND_MESSAGE),
+  messageId: z.number().int().positive(),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -184,6 +200,8 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ReorderAudioSourcesSchema,
   SetMetronomeSchema,
   SetLowPassFreqSchema,
+  SetRoomPasswordSchema,
+  UnsendMessageSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

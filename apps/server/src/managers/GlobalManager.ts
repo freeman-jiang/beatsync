@@ -140,6 +140,9 @@ export class GlobalManager {
         // Room must have active connections
         if (!room.hasActiveConnections()) return false;
 
+        // Private rooms should be hidden from discovery
+        if (room.getIsPrivate()) return false;
+
         const playbackState = room.getPlaybackState();
         // Room must be playing
         if (playbackState.type !== "playing") return false;

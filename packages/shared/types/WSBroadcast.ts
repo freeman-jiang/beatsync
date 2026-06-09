@@ -45,6 +45,20 @@ const ChatUpdateSchema = z.object({
 });
 export type ChatUpdateType = z.infer<typeof ChatUpdateSchema>;
 
+// Message deleted event
+const MessageDeletedSchema = z.object({
+  type: z.literal("MESSAGE_DELETED"),
+  messageId: z.number(),
+});
+export type MessageDeletedType = z.infer<typeof MessageDeletedSchema>;
+
+// Room privacy changed event
+const RoomPrivacyChangedSchema = z.object({
+  type: z.literal("ROOM_PRIVACY_CHANGED"),
+  isPrivate: z.boolean(),
+});
+export type RoomPrivacyChangedType = z.infer<typeof RoomPrivacyChangedSchema>;
+
 // Load audio source update event
 const LoadAudioSourceSchema = z.object({
   type: z.literal("LOAD_AUDIO_SOURCE"),
@@ -60,6 +74,8 @@ const RoomEventSchema = z.object({
     SetPlaybackControlsSchema,
     ChatUpdateSchema,
     LoadAudioSourceSchema,
+    MessageDeletedSchema,
+    RoomPrivacyChangedSchema,
   ]),
 });
 
