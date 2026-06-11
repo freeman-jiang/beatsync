@@ -1073,13 +1073,6 @@ export class RoomManager {
         });
 
         // Send pure spatial gain - client will apply global volume
-        console.log(
-          `Client ${client.username} at (${client.position.x}, ${
-            client.position.y
-          }) - spatial gain: ${spatialGain.toFixed(
-            2
-          )} (global volume ${this.globalVolume.toFixed(2)} applied on client)`
-        );
         return [
           client.clientId,
           {
