@@ -54,12 +54,12 @@ export class BackupManager {
 
       if (playbackStateIsValidTrack) {
         room.restorePlaybackState(roomData.playbackState);
-      } else {
-        // Playing track no longer exists - reset to paused state
+      } else if (roomData.playbackState.type === "playing") {
+        // Playing track no longer exists in R2 — fall back to the default paused state
         console.log(`Room ${roomId}: Playing track no longer exists, resetting playback to paused`);
-
-        // Don't restore any playback state
       }
+      // Paused/idle rooms with a missing or unset track lose nothing — stay silent
+      // so restore logs don't overstate damage after a deploy.
 
       // Restore chat history if it exists (for backward compatibility with old backups)
       if (roomData.chat) {
