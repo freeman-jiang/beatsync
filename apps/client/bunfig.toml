@@ -1,0 +1,4 @@
+[test]
+# happy-dom must register browser globals before any browser-dependent module
+# loads; test-setup adds Testing Library cleanup between tests
+preload = ["./happydom.ts", "./test-setup.ts"]

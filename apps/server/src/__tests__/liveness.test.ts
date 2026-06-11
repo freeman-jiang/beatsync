@@ -55,10 +55,11 @@ describe("Client Liveness (ping/pong)", () => {
   });
 
   it("never disconnects a client that answers pings, even when silent for minutes", async () => {
-    // This is the backgrounded-phone case: JS timers are throttled (no NTP),
-    // but onmessage still runs and answers PINGs. Before the liveness redesign
-    // the server kicked these clients after 3.75s of NTP silence, causing a
-    // permanent reconnect churn loop.
+    // The minimal liveness contract: a PONG with no accompanying NTP traffic must
+    // keep the client alive. Real clients piggyback an NTP probe alongside each
+    // PONG, which would mask a regression that re-couples survival to NTP recency
+    // (the pre-redesign behavior whose 3.75s staleness kicks caused a permanent
+    // reconnect churn loop) — so this test deliberately sends pongs only.
     const roomId = "background-room";
     const room = globalManager.getOrCreateRoom(roomId);
     const ws = createMockWs({ clientId: "backgrounded", roomId });
