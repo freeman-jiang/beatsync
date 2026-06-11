@@ -5,36 +5,18 @@ import { useWebSocketReconnection } from "@/hooks/useWebSocketReconnection";
 import { IS_DEMO_MODE } from "@/lib/demo";
 import { getUserLocation } from "@/lib/ip";
 import { getWsUrl } from "@/lib/urls";
-import { useChatStore } from "@/store/chat";
 import { useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
-import { validateProbePair, getProbeStats, NTPMeasurement } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
-import { ClientActionEnum, epochNow, NTPResponseMessageType, WSResponseSchema } from "@beatsync/shared";
+import { ClientActionEnum, WSResponseSchema } from "@beatsync/shared";
+import { dispatchWSResponse } from "@/websocket/dispatch";
 import { useEffect } from "react";
-
-/**
- * Process an NTP_RESPONSE into a measurement and attempt to complete a probe pair.
- * Returns a ProbePairResult if both probes in the pair have been received and validated,
- * or null if still waiting for the second probe or the pair was impure.
- */
-const handleNTPResponse = (response: NTPResponseMessageType): NTPMeasurement | null => {
-  const t3 = epochNow();
-  const { t0, t1, t2, probeGroupId, probeGroupIndex } = response;
-
-  const clockOffset = (t1 - t0 + (t2 - t3)) / 2;
-  const roundTripDelay = t3 - t0 - (t2 - t1);
-  const measurement: NTPMeasurement = { t0, t1, t2, t3, roundTripDelay, clockOffset };
-
-  return validateProbePair({ measurement, probeGroupId, probeGroupIndex });
-};
 
 interface WebSocketManagerProps {
   roomId: string;
   username: string;
 }
 
-// No longer need the props interface
 export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) => {
   // Get PostHog client ID
   const { clientId } = useClientId();
@@ -42,25 +24,9 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   // Room state
   const isLoadingRoom = useRoomStore((state) => state.isLoadingRoom);
 
-  // WebSocket and audio state
+  // WebSocket state (message handling lives in @/websocket/registry)
   const setSocket = useGlobalStore((state) => state.setSocket);
   const socket = useGlobalStore((state) => state.socket);
-  const schedulePlay = useGlobalStore((state) => state.schedulePlay);
-  const schedulePause = useGlobalStore((state) => state.schedulePause);
-  const processSpatialConfig = useGlobalStore((state) => state.processSpatialConfig);
-  const addProbePairResult = useGlobalStore((state) => state.addProbePairResult);
-  const setConnectedClients = useGlobalStore((state) => state.setConnectedClients);
-  const isSpatialAudioEnabled = useGlobalStore((state) => state.isSpatialAudioEnabled);
-  const setIsSpatialAudioEnabled = useGlobalStore((state) => state.setIsSpatialAudioEnabled);
-  const processStopSpatialAudio = useGlobalStore((state) => state.processStopSpatialAudio);
-  const processGlobalVolumeConfig = useGlobalStore((state) => state.processGlobalVolumeConfig);
-  const processLowPassConfig = useGlobalStore((state) => state.processLowPassConfig);
-  const processMetronomeConfig = useGlobalStore((state) => state.processMetronomeConfig);
-  const handleSetAudioSources = useGlobalStore((state) => state.handleSetAudioSources);
-  const setPlaybackControlsPermissions = useGlobalStore((state) => state.setPlaybackControlsPermissions);
-  const setActiveStreamJobs = useGlobalStore((state) => state.setActiveStreamJobs);
-  const setMessages = useChatStore((state) => state.setMessages);
-  const handleLoadAudioSource = useGlobalStore((state) => state.handleLoadAudioSource);
 
   // Use the NTP heartbeat hook
   const { startHeartbeat, stopHeartbeat, markNTPResponseReceived } = useNtpHeartbeat({
@@ -152,112 +118,13 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
       scheduleReconnection();
     };
 
-    // TODO: Refactor into exhaustive handler registry
-    ws.onmessage = async (msg) => {
+    const context = { ws, markNTPResponseReceived };
+    ws.onmessage = (msg) => {
       // Update last message received time for connection health
       useGlobalStore.setState({ lastMessageReceivedTime: Date.now() });
 
       const response = WSResponseSchema.parse(JSON.parse(msg.data));
-
-      if (response.type === "LIVENESS_PING") {
-        // Server liveness probe — sent only after ~15s of silence, i.e. when this
-        // tab is backgrounded and its timers are throttled (no NTP heartbeat).
-        // Reply immediately so the server doesn't reap us, and piggyback a probe
-        // pair to keep the clock offset fresh while parked.
-        sendWSRequest({ ws, request: { type: ClientActionEnum.enum.LIVENESS_PONG } });
-        useGlobalStore.getState().sendProbePair();
-      } else if (response.type === "NTP_RESPONSE") {
-        const pairResult = handleNTPResponse(response);
-        if (pairResult) {
-          addProbePairResult(pairResult);
-        }
-        // Always refresh probe stats so UI shows sent/pure/impure counts in real time
-        useGlobalStore.setState({ probeStats: getProbeStats() });
-
-        // Mark that we received an NTP response (for staleness detection)
-        markNTPResponseReceived();
-      } else if (response.type === "ROOM_EVENT") {
-        const { event } = response;
-        console.log("Room event:", event);
-
-        if (event.type === "CLIENT_CHANGE") {
-          setConnectedClients(event.clients);
-        } else if (event.type === "SET_AUDIO_SOURCES") {
-          handleSetAudioSources(event);
-        } else if (event.type === "SET_PLAYBACK_CONTROLS") {
-          setPlaybackControlsPermissions(event.permissions);
-        } else if (event.type === "CHAT_UPDATE") {
-          // Handle chat messages
-          setMessages(event.messages, event.isFullSync, event.newestId);
-        } else if (event.type === "LOAD_AUDIO_SOURCE") {
-          handleLoadAudioSource(event);
-        }
-      } else if (response.type === "SCHEDULED_ACTION") {
-        // handle scheduling action
-        console.log("Received scheduled action:", response);
-        const { scheduledAction, serverTimeToExecute } = response;
-
-        if (scheduledAction.type === "PLAY") {
-          schedulePlay({
-            trackTimeSeconds: scheduledAction.trackTimeSeconds,
-            targetServerTime: serverTimeToExecute,
-            audioSource: scheduledAction.audioSource,
-          });
-        } else if (scheduledAction.type === "PAUSE") {
-          schedulePause({
-            targetServerTime: serverTimeToExecute,
-          });
-        } else if (scheduledAction.type === "SPATIAL_CONFIG") {
-          processSpatialConfig(scheduledAction);
-          if (!isSpatialAudioEnabled) {
-            setIsSpatialAudioEnabled(true);
-          }
-        } else if (scheduledAction.type === "STOP_SPATIAL_AUDIO") {
-          processStopSpatialAudio();
-        } else if (scheduledAction.type === "GLOBAL_VOLUME_CONFIG") {
-          processGlobalVolumeConfig(scheduledAction);
-        } else if (scheduledAction.type === "LOW_PASS_CONFIG") {
-          processLowPassConfig(scheduledAction);
-        } else if (scheduledAction.type === "METRONOME_CONFIG") {
-          processMetronomeConfig(scheduledAction);
-        }
-      } else if (response.type === "SEARCH_RESPONSE") {
-        console.log("Received search response:", response);
-        const { setSearchResults, setIsSearching, setIsLoadingMoreResults, setHasMoreResults, isLoadingMoreResults } =
-          useGlobalStore.getState();
-
-        // Determine if this is pagination or new search
-        const isAppending = isLoadingMoreResults;
-
-        // Update search results (append if pagination, replace if new search)
-        setSearchResults(response.response, isAppending);
-
-        // Update loading states
-        setIsSearching(false);
-        setIsLoadingMoreResults(false);
-
-        // Update hasMoreResults based on response
-        if (response.response.type === "success") {
-          const { total, items, offset } = response.response.response.data.tracks;
-          const hasMore = offset + items.length < total;
-          setHasMoreResults(hasMore);
-        } else {
-          setHasMoreResults(false);
-        }
-      } else if (response.type === "STREAM_JOB_UPDATE") {
-        console.log("Received stream job update:", response.activeJobCount);
-        setActiveStreamJobs(response.activeJobCount);
-      } else if (response.type === "DEMO_USER_COUNT") {
-        if (useGlobalStore.getState().demoUserCount !== response.count) {
-          useGlobalStore.setState({ demoUserCount: response.count });
-        }
-      } else if (response.type === "DEMO_AUDIO_READY_COUNT") {
-        if (useGlobalStore.getState().demoAudioReadyCount !== response.count) {
-          useGlobalStore.setState({ demoAudioReadyCount: response.count });
-        }
-      } else {
-        console.log("Unknown response type:", response);
-      }
+      dispatchWSResponse({ response, context });
     };
 
     return ws;

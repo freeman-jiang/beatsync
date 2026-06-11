@@ -8,6 +8,18 @@ import {
 } from "./WSRequest";
 import { AudioSourceSchema, ChatMessageSchema, PositionSchema } from "./basic";
 
+// Server -> client message types (mirrors ClientActionEnum for client -> server)
+export const ServerActionEnum = z.enum([
+  "ROOM_EVENT", // Room state changes (clients, audio sources, chat, ...)
+  "SCHEDULED_ACTION", // Time-synchronized actions (play, pause, spatial config, ...)
+  "STREAM_JOB_UPDATE", // Active stream job count changed
+  "DEMO_USER_COUNT", // Demo mode: connected user count
+  "DEMO_AUDIO_READY_COUNT", // Demo mode: clients with audio loaded
+  "NTP_RESPONSE", // Reply to an NTP_REQUEST time sync probe
+  "SEARCH_RESPONSE", // Music search results
+  "LIVENESS_PING", // Liveness probe; client replies with LIVENESS_PONG
+]);
+
 // Client change
 export const ClientDataSchema = z.object({
   username: z.string(),
@@ -55,7 +67,7 @@ const LoadAudioSourceSchema = z.object({
 export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
 
 const RoomEventSchema = z.object({
-  type: z.literal("ROOM_EVENT"),
+  type: z.literal(ServerActionEnum.enum.ROOM_EVENT),
   event: z.discriminatedUnion("type", [
     ClientChangeMessageSchema,
     SetAudioSourcesSchema,
@@ -103,13 +115,13 @@ const LowPassConfigSchema = z.object({
 export type LowPassConfigType = z.infer<typeof LowPassConfigSchema>;
 
 const StreamJobUpdateSchema = z.object({
-  type: z.literal("STREAM_JOB_UPDATE"),
+  type: z.literal(ServerActionEnum.enum.STREAM_JOB_UPDATE),
   activeJobCount: z.number().nonnegative(),
 });
 export type StreamJobUpdateType = z.infer<typeof StreamJobUpdateSchema>;
 
 export const ScheduledActionSchema = z.object({
-  type: z.literal("SCHEDULED_ACTION"),
+  type: z.literal(ServerActionEnum.enum.SCHEDULED_ACTION),
   serverTimeToExecute: z.number(),
   scheduledAction: z.discriminatedUnion("type", [
     PlayActionSchema,
@@ -123,13 +135,13 @@ export const ScheduledActionSchema = z.object({
 });
 
 const DemoUserCountSchema = z.object({
-  type: z.literal("DEMO_USER_COUNT"),
+  type: z.literal(ServerActionEnum.enum.DEMO_USER_COUNT),
   count: z.number().nonnegative(),
 });
 export type DemoUserCountType = z.infer<typeof DemoUserCountSchema>;
 
 const DemoAudioReadyCountSchema = z.object({
-  type: z.literal("DEMO_AUDIO_READY_COUNT"),
+  type: z.literal(ServerActionEnum.enum.DEMO_AUDIO_READY_COUNT),
   count: z.number().nonnegative(),
 });
 export type DemoAudioReadyCountType = z.infer<typeof DemoAudioReadyCountSchema>;

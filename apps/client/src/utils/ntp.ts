@@ -1,4 +1,4 @@
-import { ClientActionEnum, epochNow, NTP_CONSTANTS } from "@beatsync/shared";
+import { ClientActionEnum, epochNow, NTP_CONSTANTS, type NTPResponseMessageType } from "@beatsync/shared";
 import { sendWSRequest } from "./ws";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -182,4 +182,20 @@ export const calculateOffsetEstimate = (measurements: NTPMeasurement[]) => {
 export const calculateWaitTimeMilliseconds = (targetServerTime: number, clockOffset: number): number => {
   const estimatedCurrentServerTime = epochNow() + clockOffset;
   return Math.max(0, targetServerTime - estimatedCurrentServerTime);
+};
+
+/**
+ * Process an NTP_RESPONSE into a measurement and attempt to complete a probe pair.
+ * Returns a ProbePairResult if both probes in the pair have been received and validated,
+ * or null if still waiting for the second probe or the pair was impure.
+ */
+export const handleNTPResponse = (response: NTPResponseMessageType): NTPMeasurement | null => {
+  const t3 = epochNow();
+  const { t0, t1, t2, probeGroupId, probeGroupIndex } = response;
+
+  const clockOffset = (t1 - t0 + (t2 - t3)) / 2;
+  const roundTripDelay = t3 - t0 - (t2 - t1);
+  const measurement: NTPMeasurement = { t0, t1, t2, t3, roundTripDelay, clockOffset };
+
+  return validateProbePair({ measurement, probeGroupId, probeGroupIndex });
 };
