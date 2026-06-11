@@ -1,0 +1,4 @@
+# Applies only to `bun test` run from the repo root (bun reads bunfig from cwd).
+# Each app has its own bunfig.toml for its test environment.
+[test]
+preload = ["./scripts/test-root-guard.ts"]

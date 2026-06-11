@@ -10,6 +10,9 @@
       "persistent": true,
       "cache": false
     },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "bunfig.toml", "happydom.ts", "test-setup.ts"]
+    },
     "dev:demo": {
       "persistent": true,
       "cache": false

@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "test": "turbo run test",
     "start": "turbo run start",
     "server": "turbo start --filter=server",
     "client": "turbo start --filter=client",
