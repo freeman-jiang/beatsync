@@ -22,6 +22,8 @@ describe("Chat Persistence", () => {
       compensationMs: 0,
       nudgeMs: 0,
       lastNtpResponse: Date.now(),
+      lastSeenAt: Date.now(),
+      lastLivenessPingAt: 0,
       disconnectedAt: null,
     };
     room.restoreClientData([testClient]);

@@ -20,9 +20,16 @@ export const MusicSearchResponseSchema = z.object({
 });
 export type MusicSearchResponseType = z.infer<typeof MusicSearchResponseSchema>;
 
+// Liveness probe sent to clients that have been silent (e.g. backgrounded tabs
+// with throttled timers). Clients reply with a LIVENESS_PONG request.
+const LivenessPingMessageSchema = z.object({
+  type: z.literal("LIVENESS_PING"),
+});
+
 export const WSUnicastSchema = z.discriminatedUnion("type", [
   NTPResponseMessageSchema,
   ScheduledActionSchema,
   MusicSearchResponseSchema,
+  LivenessPingMessageSchema,
 ]);
 export type WSUnicastType = z.infer<typeof WSUnicastSchema>;

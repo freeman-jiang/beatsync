@@ -12,6 +12,7 @@ import { handleMoveClient } from "@/websocket/handlers/moveClient";
 import { handleNTPRequest } from "@/websocket/handlers/ntpRequest";
 import { handlePause } from "@/websocket/handlers/pause";
 import { handlePlay } from "@/websocket/handlers/play";
+import { handleLivenessPong } from "@/websocket/handlers/livenessPong";
 import { handleReorderClient } from "@/websocket/handlers/reorderClient";
 import { handleSetGlobalVolume } from "@/websocket/handlers/setGlobalVolume";
 import { handleSetListeningSource } from "@/websocket/handlers/setListeningSource";
@@ -127,5 +128,9 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.SET_LOW_PASS_FREQ]: {
     handle: handleSetLowPassFreq,
     description: "Set low-pass filter cutoff frequency for all clients",
+  },
+  [ClientActionEnum.enum.LIVENESS_PONG]: {
+    handle: handleLivenessPong,
+    description: "Liveness reply to a server LIVENESS_PING",
   },
 };

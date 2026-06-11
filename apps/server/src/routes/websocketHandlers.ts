@@ -168,6 +168,12 @@ export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string
   try {
     const parsedData: unknown = JSON.parse(message.toString());
 
+    // Any inbound message proves the connection is alive. Record liveness once,
+    // here at the single entry point for client messages — this covers the NTP
+    // fast path below and LIVENESS_PONGs alike.
+    const room = globalManager.getRoom(roomId);
+    room?.markClientSeen(ws.data.clientId);
+
     // Fast path: NTP requests skip Zod validation and dispatch overhead.
     // t1 is already captured above; t2 is captured right before ws.send()
     // to minimize server processing time contaminating the timestamps.
@@ -181,7 +187,6 @@ export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string
         probeGroupIndex: number;
       };
 
-      const room = globalManager.getRoom(roomId);
       if (room) {
         room.processNTPRequestFrom({
           clientId: ws.data.clientId,

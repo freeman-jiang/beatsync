@@ -76,6 +76,7 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
   const {
     onConnectionOpen,
     scheduleReconnection,
+    reconnectNow,
     cleanup: cleanupReconnection,
   } = useWebSocketReconnection({
     createConnection: () => createConnection(),
@@ -158,7 +159,14 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
 
       const response = WSResponseSchema.parse(JSON.parse(msg.data));
 
-      if (response.type === "NTP_RESPONSE") {
+      if (response.type === "LIVENESS_PING") {
+        // Server liveness probe — sent only after ~15s of silence, i.e. when this
+        // tab is backgrounded and its timers are throttled (no NTP heartbeat).
+        // Reply immediately so the server doesn't reap us, and piggyback a probe
+        // pair to keep the clock offset fresh while parked.
+        sendWSRequest({ ws, request: { type: ClientActionEnum.enum.LIVENESS_PONG } });
+        useGlobalStore.getState().sendProbePair();
+      } else if (response.type === "NTP_RESPONSE") {
         const pairResult = handleNTPResponse(response);
         if (pairResult) {
           addProbePairResult(pairResult);
@@ -277,11 +285,32 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
     };
     window.addEventListener("pageshow", handlePageShow);
 
+    // Wake events are event-driven, so they work even when the tab's timers are
+    // throttled in the background: reconnect promptly after network changes or
+    // when the user returns, instead of waiting on a throttled backoff timer.
+    const handleOnline = () => {
+      reconnectNow();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      reconnectNow();
+      // If the connection survived being backgrounded, resume the NTP cadence
+      // promptly so the clock offset is fresh again
+      const currentSocket = useGlobalStore.getState().socket;
+      if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+        startHeartbeat();
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       // Runs on unmount and dependency change
       console.log("Running cleanup for WebSocket connection");
 
       window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
 
       // Clean up reconnection state
       cleanupReconnection();

@@ -35,6 +35,7 @@ export const ClientActionEnum = z.enum([
   "REORDER_AUDIO_SOURCES", // Reorder audio sources in the room queue
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
+  "LIVENESS_PONG", // Liveness reply to a server LIVENESS_PING
 ]);
 
 export const NTPRequestPacketSchema = z.object({
@@ -161,6 +162,10 @@ export const SetLowPassFreqSchema = z.object({
   freq: z.number().min(LOW_PASS_CONSTANTS.MIN_FREQ).max(LOW_PASS_CONSTANTS.MAX_FREQ),
 });
 
+export const LivenessPongSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.LIVENESS_PONG),
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -184,6 +189,7 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   ReorderAudioSourcesSchema,
   SetMetronomeSchema,
   SetLowPassFreqSchema,
+  LivenessPongSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

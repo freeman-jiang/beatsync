@@ -94,6 +94,23 @@ export const useWebSocketReconnection = ({
     }, delay);
   };
 
+  // Reconnect immediately in response to a wake event (tab became visible,
+  // network came back online). These are event-driven and fire even in
+  // backgrounded tabs where the backoff timers above are throttled.
+  const reconnectNow = () => {
+    const socket = useGlobalStore.getState().socket;
+    // Never connected yet (initial mount handles that), or already connected/connecting
+    if (!socket || socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
+    // Wake events come from a present user — restart the attempt budget
+    reconnectAttempts.current = 0;
+    clearReconnectionTimeout();
+    clearConnectionTimeout();
+    createConnection();
+  };
+
   // Cleanup function to be called on unmount
   const cleanup = useCallback(() => {
     clearReconnectionTimeout();
@@ -103,6 +120,7 @@ export const useWebSocketReconnection = ({
   return {
     onConnectionOpen,
     scheduleReconnection,
+    reconnectNow,
     cleanup,
   };
 };

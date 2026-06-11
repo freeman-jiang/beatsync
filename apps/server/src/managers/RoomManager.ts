@@ -96,6 +96,10 @@ interface PendingPlayState {
  */
 export class RoomManager {
   private static readonly AUDIO_LOAD_TIMEOUT_MS = 3000; // 3 seconds max wait for audio loading
+  // Liveness policy. NTP recency can't be used for liveness: backgrounded tabs have
+  // throttled timers (no NTP) but still run message handlers, so they can answer PINGs.
+  static readonly LIVENESS_PING_AFTER_MS = 15_000; // silent this long -> send PING
+  static readonly LIVENESS_REAP_AFTER_MS = 60_000; // silent this long -> dead, disconnect
 
   private clientData = new Map<string, ClientDataType>(); // map of clientId -> client data
   private wsConnections = new Map<string, ServerWebSocket<WSData>>(); // map of clientId -> ws
@@ -330,6 +334,8 @@ export class RoomManager {
       nudgeMs: 0,
       position: { x: GRID.ORIGIN_X, y: GRID.ORIGIN_Y - 25 }, // Initial position at center
       lastNtpResponse: Date.now(), // Initialize last NTP response time
+      lastSeenAt: Date.now(), // Liveness: fresh on every (re)connection
+      lastLivenessPingAt: 0,
     };
 
     const cachedClient = this.clientData.get(clientId);
@@ -388,16 +394,15 @@ export class RoomManager {
         const remainingAdmins = activeClients.filter((client) => client.isAdmin);
 
         if (remainingAdmins.length === 0) {
-          const randomIndex = Math.floor(Math.random() * activeClients.length);
-          const newAdmin = activeClients[randomIndex];
+          // Promote the most recently active client — promoting a backgrounded
+          // lurker could leave a room where nobody present can control playback
+          const newAdmin = activeClients.reduce((a, b) => (a.lastSeenAt >= b.lastSeenAt ? a : b));
 
-          if (newAdmin) {
-            newAdmin.isAdmin = true;
-            this.clientData.set(newAdmin.clientId, newAdmin);
-            console.log(
-              `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
-            );
-          }
+          newAdmin.isAdmin = true;
+          this.clientData.set(newAdmin.clientId, newAdmin);
+          console.log(
+            `✨ Automatically promoted ${newAdmin.username} (${newAdmin.clientId}) to admin in room ${this.roomId}`
+          );
         }
       }
     } else {
@@ -488,22 +493,23 @@ export class RoomManager {
   }
 
   /**
-   * Check if the room has any active clients based on recent NTP heartbeats
-   * This is more reliable than checking WebSocket readyState which can be inconsistent
+   * Check if the room has any active clients.
+   * Open sockets are trusted because the liveness reaper verifies them with
+   * ping/pong and removes dead ones — NTP recency must NOT be used here, since
+   * backgrounded tabs have throttled timers (no NTP) but are still connected members.
    */
   hasActiveConnections(): boolean {
-    const now = Date.now();
-    const clients = this.getClients();
+    return this.wsConnections.size > 0;
+  }
 
-    for (const client of clients) {
-      // A client is considered active if they've sent an NTP request within the timeout window
-      // This is more reliable than WebSocket readyState during network fluctuations
-      const timeSinceLastResponse = now - client.lastNtpResponse;
-      if (timeSinceLastResponse <= NTP_CONSTANTS.RESPONSE_TIMEOUT_MS) {
-        return true;
-      }
-    }
-    return false;
+  /**
+   * Record that a client sent us any message (NTP, PONG, chat, ...).
+   * Drives the liveness reaper: clients silent past the ping threshold get a
+   * PING, and clients silent past the reap threshold are disconnected.
+   */
+  markClientSeen(clientId: string): void {
+    const client = this.clientData.get(clientId);
+    if (client) client.lastSeenAt = Date.now();
   }
 
   /**
@@ -1113,24 +1119,37 @@ export class RoomManager {
       const now = Date.now();
 
       this.getClients().forEach((client) => {
-        const timeSinceLastResponse = now - client.lastNtpResponse;
-        if (timeSinceLastResponse <= NTP_CONSTANTS.RESPONSE_TIMEOUT_MS) return;
+        const { clientId } = client;
+        const silentMs = now - client.lastSeenAt;
+        if (silentMs <= RoomManager.LIVENESS_PING_AFTER_MS) return;
 
-        console.warn(
-          `⚠️ Client ${client.clientId} in room ${this.roomId} has not responded for ${timeSinceLastResponse}ms, disconnecting`
-        );
-
-        // terminate() hard-closes the socket without waiting for the peer. A graceful
-        // close() never completes against a dead TCP peer (the close frame is never
-        // acknowledged), which used to leak connections — and rooms — indefinitely.
-        try {
-          this.wsConnections.get(client.clientId)?.terminate();
-        } catch (error) {
-          console.error(`Error terminating WebSocket for client ${client.clientId}:`, error);
+        const ws = this.wsConnections.get(clientId);
+        if (!ws) {
+          console.error(`❌ No WebSocket connection found for client ${clientId} in room ${this.roomId}`);
+          this.removeClient(clientId);
+          return;
         }
-        // Remove immediately rather than relying on the close handler to fire;
-        // removeClient is idempotent if the close handler also runs.
-        this.removeClient(client.clientId);
+
+        try {
+          if (silentMs > RoomManager.LIVENESS_REAP_AFTER_MS) {
+            console.warn(`⚠️ Client ${clientId} in room ${this.roomId} unresponsive for ${silentMs}ms, disconnecting`);
+            // terminate() hard-closes the socket without waiting for the peer. A graceful
+            // close() never completes against a dead TCP peer (the close frame is never
+            // acknowledged), which used to leak connections — and rooms — indefinitely.
+            ws.terminate();
+            // Remove immediately rather than relying on the close handler to fire;
+            // removeClient is idempotent if the close handler also runs.
+            this.removeClient(clientId);
+          } else if (now - client.lastLivenessPingAt >= RoomManager.LIVENESS_PING_AFTER_MS) {
+            // Quiet but not yet presumed dead: ask before kicking. Backgrounded tabs
+            // can't run timers (no NTP) but their message handlers still answer PINGs.
+            client.lastLivenessPingAt = now;
+            sendUnicast({ ws, message: { type: "LIVENESS_PING" } });
+          }
+        } catch (error) {
+          console.error(`Error closing WebSocket for client ${clientId}:`, error);
+          this.removeClient(clientId);
+        }
       });
 
       // Reaping bypasses handleClose's cleanup scheduling — make sure an empty room
