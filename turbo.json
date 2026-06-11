@@ -11,6 +11,7 @@
       "cache": false
     },
     "test": {
+      "dependsOn": ["^test"],
       "inputs": ["$TURBO_DEFAULT$", "bunfig.toml", "happydom.ts", "test-setup.ts"]
     },
     "dev:demo": {
