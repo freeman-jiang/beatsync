@@ -19,6 +19,8 @@ bun client               # Client only (port 3000)
 bun server               # Server only (port 8080)
 bun build                # Build all packages
 
+bun run test             # Run all test suites via Turborepo (do NOT use bare `bun test` at root — per-app bunfig preloads won't load)
+
 # Server-specific (run from apps/server/)
 bun test                 # Run tests (Bun test runner)
 bun test --watch         # Watch mode
@@ -27,6 +29,7 @@ bun run cleanup:live     # Delete orphaned R2 rooms
 bun run type-check       # tsc --noEmit
 
 # Client-specific (run from apps/client/)
+bun test                 # Run tests (happy-dom + @testing-library/react, preloaded via bunfig.toml)
 bun lint                 # next lint
 ```
 
@@ -55,6 +58,8 @@ All WebSocket messages are validated with Zod discriminated unions. The flow:
    - **`WSResponse`**: Union of broadcast + unicast
 
 Adding a new WebSocket message type requires: adding to `ClientActionEnum` in `packages/shared/types/WSRequest.ts`, creating a schema, adding a handler file, and registering it in the registry.
+
+The client mirrors this pattern for server→client messages: an exhaustive registry over `ServerActionEnum` in `apps/client/src/websocket/registry.ts`, dispatched from `WebSocketManager`'s `onmessage`. Adding a server→client message type requires registering it there too.
 
 ### Time Synchronization
 
@@ -120,8 +125,10 @@ S3_SECRET_ACCESS_KEY=
 
 ## Development Notes
 
-- No testing framework on the client; server uses `bun test` with sinon for stubs
+- Both apps use `bun test`: server with sinon fake timers for stubs, client with happy-dom + `@testing-library/react` (preloads in `apps/client/bunfig.toml`)
+- Only test non-obvious behavior whose failure would be silent in dev and expensive in prod — no trivial/"doesn't crash" tests
 - Server uses native `Bun.serve()` with URL pathname switch routing (not Hono's router)
 - Room IDs are 6-digit codes
-- Room cleanup: 60s after last client disconnects, room is deleted
-- Admin auto-promotion: if last admin leaves, a random client is promoted
+- Room cleanup: 60s after last client disconnects, room is deleted (including its R2 uploads — intentional)
+- Admin auto-promotion: if last admin leaves, the most recently seen client is promoted
+- Client liveness: server sends `LIVENESS_PING` after 15s of silence; clients reply `LIVENESS_PONG` from `onmessage` (immune to background-tab timer throttling); silent for 60s → terminated and removed
