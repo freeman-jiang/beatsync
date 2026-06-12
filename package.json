@@ -31,14 +31,14 @@
   ],
   "devDependencies": {
     "@types/bun": "latest",
-    "lefthook": "^2.1.2",
-    "prettier": "^3.8.1",
-    "turbo": "^2.8.13"
+    "lefthook": "2.1.9",
+    "prettier": "3.8.3",
+    "turbo": "2.9.16"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "5.9.3"
   },
   "dependencies": {
-    "@aws-sdk/s3-request-presigner": "^3.1001.0"
+    "@aws-sdk/s3-request-presigner": "3.1062.0"
   }
 }
