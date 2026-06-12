@@ -3,8 +3,7 @@ module.exports = {
   name: "beatsync-server", // Name of your application
   cwd: "apps/server",
   script: "dist/index.js", // Bundled entry point
-  interpreter: "bun", // Bun interpreter
-  env: {
-    PATH: `${process.env.HOME}/.bun/bin:${process.env.PATH}`, // Add "~/.bun/bin/bun" to PATH
-  },
+  // Resolve bun through mise shims so the version comes from this repo's
+  // mise.toml pin, not a stale standalone install (~/.bun/bin/bun).
+  interpreter: `${process.env.HOME}/.local/share/mise/shims/bun`,
 };
