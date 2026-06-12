@@ -42,7 +42,7 @@ export class MusicProviderManager {
 
       return RawSearchResponseSchema.parse(data);
     } catch (error) {
-      throw new Error(`Search failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(`Search failed: ${error instanceof Error ? error.message : "Unknown error"}`, { cause: error });
     }
   }
 
@@ -63,7 +63,7 @@ export class MusicProviderManager {
 
       return StreamResponseSchema.parse(data);
     } catch (error) {
-      throw new Error(`Download failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(`Download failed: ${error instanceof Error ? error.message : "Unknown error"}`, { cause: error });
     }
   }
 }

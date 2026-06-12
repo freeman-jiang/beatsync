@@ -339,7 +339,7 @@ export async function deleteObjectsWithPrefix(prefix = ""): Promise<{ deletedCou
   } catch (error) {
     const errorMessage = `Failed to delete objects with prefix "${prefix}": ${error instanceof Error ? error.message : String(error)}`;
     console.error(errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(errorMessage, { cause: error });
   }
 }
 

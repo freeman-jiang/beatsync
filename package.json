@@ -36,7 +36,7 @@
     "turbo": "2.9.16"
   },
   "peerDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "^6.0.0"
   },
   "dependencies": {
     "@aws-sdk/s3-request-presigner": "3.1062.0"
