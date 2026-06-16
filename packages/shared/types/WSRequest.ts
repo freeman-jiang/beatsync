@@ -53,6 +53,7 @@ export const PlayActionSchema = z.object({
   type: z.literal(ClientActionEnum.enum.PLAY),
   trackTimeSeconds: z.number(),
   audioSource: z.string(),
+  isAutoplay: z.boolean().optional(),
 });
 
 export const PauseActionSchema = z.object({

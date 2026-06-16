@@ -51,6 +51,13 @@ interface AudioPlayerState {
   gainNode: GainNode;
 }
 
+interface PreScheduledNext {
+  sourceNode: AudioBufferSourceNode;
+  url: string;
+  startTime: number;
+  duration: number;
+}
+
 enum AudioPlayerError {
   NotInitialized = "NOT_INITIALIZED",
 }
@@ -159,6 +166,9 @@ interface GlobalStateValues {
 
   // Whether nudge has been restored from server this connection (prevents re-restore on subsequent CLIENT_CHANGE)
   didRestoreNudge: boolean;
+
+  // Gapless playback: pre-scheduled next track on the Web Audio timeline
+  preScheduledNext: PreScheduledNext | null;
 }
 
 interface GlobalState extends GlobalStateValues {
@@ -175,7 +185,7 @@ interface GlobalState extends GlobalStateValues {
   schedulePlay: (data: { trackTimeSeconds: number; targetServerTime: number; audioSource: string }) => void;
   schedulePause: (data: { targetServerTime: number }) => void;
   setSocket: (socket: WebSocket) => void;
-  broadcastPlay: (trackTimeSeconds?: number) => void;
+  broadcastPlay: (trackTimeSeconds?: number, isAutoplay?: boolean) => void;
   broadcastPause: () => void;
   startSpatialAudio: () => void;
   sendStopSpatialAudio: () => void;
@@ -307,6 +317,8 @@ const initialState: GlobalStateValues = {
   lowPassFreq: LOW_PASS_CONSTANTS.MAX_FREQ,
 
   didRestoreNudge: false,
+
+  preScheduledNext: null,
 };
 
 const getAudioPlayer = (state: GlobalState) => {
@@ -504,6 +516,30 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           source: { url },
         },
       });
+
+      // Late gapless pre-scheduling: if we're playing and this is the next track, pre-schedule now
+      const postLoadState = get();
+      if (
+        postLoadState.isPlaying &&
+        !postLoadState.preScheduledNext &&
+        !postLoadState.isShuffled &&
+        postLoadState.selectedAudioUrl
+      ) {
+        const currentIdx = postLoadState.audioSources.findIndex(
+          (as) => as.source.url === postLoadState.selectedAudioUrl
+        );
+        if (currentIdx >= 0) {
+          const nextIdx = (currentIdx + 1) % postLoadState.audioSources.length;
+          if (postLoadState.audioSources[nextIdx]?.source.url === url) {
+            preScheduleNextTrack(
+              postLoadState.selectedAudioUrl,
+              postLoadState.playbackStartTime,
+              postLoadState.duration,
+              postLoadState.playbackOffset
+            );
+          }
+        }
+      }
     } catch (error) {
       console.error(`Failed to load audio source ${url}:`, error);
       // Update the source with error status
@@ -513,6 +549,74 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         ),
       }));
     }
+  };
+
+  const preloadNextAudioSource = (url: string) => {
+    const state = get();
+    if (state.audioSources.length <= 1) return;
+
+    const currentIndex = state.audioSources.findIndex((as) => as.source.url === url);
+    if (currentIndex < 0) return;
+
+    const nextSourceState = state.audioSources[(currentIndex + 1) % state.audioSources.length];
+    if (nextSourceState?.status === "idle") {
+      void loadAudioSource(nextSourceState.source.url);
+    }
+  };
+
+  // Cancel and clean up any pre-scheduled gapless next track
+  const cancelPreScheduledNext = () => {
+    const pre = get().preScheduledNext;
+    if (pre) {
+      try {
+        pre.sourceNode.onended = null;
+        pre.sourceNode.disconnect();
+        pre.sourceNode.stop();
+      } catch (_) {}
+      set({ preScheduledNext: null });
+    }
+  };
+
+  // Pre-schedule the next track on the Web Audio timeline for gapless transition.
+  // This schedules nextNode.start() at the exact sample when the current track ends.
+  const preScheduleNextTrack = (
+    currentUrl: string,
+    currentStartTime: number,
+    currentDuration: number,
+    currentOffset: number
+  ) => {
+    const state = get();
+    if (state.audioSources.length <= 1) return;
+    if (state.isShuffled) return; // Can't predict next track in shuffle mode
+
+    const currentIndex = state.audioSources.findIndex((as) => as.source.url === currentUrl);
+    if (currentIndex < 0) return;
+
+    const nextIndex = (currentIndex + 1) % state.audioSources.length;
+    const nextSource = state.audioSources[nextIndex];
+    if (!nextSource || nextSource.status !== "loaded" || !nextSource.buffer) return;
+
+    // Cancel any existing pre-scheduled track
+    cancelPreScheduledNext();
+
+    const nextStartTime = currentStartTime + (currentDuration - currentOffset);
+    const nextNode = audioContextManager.createBufferSource();
+    nextNode.buffer = nextSource.buffer;
+    nextNode.connect(audioContextManager.getInputNode());
+    nextNode.start(nextStartTime, 0);
+
+    console.log(
+      `[Gapless] Pre-scheduled "${extractFileNameFromUrl(nextSource.source.url)}" at ctx=${nextStartTime.toFixed(3)}s`
+    );
+
+    set({
+      preScheduledNext: {
+        sourceNode: nextNode,
+        url: nextSource.source.url,
+        startTime: nextStartTime,
+        duration: nextSource.buffer.duration,
+      },
+    });
   };
 
   // Eagerly load idle audio sources (skips loading/loaded/error).
@@ -702,6 +806,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const wasPlaying = state.isPlaying; // Store if it was playing *before* stopping
 
       // Stop any current playback immediately when switching tracks
+      cancelPreScheduledNext();
       if (state.isPlaying && state.audioPlayer) {
         try {
           state.audioPlayer.sourceNode.stop();
@@ -747,6 +852,20 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       if (state.isInitingSystem) {
         console.log("Not playing audio, still loading");
         // Non-interactive state, can't play audio
+        return;
+      }
+
+      // Skip duplicate SCHEDULED_ACTIONs when gapless pre-scheduling already transitioned.
+      // The gapless transition calls broadcastPlay() for server bookkeeping, which echoes back
+      // as a SCHEDULED_ACTION. If we're already playing this track from the start, ignore it.
+      if (
+        state.isPlaying &&
+        state.selectedAudioUrl === data.audioSource &&
+        data.trackTimeSeconds === 0 &&
+        state.playbackOffset === 0 &&
+        state.currentTime < 2 // Within first 2 seconds = likely a gapless duplicate
+      ) {
+        console.log("[Gapless] Ignoring duplicate SCHEDULED_ACTION — already playing this track");
         return;
       }
 
@@ -902,7 +1021,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     setSocket: (socket) => set({ socket }),
 
     // if trackTimeSeconds is not provided, use the current track position
-    broadcastPlay: (trackTimeSeconds?: number) => {
+    broadcastPlay: (trackTimeSeconds?: number, isAutoplay?: boolean) => {
       const state = get();
       const { socket } = getSocket(state);
 
@@ -923,6 +1042,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
           type: ClientActionEnum.enum.PLAY,
           trackTimeSeconds: trackTimeSeconds ?? state.getCurrentTrackPosition(),
           audioSource: audioId,
+          ...(isAutoplay ? { isAutoplay: true } : {}),
         },
       });
     },
@@ -1121,6 +1241,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       }
 
       // Stop any existing source node before creating a new one
+      cancelPreScheduledNext();
       try {
         sourceNode.onended = null;
         sourceNode.disconnect();
@@ -1173,33 +1294,81 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Autoplay: Handle track ending naturally
       newSourceNode.onended = () => {
         const currentState = get();
-        const { audioPlayer: currentPlayer, isPlaying: currentlyIsPlaying } = currentState; // Get fresh state
+        const { audioPlayer: currentPlayer, isPlaying: currentlyIsPlaying } = currentState;
 
         // Only process if the player was 'isPlaying' right before this event fired
         // and the sourceNode that ended is the *current* sourceNode.
         // This prevents handlers from old nodes interfering after a quick skip.
         if (currentlyIsPlaying && currentPlayer?.sourceNode === newSourceNode) {
           const { audioContext } = currentPlayer;
-          // Check if the buffer naturally reached its end
-          // Calculate the expected end time in the AudioContext timeline
           const expectedEndTime =
             currentState.playbackStartTime + (currentState.duration - currentState.playbackOffset);
-          // Use a tolerance for timing discrepancies (e.g., 0.5 seconds)
           const endedNaturally = Math.abs(audioContext.currentTime - expectedEndTime) < 0.5;
 
           if (endedNaturally) {
+            const pre = currentState.preScheduledNext;
+            if (pre) {
+              // Gapless transition: next track is already playing on the Web Audio timeline
+              console.log(`[Gapless] Transitioning to "${extractFileNameFromUrl(pre.url)}"`);
+
+              // Update state to reflect the new track — audio is already playing
+              set({
+                selectedAudioUrl: pre.url,
+                audioPlayer: { ...currentPlayer, sourceNode: pre.sourceNode },
+                playbackStartTime: pre.startTime,
+                playbackOffset: 0,
+                currentTime: 0,
+                duration: pre.duration,
+                preScheduledNext: null,
+              });
+
+              // Set up onended for the gapless node so IT can also auto-advance
+              pre.sourceNode.onended = () => {
+                const st = get();
+                if (st.isPlaying && st.audioPlayer?.sourceNode === pre.sourceNode) {
+                  const expEnd = st.playbackStartTime + (st.duration - st.playbackOffset);
+                  const natural = Math.abs(audioContext.currentTime - expEnd) < 0.5;
+                  if (natural) {
+                    const nextPre = st.preScheduledNext;
+                    if (nextPre) {
+                      console.log(`[Gapless] Transitioning to "${extractFileNameFromUrl(nextPre.url)}"`);
+                      set({
+                        selectedAudioUrl: nextPre.url,
+                        audioPlayer: { ...st.audioPlayer!, sourceNode: nextPre.sourceNode },
+                        playbackStartTime: nextPre.startTime,
+                        playbackOffset: 0,
+                        currentTime: 0,
+                        duration: nextPre.duration,
+                        preScheduledNext: null,
+                      });
+                      // Pre-schedule the NEXT-next track
+                      preloadNextAudioSource(nextPre.url);
+                      preScheduleNextTrack(nextPre.url, nextPre.startTime, nextPre.duration, 0);
+                    } else {
+                      set({ currentTime: st.duration });
+                      st.skipToNextTrack(true);
+                    }
+                  }
+                }
+              };
+
+              // Notify server of track change for state bookkeeping
+              currentState.broadcastPlay(0, true);
+
+              // Preload + pre-schedule the NEXT-next track
+              preloadNextAudioSource(pre.url);
+              preScheduleNextTrack(pre.url, pre.startTime, pre.duration, 0);
+              return;
+            }
+
+            // No pre-scheduled track — fall back to server-coordinated autoplay
             console.log("Track ended naturally, skipping to next via autoplay.");
-            // Set currentTime to duration, as playback fully completed
-            // We don't set isPlaying false here, let skipToNextTrack handle state transition
             set({ currentTime: currentState.duration });
-            currentState.skipToNextTrack(true); // Trigger autoplay skip
+            currentState.skipToNextTrack(true);
           } else {
             console.log(
               "onended fired but not deemed a natural end (likely manual stop/skip). State should be handled elsewhere."
             );
-            // If stopped manually (pauseAudio) or skipped (setSelectedAudioId),
-            // those functions are responsible for setting isPlaying = false and currentTime.
-            // No action needed here for non-natural ends.
           }
         } else {
           console.log("onended fired but player was already stopped/paused or source node changed.");
@@ -1219,8 +1388,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         isPlaying: true,
         playbackStartTime: startTime,
         playbackOffset: data.offset,
-        duration: audioBuffer.duration, // Set the duration
+        duration: audioBuffer.duration,
+        preScheduledNext: null,
       }));
+
+      preloadNextAudioSource(audioSourceState.source.url);
+      // Pre-schedule next track for gapless transition
+      preScheduleNextTrack(audioSourceState.source.url, startTime, audioBuffer.duration, data.offset);
     },
 
     processSpatialConfig: (config: SpatialConfigType) => {
@@ -1249,6 +1423,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const state = get();
       const { sourceNode, audioContext } = getAudioPlayer(state);
 
+      cancelPreScheduledNext();
       const stopTime = audioContext.currentTime + data.when;
       sourceNode.stop(stopTime);
 
@@ -1323,7 +1498,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         console.log(
           `Skip to next: ${nextAudioId}. Was playing: ${wasPlayingBeforeSkip}, Is autoplay: ${isAutoplay}. Broadcasting play.`
         );
-        state.broadcastPlay(0); // Play next track from start
+        state.broadcastPlay(0, isAutoplay); // Play next track from start
       } else {
         console.log(
           `Skip to next: ${nextAudioId}. Was playing: ${wasPlayingBeforeSkip}, Is autoplay: ${isAutoplay}. Not broadcasting play.`
@@ -1509,6 +1684,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     resetStore: () => {
       const state = get();
 
+      cancelPreScheduledNext();
       // Stop any playing audio
       if (state.isPlaying && state.audioPlayer) {
         try {
