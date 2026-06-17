@@ -157,26 +157,66 @@ export const validateProbePair = (data: {
 // ── Offset estimation ──────────────────────────────────────────────
 
 /**
- * Estimate clock offset using min-RTT selection.
+ * Remove RTT outliers using the Interquartile Range (IQR) method.
+ * Measurements with RTT > Q3 + 1.5*IQR are discarded as network spikes.
+ * Returns at least 1 measurement (the min-RTT sample) even if all are "outliers".
+ */
+export const filterOutliersByIQR = (measurements: NTPMeasurement[]): NTPMeasurement[] => {
+  if (measurements.length < 4) return measurements;
+
+  const sorted = [...measurements].sort((a, b) => a.roundTripDelay - b.roundTripDelay);
+  const q1Index = Math.floor(sorted.length * 0.25);
+  const q3Index = Math.floor(sorted.length * 0.75);
+  const q1 = sorted[q1Index].roundTripDelay;
+  const q3 = sorted[q3Index].roundTripDelay;
+  const iqr = q3 - q1;
+  const upperFence = q3 + 1.5 * iqr;
+
+  const filtered = measurements.filter((m) => m.roundTripDelay <= upperFence);
+  // Always keep at least the min-RTT sample
+  return filtered.length > 0 ? filtered : [sorted[0]];
+};
+
+/**
+ * Estimate clock offset using IQR outlier rejection + bottom-quartile
+ * cluster averaging.
  *
- * Queuing delays can only ADD to RTT, never subtract. So the lowest-RTT
- * measurement is closest to the true propagation delay, and its offset
- * has the least asymmetric queuing contamination (RFC 5905 §10).
+ * Two-stage pipeline:
+ * 1. **IQR filter**: Discard measurements with RTT > Q3 + 1.5×IQR
+ *    (network spikes, GC pauses, TCP retransmits).
+ * 2. **Cluster average**: Sort remaining by RTT, take the bottom 25%
+ *    (min 2 samples), and average their offsets. Averaging the
+ *    lowest-RTT cluster reduces single-sample noise while still
+ *    exploiting the fact that queuing only adds to RTT (RFC 5905 §10).
+ *
+ * Compared to pure min-RTT selection this reduces offset variance by
+ * ~2–3× (σ/√k vs σ for k cluster members) while remaining robust to
+ * asymmetric path delays.
  */
 export const calculateOffsetEstimate = (measurements: NTPMeasurement[]) => {
-  let minRTT = Infinity;
-  let bestOffset = 0;
-  for (const m of measurements) {
-    if (m.roundTripDelay < minRTT) {
-      minRTT = m.roundTripDelay;
-      bestOffset = m.clockOffset;
-    }
+  if (measurements.length === 0) {
+    return { averageOffset: 0, averageRoundTrip: 0 };
   }
 
-  const totalRoundTrip = measurements.reduce((sum, m) => sum + m.roundTripDelay, 0);
-  const averageRoundTrip = measurements.length > 0 ? totalRoundTrip / measurements.length : 0;
+  // Stage 1: IQR outlier rejection
+  const clean = filterOutliersByIQR(measurements);
 
-  return { averageOffset: bestOffset, averageRoundTrip };
+  // Stage 2: Bottom-quartile cluster average
+  const sorted = [...clean].sort((a, b) => a.roundTripDelay - b.roundTripDelay);
+  const clusterSize = Math.max(2, Math.ceil(sorted.length * 0.25));
+  const cluster = sorted.slice(0, Math.min(clusterSize, sorted.length));
+
+  let offsetSum = 0;
+  for (const m of cluster) {
+    offsetSum += m.clockOffset;
+  }
+  const averageOffset = offsetSum / cluster.length;
+
+  // Average RTT is computed over the clean (non-outlier) set
+  const totalRoundTrip = clean.reduce((sum, m) => sum + m.roundTripDelay, 0);
+  const averageRoundTrip = totalRoundTrip / clean.length;
+
+  return { averageOffset, averageRoundTrip };
 };
 
 export const calculateWaitTimeMilliseconds = (targetServerTime: number, clockOffset: number): number => {
