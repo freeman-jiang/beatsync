@@ -33,12 +33,12 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
     const { uploadUrl, publicUrl } = presignedURLResponse.data;
 
     // Step 2: Upload directly to R2 using presigned URL
+    // Note: Do NOT include Content-Type header when using presigned URLs.
+    // The content type is already encoded in the presigned URL itself.
+    // Including it can cause R2 to reject the upload with a signature mismatch.
     const uploadResponse = await fetch(uploadUrl, {
       method: "PUT",
       body: data.file,
-      headers: {
-        "Content-Type": data.file.type,
-      },
     });
 
     if (!uploadResponse.ok) {
