@@ -124,6 +124,7 @@ interface GlobalStateValues {
   duration: number;
   volume: number;
   globalVolume: number; // Master volume (0-1)
+  syncVolume: boolean;
 
   // Tracking properties
   playbackStartTime: number;
@@ -202,6 +203,7 @@ interface GlobalState extends GlobalStateValues {
   getCurrentGainValue: () => number;
   getCurrentSpatialGainValue: () => number;
   setGlobalVolume: (volume: number) => void;
+  setSyncVolume: (syncVolume: boolean) => void;
   sendGlobalVolumeUpdate: (volume: number) => void;
   processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => void;
   applyFinalGain: (rampTime?: number) => void;
@@ -280,6 +282,7 @@ const initialState: GlobalStateValues = {
   duration: 0,
   volume: 0.5,
   globalVolume: 1.0, // Default 100%
+  syncVolume: true,
   reconnectionInfo: {
     isReconnecting: false,
     currentAttempt: 0,
@@ -1379,8 +1382,28 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       get().applyFinalGain();
     },
 
+    setSyncVolume: (syncVolume) => {
+      set({ syncVolume });
+      if (syncVolume) {
+        const state = get();
+        try {
+          const { socket } = getSocket(state);
+          sendWSRequest({
+            ws: socket,
+            request: { type: ClientActionEnum.enum.SYNC },
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    },
+
     sendGlobalVolumeUpdate: (volume) => {
       const state = get();
+      if (!state.syncVolume) {
+        get().setGlobalVolume(volume);
+        return;
+      }
       const { socket } = getSocket(state);
 
       sendWSRequest({
@@ -1393,6 +1416,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
     },
 
     processGlobalVolumeConfig: (config: GlobalVolumeConfigType) => {
+      if (!get().syncVolume) return;
       const { volume, rampTime } = config;
       set({ globalVolume: volume });
       get().applyFinalGain(rampTime);
