@@ -347,7 +347,27 @@ const getWaitTimeSeconds = (state: GlobalState, targetServerTime: number) => {
   return Math.max(0, (waitTimeMilliseconds - outputLatencyMs) / 1000);
 };
 
-const resolveAudioUrl = (url: string): string => (url.startsWith("/") ? `${getApiUrl()}${url}` : url);
+const resolveAudioUrl = (url: string): string => {
+  if (url.startsWith("/")) return `${getApiUrl()}${url}`;
+
+  // Local tracks may have been persisted while the host server was configured
+  // as localhost. On another device, localhost points to that device itself.
+  // Keep the path/filename stable but use the API origin that is already known
+  // to be reachable from this browser.
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.pathname.startsWith("/audio/local/") &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    ) {
+      return `${getApiUrl()}${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    // Let fetch surface the original invalid URL with its normal error.
+  }
+
+  return url;
+};
 
 const downloadBufferFromURL = async (data: { url: string; onProgress?: (loaded: number, total: number) => void }) => {
   const response = await fetch(resolveAudioUrl(data.url));
@@ -1479,16 +1499,20 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Update state immediately to show all sources (with idle states) and cleaned queue
       set({ audioSources: newAudioSources, bufferAccessQueue: newQueue });
 
-      // If currentAudioSource is provided from server, update selectedAudioUrl and start loading it
-      if (currentAudioSource) {
-        set({ selectedAudioUrl: currentAudioSource });
-        loadAudioSource(currentAudioSource);
+      // Keep the server's current source selected. For a room's first upload,
+      // select and load that first track so the main Play button is immediately usable.
+      const sourceToSelect =
+        currentAudioSource ??
+        (!state.selectedAudioUrl && newAudioSources.length > 0 ? newAudioSources[0].source.url : undefined);
+      if (sourceToSelect) {
+        set({ selectedAudioUrl: sourceToSelect });
+        void loadAudioSource(sourceToSelect);
       }
 
       // In demo mode, eagerly load remaining sources if sync is done.
       // In prod, sources load on-demand when the user selects them.
       if (IS_DEMO_MODE && get().isSynced) {
-        eagerLoadIdleSources({ skip: currentAudioSource });
+        eagerLoadIdleSources({ skip: sourceToSelect });
       }
 
       // Check if the currently selected/playing track was removed

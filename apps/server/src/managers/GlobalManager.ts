@@ -50,7 +50,7 @@ export class GlobalManager {
   deleteRoom(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (room) {
-      room.clearClientChangeBroadcast();
+      room.dispose();
       this.rooms.delete(roomId);
       console.log(`Room ${roomId} deleted from GlobalManager`);
     }

@@ -18,14 +18,19 @@ https://github.com/user-attachments/assets/2aa385a7-2a07-4ab5-80b1-fda553efc57b
 
 ## Quickstart
 
-This project uses [Turborepo](https://turbo.build/repo).
-
-Fill in the `.env` file in `apps/client` with the following:
+This project uses [Turborepo](https://turbo.build/repo). Create the client and server environment files from them included examples:
 
 ```sh
-NEXT_PUBLIC_API_URL=http://localhost:8080
-NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+cp apps/client/.env.example apps/client/.env
+cp apps/server/.env.example apps/server/.env
 ```
+
+The defaults run the client against `localhost:8080` and store uploads and room backups under `apps/server/data`.
+No S3 bucket is required when `STORAGE_MODE=local`. To use R2/S3 instead, set `STORAGE_MODE=s3` and fill in the
+`S3_*` variables in `apps/server/.env`.
+
+For access from other computers on the same network, replace `localhost` in both environment files with the server
+computer's LAN IP and ensure ports `3000` and `8080` are reachable.
 
 Run the following commands to start the server and client:
 

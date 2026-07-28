@@ -2,7 +2,7 @@
 
 import { uploadAudioFile } from "@/lib/api";
 import { cn, trimFileName } from "@/lib/utils";
-import { useCanMutate } from "@/store/global";
+import { useCanMutate, useGlobalStore } from "@/store/global";
 import { useRoomStore } from "@/store/room";
 import { CloudUpload, Plus } from "lucide-react";
 import { useState } from "react";
@@ -27,9 +27,16 @@ export const AudioUploaderMinimal = () => {
       setIsUploading(true);
 
       // Upload the file to the server as binary
-      await uploadAudioFile({
+      const result = await uploadAudioFile({
         file,
         roomId,
+      });
+
+      // Apply the authoritative queue from the HTTP response immediately.
+      // The WebSocket broadcast may arrive slightly later.
+      await useGlobalStore.getState().handleSetAudioSources({
+        type: "SET_AUDIO_SOURCES",
+        sources: result.sources,
       });
 
       setTimeout(() => setFileName(null), 3000);

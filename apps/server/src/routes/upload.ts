@@ -45,8 +45,16 @@ export const handleGetPresignedURL = async (req: Request) => {
     const r2Key = createKey(roomId, uniqueFileName);
 
     // Generate presigned URL for upload
-    const uploadUrl = await generatePresignedUploadUrl(roomId, uniqueFileName, contentType);
-    const publicUrl = getPublicAudioUrl(roomId, uniqueFileName);
+    const uploadUrl = await generatePresignedUploadUrl(
+      roomId,
+      uniqueFileName,
+      contentType,
+      3600,
+      new URL(req.url).origin
+    );
+    // In local mode, advertise the same LAN-reachable origin the client used
+    // rather than a potentially stale localhost value from server configuration.
+    const publicUrl = getPublicAudioUrl(roomId, uniqueFileName, new URL(req.url).origin);
 
     console.log(`Generated presigned URL for upload - R2 key: (${r2Key})`);
 
@@ -101,7 +109,7 @@ export const handleUploadComplete = async (req: Request, server: BunServer) => {
       },
     });
 
-    const response: UploadCompleteResponseType = { success: true };
+    const response: UploadCompleteResponseType = { success: true, sources };
     return jsonResponse(response);
   } catch (error) {
     console.error("Error confirming upload:", error);

@@ -52,15 +52,30 @@ export const uploadAudioFile = async (data: { file: File; roomId: string }) => {
       publicUrl,
     };
 
-    await baseAxios.post<UploadCompleteResponseType>("/upload/complete", uploadCompleteRequest);
+    const uploadCompleteResponse = await baseAxios.post<UploadCompleteResponseType>(
+      "/upload/complete",
+      uploadCompleteRequest
+    );
 
     return {
       success: true,
       publicUrl,
+      sources: uploadCompleteResponse.data.sources,
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || "Failed to upload audio file");
+      const responseData: unknown = error.response?.data;
+      const serverMessage =
+        typeof responseData === "string"
+          ? responseData
+          : responseData &&
+              typeof responseData === "object" &&
+              "message" in responseData &&
+              typeof responseData.message === "string"
+            ? responseData.message
+            : null;
+
+      throw new Error(serverMessage || "Failed to upload audio file");
     }
     throw error;
   }

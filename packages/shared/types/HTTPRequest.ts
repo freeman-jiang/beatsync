@@ -41,6 +41,7 @@ export type UploadCompleteType = z.infer<typeof UploadCompleteSchema>;
 // Upload Complete Response
 export const UploadCompleteResponseSchema = z.object({
   success: z.boolean(),
+  sources: z.array(AudioSourceSchema),
 });
 export type UploadCompleteResponseType = z.infer<
   typeof UploadCompleteResponseSchema

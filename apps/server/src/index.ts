@@ -8,6 +8,7 @@ import { handleHealth } from "@/routes/health";
 import { handleRoot } from "@/routes/root";
 import { handleStats } from "@/routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "@/routes/upload";
+import { serveLocalAudio, storeLocalUpload } from "@/lib/r2";
 import { handleWebSocketUpgrade } from "@/routes/websocket";
 import { handleClose, handleMessage, handleOpen } from "@/routes/websocketHandlers";
 import { corsHeaders, errorResponse } from "@/utils/responses";
@@ -32,6 +33,21 @@ const server = Bun.serve<WSData>({
       // Demo mode: serve local audio files
       if (IS_DEMO_MODE && url.pathname.startsWith("/audio/")) {
         response = handleServeAudio(url.pathname);
+      } else if (url.pathname.startsWith("/upload/local/") && req.method === "PUT") {
+        const [, , , roomId, fileName] = url.pathname.split("/");
+        if (!roomId || !fileName) {
+          response = errorResponse("Invalid local upload path", 400);
+        } else {
+          await storeLocalUpload(decodeURIComponent(roomId), decodeURIComponent(fileName), req);
+          response = new Response(null, { status: 204, headers: corsHeaders });
+        }
+      } else if (url.pathname.startsWith("/audio/local/") && req.method === "GET") {
+        const [, , , roomSegment, fileName] = url.pathname.split("/");
+        const roomId = roomSegment?.startsWith("room-") ? roomSegment.slice(5) : "";
+        response =
+          roomId && fileName
+            ? await serveLocalAudio(decodeURIComponent(roomId), decodeURIComponent(fileName))
+            : errorResponse("Invalid local audio path", 400);
       } else {
         switch (url.pathname) {
           case "/":

@@ -42,7 +42,7 @@ The server uses a manager pattern with in-memory state (no database):
 - **`GlobalManager`** (singleton): Manages all rooms. Accessed via `GlobalManager.rooms`. Caches active user count with dirty flag.
 - **`RoomManager`** (per-room): Owns clients, audio sources, playback state, spatial audio config, chat. Handles audio loading coordination and synchronized play scheduling.
 - **`ChatManager`** (per-room, owned by RoomManager): Message history with incremental IDs.
-- **`BackupManager`** (singleton): Periodic state backup/restore to R2 (every 60s). Restores on startup.
+- **`BackupManager`** (singleton): Periodic state backup/restore to the configured local or S3-compatible storage backend (every 60s). Restores on startup.
 - **`MusicProviderManager`**: External music search and streaming integration.
 
 ### WebSocket Protocol
@@ -71,14 +71,14 @@ NTP-inspired protocol for millisecond-accurate cross-device playback:
 
 ### Audio Pipeline
 
-Three-step upload flow (client uploads directly to R2, no server bandwidth used):
-1. `POST /upload/get-presigned-url` → server generates presigned R2 PUT URL
-2. Client PUTs file directly to R2
+Three-step upload flow:
+1. `POST /upload/get-presigned-url` → server returns an S3/R2 presigned URL or local server upload URL
+2. Client PUTs the file directly to the selected storage endpoint
 3. `POST /upload/complete` → server adds to room's audio sources, broadcasts update
 
-R2 key structure: `room-{roomId}/{sanitized-name}☆{timestamp}.{ext}`
+Storage key structure: `room-{roomId}/{sanitized-name}☆{timestamp}.{ext}`
 
-Utilities: `apps/server/src/lib/r2.ts` (presigned URLs, public URLs, batch delete, orphan cleanup), `apps/server/src/utils/responses.ts` (CORS headers, error/success response helpers).
+Utilities: `apps/server/src/lib/r2.ts` (local and S3-compatible storage, upload/public URLs, listing, validation, deletion, and backups), `apps/server/src/utils/responses.ts` (CORS headers, error/success response helpers).
 
 ### Client State Management
 
@@ -102,14 +102,23 @@ Grid-based positioning system where clients are placed on a grid. A "listening s
 
 ## Environment Setup
 
-`apps/client/.env`:
+Copy `apps/client/.env.example` to `apps/client/.env`:
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8080
-NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+NETWORK=localhost
+NEXT_PUBLIC_API_URL="http://${NETWORK}:8080"
+NEXT_PUBLIC_WS_URL="ws://${NETWORK}:8080/ws"
 ```
 
-`apps/server/.env`:
+Copy `apps/server/.env.example` to `apps/server/.env`. Local storage is the default and requires no S3 credentials:
 ```
+STORAGE_MODE=local
+LOCAL_STORAGE_PATH=./data
+LOCAL_PUBLIC_URL=http://localhost:8080
+```
+
+For R2/S3-compatible storage:
+```
+STORAGE_MODE=s3
 S3_BUCKET_NAME=
 S3_PUBLIC_URL=
 S3_ENDPOINT=
@@ -117,11 +126,14 @@ S3_ACCESS_KEY_ID=
 S3_SECRET_ACCESS_KEY=
 ```
 
+For LAN access, set `NETWORK` and `LOCAL_PUBLIC_URL` to the host computer's LAN IP. Runtime files under
+`LOCAL_STORAGE_PATH` must be kept on persistent storage in disposable deployments.
+
 ## Deployment
 
 - **Docker**: Multi-stage build with `oven/bun:1`. Exposes port 8080. Entry: `bun start`.
 - **PM2**: Config in `pm2.config.js`. Process name: `beatsync-server`.
-- Server has graceful shutdown (SIGTERM/SIGINT) that backs up state to R2 before exit.
+- Server has graceful shutdown (SIGTERM/SIGINT) that backs up state to the configured storage backend before exit.
 
 ## Development Notes
 
@@ -129,6 +141,6 @@ S3_SECRET_ACCESS_KEY=
 - Only test non-obvious behavior whose failure would be silent in dev and expensive in prod — no trivial/"doesn't crash" tests
 - Server uses native `Bun.serve()` with URL pathname switch routing (not Hono's router)
 - Room IDs are 6-digit codes
-- Room cleanup: 60s after last client disconnects, room is deleted (including its R2 uploads — intentional)
+- Room cleanup: 60s after last client disconnects, room is deleted, including its local or S3-compatible uploads
 - Admin auto-promotion: if last admin leaves, the most recently seen client is promoted
 - Client liveness: server sends `LIVENESS_PING` after 15s of silence; clients reply `LIVENESS_PONG` from `onmessage` (immune to background-tab timer throttling); silent for 60s → terminated and removed
