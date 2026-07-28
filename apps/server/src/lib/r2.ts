@@ -10,9 +10,15 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { R2_AUDIO_FILE_NAME_DELIMITER } from "@beatsync/shared";
 import { config } from "dotenv";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
+import { dirname, relative, resolve, sep } from "node:path";
 import sanitize from "sanitize-filename";
 
 config();
+
+const STORAGE_MODE = process.env.STORAGE_MODE === "local" ? "local" : "s3";
+const LOCAL_STORAGE_ROOT = resolve(process.env.LOCAL_STORAGE_PATH ?? "./data");
+const LOCAL_PUBLIC_URL = (process.env.LOCAL_PUBLIC_URL ?? "http://localhost:8080").replace(/\/$/, "");
 
 const S3_CONFIG = {
   BUCKET_NAME: process.env.S3_BUCKET_NAME!,
@@ -21,6 +27,43 @@ const S3_CONFIG = {
   ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID!,
   SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY!,
 };
+
+function localPath(key: string): string {
+  const target = resolve(LOCAL_STORAGE_ROOT, key);
+  if (target !== LOCAL_STORAGE_ROOT && !target.startsWith(`${LOCAL_STORAGE_ROOT}${sep}`)) {
+    throw new Error("Invalid local storage key");
+  }
+  return target;
+}
+
+async function writeLocal(key: string, body: Uint8Array | ArrayBuffer | string): Promise<void> {
+  const target = localPath(key);
+  await mkdir(dirname(target), { recursive: true });
+  await Bun.write(target, body);
+}
+
+async function listLocalFiles(directory = LOCAL_STORAGE_ROOT): Promise<{ Key: string; Size: number }[]> {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const files = await Promise.all(
+      entries.map(async (entry) => {
+        const entryPath = resolve(directory, entry.name);
+        if (entry.isDirectory()) return listLocalFiles(entryPath);
+        if (!entry.isFile()) return [];
+        const info = await stat(entryPath);
+        return [{ Key: relative(LOCAL_STORAGE_ROOT, entryPath).split(sep).join("/"), Size: info.size }];
+      })
+    );
+    return files.flat();
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+export function isLocalStorageMode(): boolean {
+  return STORAGE_MODE === "local";
+}
 
 const r2Client = new S3Client({
   region: "auto",
@@ -54,8 +97,14 @@ export async function generatePresignedUploadUrl(
   roomId: string,
   fileName: string,
   contentType: string,
-  expiresIn = 3600 // 1 hour
+  expiresIn = 3600, // 1 hour
+  requestOrigin?: string
 ): Promise<string> {
+  if (isLocalStorageMode()) {
+    const origin = (requestOrigin ?? LOCAL_PUBLIC_URL).replace(/\/$/, "");
+    return `${origin}/upload/local/${encodeURIComponent(roomId)}/${encodeURIComponent(fileName)}`;
+  }
+
   const key = createKey(roomId, fileName);
 
   const command = new PutObjectCommand({
@@ -74,10 +123,32 @@ export async function generatePresignedUploadUrl(
 /**
  * Get the public URL for an audio file (if public access is enabled)
  */
-export function getPublicAudioUrl(roomId: string, fileName: string): string {
+export function getPublicAudioUrl(roomId: string, fileName: string, requestOrigin?: string): string {
   // URL encode the filename to handle special characters like #, ?, &, etc.
   const encodedFileName = encodeURIComponent(fileName);
+  if (isLocalStorageMode()) {
+    const origin = (requestOrigin ?? LOCAL_PUBLIC_URL).replace(/\/$/, "");
+    return `${origin}/audio/local/room-${encodeURIComponent(roomId)}/${encodedFileName}`;
+  }
   return `${S3_CONFIG.PUBLIC_URL}/room-${roomId}/${encodedFileName}`;
+}
+
+export async function storeLocalUpload(roomId: string, fileName: string, req: Request): Promise<void> {
+  if (!isLocalStorageMode()) throw new Error("Local storage mode is disabled");
+  await writeLocal(createKey(roomId, fileName), await req.arrayBuffer());
+}
+
+export async function serveLocalAudio(roomId: string, fileName: string): Promise<Response> {
+  if (!isLocalStorageMode()) return new Response("Not found", { status: 404 });
+  const file = Bun.file(localPath(createKey(roomId, fileName)));
+  if (!(await file.exists())) return new Response("Not found", { status: 404 });
+  return new Response(file, {
+    headers: {
+      "Content-Type": file.type || "audio/mpeg",
+      "Accept-Ranges": "bytes",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 }
 
 /**
@@ -115,6 +186,14 @@ export function extractKeyFromUrl(url: string): string | null {
  */
 export async function validateAudioFileExists(audioUrl: string): Promise<boolean> {
   try {
+    if (isLocalStorageMode()) {
+      const url = new URL(audioUrl);
+      const prefix = "/audio/local/";
+      if (!url.pathname.startsWith(prefix)) return false;
+      const key = decodeURIComponent(url.pathname.slice(prefix.length));
+      return await Bun.file(localPath(key)).exists();
+    }
+
     // Extract the key from the public URL
     const key = extractKeyFromUrl(audioUrl);
 
@@ -176,6 +255,10 @@ export function generateAudioFileName(originalName: string): string {
  * Validate R2 configuration
  */
 export function validateR2Config(): { isValid: boolean; errors: string[] } {
+  if (isLocalStorageMode()) {
+    return { isValid: true, errors: [] };
+  }
+
   const errors: string[] = [];
 
   for (const [key, value] of Object.entries(S3_CONFIG)) {
@@ -197,6 +280,11 @@ export function validateR2Config(): { isValid: boolean; errors: string[] } {
  * @param options.includeFolders Whether to include folder objects (0-byte objects ending with '/') - default false
  */
 export async function listObjectsWithPrefix(prefix: string, options: { includeFolders?: boolean } = {}) {
+  if (isLocalStorageMode()) {
+    const files = await listLocalFiles();
+    return files.filter((file) => file.Key.startsWith(prefix));
+  }
+
   try {
     const listCommand = new ListObjectsV2Command({
       Bucket: S3_CONFIG.BUCKET_NAME,
@@ -281,6 +369,13 @@ async function deleteIndividualObjects(
  * Tries batch delete first, falls back to individual deletes for GCS compatibility
  */
 export async function deleteObjectsWithPrefix(prefix = ""): Promise<{ deletedCount: number }> {
+  if (isLocalStorageMode()) {
+    const objects = await listLocalFiles();
+    const matching = objects.filter((object) => object.Key.startsWith(prefix));
+    await Promise.all(matching.map((object) => rm(localPath(object.Key), { force: true })));
+    return { deletedCount: matching.length };
+  }
+
   try {
     const objects = await listObjectsWithPrefix(prefix, {
       includeFolders: true,
@@ -353,6 +448,11 @@ export async function uploadFile(filePath: string, roomId: string, fileName: str
   const file = Bun.file(filePath);
   const buffer = await file.arrayBuffer();
 
+  if (isLocalStorageMode()) {
+    await writeLocal(key, buffer);
+    return getPublicAudioUrl(roomId, fileName);
+  }
+
   // Upload to R2
   const command = new PutObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
@@ -381,6 +481,11 @@ export async function uploadBytes(
   // Convert ArrayBuffer to Uint8Array if needed
   const body = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
 
+  if (isLocalStorageMode()) {
+    await writeLocal(key, body);
+    return getPublicAudioUrl(roomId, fileName);
+  }
+
   // Upload to R2
   const command = new PutObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
@@ -401,6 +506,11 @@ export async function uploadBytes(
 export async function uploadJSON(key: string, data: object): Promise<void> {
   const jsonData = JSON.stringify(data, null, 2);
 
+  if (isLocalStorageMode()) {
+    await writeLocal(key, jsonData);
+    return;
+  }
+
   const command = new PutObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
     Key: key,
@@ -416,6 +526,12 @@ export async function uploadJSON(key: string, data: object): Promise<void> {
  */
 export async function downloadJSON<T = unknown>(key: string): Promise<T | null> {
   try {
+    if (isLocalStorageMode()) {
+      const file = Bun.file(localPath(key));
+      if (!(await file.exists())) return null;
+      return (await file.json()) as T;
+    }
+
     const command = new GetObjectCommand({
       Bucket: S3_CONFIG.BUCKET_NAME,
       Key: key,
@@ -459,6 +575,11 @@ export async function getLatestFileWithPrefix(prefix: string): Promise<string | 
  * Delete a single object from R2
  */
 export async function deleteObject(key: string): Promise<void> {
+  if (isLocalStorageMode()) {
+    await rm(localPath(key), { force: true });
+    return;
+  }
+
   const command = new DeleteObjectCommand({
     Bucket: S3_CONFIG.BUCKET_NAME,
     Key: key,

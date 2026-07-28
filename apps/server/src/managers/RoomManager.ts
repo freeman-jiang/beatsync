@@ -1030,6 +1030,19 @@ export class RoomManager {
     this.pendingClientChangeCb = undefined;
   }
 
+  /**
+   * Stop all timers and deferred work owned by this room.
+   * Call when removing the room from GlobalManager, including direct test cleanup.
+   */
+  dispose(): void {
+    this.cancelCleanup();
+    this.clearClientChangeBroadcast();
+    this.debouncedAudioReady.cancel();
+    this.clearAudioLoadingState();
+    this.stopSpatialAudio();
+    this.stopHeartbeatChecking();
+  }
+
   private flushAudioReadyBroadcast(): void {
     if (!this.serverRef) return;
     sendBroadcast({

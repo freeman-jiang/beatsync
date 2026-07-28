@@ -209,10 +209,10 @@ export const Player = () => {
           <button
             className={cn(
               "bg-white text-black rounded-full p-3 md:p-2 hover:scale-105 transition-transform cursor-pointer duration-200 focus:outline-none",
-              !canMutate && "opacity-50 cursor-not-allowed"
+              (!canMutate || audioSourceCount === 0) && "opacity-50 cursor-not-allowed"
             )}
             onClick={handlePlay}
-            disabled={!canMutate}
+            disabled={!canMutate || audioSourceCount === 0}
           >
             {isPlaying ? (
               <Pause className="w-5 h-5 md:w-4 md:h-4 fill-current stroke-1" />
