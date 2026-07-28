@@ -2,7 +2,22 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Create the client environment file:
+
+```bash
+cp .env.example .env
+```
+
+The example configures the backend endpoints through a shared host:
+
+```env
+NETWORK=localhost
+NEXT_PUBLIC_API_URL="http://${NETWORK}:8080"
+NEXT_PUBLIC_WS_URL="ws://${NETWORK}:8080/ws"
+```
+
+Set `NETWORK` to the backend computer's LAN IP when opening the client from another device. Then run the development
+server:
 
 ```bash
 npm run dev
