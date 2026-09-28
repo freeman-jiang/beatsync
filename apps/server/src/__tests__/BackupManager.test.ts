@@ -42,6 +42,13 @@ describe("BackupManager (Simplified Tests)", () => {
       });
     });
 
+    it("should include the configured global volume in the backup", () => {
+      const room = globalManager.getOrCreateRoom("volume-test");
+      room.restoreGlobalVolume(0.3);
+
+      expect(room.createBackup().globalVolume).toBe(0.3);
+    });
+
     it("should restore rooms and audio sources correctly", () => {
       // Create initial state
       const room = globalManager.getOrCreateRoom("restore-test");
