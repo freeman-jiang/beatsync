@@ -52,6 +52,8 @@ export class BackupManager {
         (source) => source.url === roomData.playbackState.audioSource
       );
 
+      room.restoreGlobalVolume(roomData.globalVolume);
+
       if (playbackStateIsValidTrack) {
         room.restorePlaybackState(roomData.playbackState);
       } else if (roomData.playbackState.type === "playing") {

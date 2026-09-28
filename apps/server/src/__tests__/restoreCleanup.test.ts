@@ -23,7 +23,7 @@ mockR2({
             },
           ],
           audioSources: [{ url: "test.mp3" }],
-          globalVolume: 1,
+          globalVolume: 0.3,
           playbackState: {
             type: "paused",
             audioSource: "",
@@ -86,6 +86,11 @@ describe("Restore Cleanup", () => {
     // Verify audio sources were restored
     expect(room1.getState().audioSources.length).toBe(1);
     expect(room2.getState().audioSources.length).toBe(0);
+
+    // Regression: restored rooms must retain their saved volume instead of
+    // falling back to RoomManager's default of 100%.
+    expect(room1.getState().globalVolume).toBe(0.3);
+    expect(room2.getState().globalVolume).toBe(1);
   });
 
   it("should cancel cleanup when a real client connects to restored room", async () => {
