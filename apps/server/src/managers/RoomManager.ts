@@ -1184,6 +1184,10 @@ export class RoomManager {
     this.playbackState = playbackState;
   }
 
+  restoreGlobalVolume(volume: number): void {
+    this.globalVolume = Math.max(0, Math.min(1, volume));
+  }
+
   /**
    * Restore chat history from backup
    */
